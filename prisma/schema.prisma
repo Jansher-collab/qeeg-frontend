@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ADMIN
+  PRACTITIONER
+  PATIENT
+}
+
+enum ReportStatus {
+  PENDING_RELIABILITY
+  RELIABILITY_REJECTED
+  PAYMENT_AUTHORISED
+  GENERATING
+  COMPLETED
+  DOWNLOADED_AND_PURGED
+}
+
+enum PaymentStatus {
+  NOT_STARTED
+  AUTHORISED
+  CAPTURED
+  VOIDED
+  FAILED
+}
+
+model User {
+  id                  String               @id @default(uuid())
+  email               String               @unique
+  passwordHash        String
+  role                UserRole             @default(PRACTITIONER)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  practitionerProfile PractitionerProfile?
+  reports             QeeqReport[]         @relation("SubmittingPractitioner")
+  activityLogs        ActivityLog[]
+}
+
+model PractitionerProfile {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clinicName    String?
+  licenseNumber String?
+  phone         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model QeeqReport {
+  id                     String        @id @default(uuid())
+  caseReference          String
+  status                 ReportStatus  @default(PENDING_RELIABILITY)
+  confidenceScore        Float?
+  reliabilityScore       Float?
+  filePaths              Json?
+  age                    Float?
+  gender                 String?
+  handedness             String?
+  tovaData               Json?
+  checklistData          Json?
+  findings               Json?
+  reportSummary          String?
+  paypalAuthorizationId  String?
+  paypalCaptureId        String?
+  feeAmount              Float         @default(65.0)
+  paymentStatus          PaymentStatus @default(NOT_STARTED)
+  submittingPractitionerId String
+  submittingPractitioner User          @relation("SubmittingPractitioner", fields: [submittingPractitionerId], references: [id])
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+  downloadedAt           DateTime?
+  purgedAt               DateTime?
+  activityLogs           ActivityLog[]
+
+  @@index([submittingPractitionerId])
+  @@index([caseReference])
+}
+
+model SystemSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+model ActivityLog {
+  id            String      @id @default(uuid())
+  reportId      String?
+  report        QeeqReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  caseReference String?
+  userId        String?
+  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action        String
+  details       Json?
+  ipAddress     String?
+  timestamp     DateTime    @default(now())
+
+  @@index([reportId])
+  @@index([userId])
+}
