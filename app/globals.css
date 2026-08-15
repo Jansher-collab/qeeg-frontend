@@ -7,9 +7,13 @@
     --color-navy-medium: #1C2F4A;
     --color-emerald-primary: #10B981;
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
-/* Zero AI look - Minimal clean utility classes */
+/* Minimal clean utility classes */
 .bg-navy-dark {
   background-color: #16233B;
 }
@@ -37,10 +41,12 @@
 /* Subtle clean card shadow */
 .card-clean-shadow {
   box-shadow: 0 2px 10px rgba(22, 35, 59, 0.04), 0 1px 3px rgba(22, 35, 59, 0.02);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .card-clean-shadow:hover {
-  box-shadow: 0 8px 24px rgba(22, 35, 59, 0.08);
+  box-shadow: 0 12px 30px rgba(22, 35, 59, 0.09);
+  transform: translateY(-3px);
 }
 
 /* Smooth custom scrollbar */

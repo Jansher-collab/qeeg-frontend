@@ -1,0 +1,39 @@
+<svg viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Outer circle accent -->
+  <circle cx="200" cy="200" r="160" stroke="#334155" stroke-width="2" stroke-dasharray="6 6" />
+
+  <!-- Stethoscope Tubing Outer Loop -->
+  <path d="M 120 180 C 70 230 70 330 180 340 C 290 330 330 250 280 180" stroke="#94A3B8" stroke-width="5" stroke-linecap="round" />
+
+  <!-- Left Brain Hemisphere (Blue Spectrum) -->
+  <path d="M 195 100 C 140 100 100 135 100 180 C 100 210 115 235 130 255 C 145 275 170 285 195 285 Z" fill="#0284C7" opacity="0.95" />
+  <path d="M 195 100 C 160 115 125 150 125 185 C 125 220 155 250 195 285 Z" fill="#38BDF8" opacity="0.8" />
+
+  <!-- Right Brain Hemisphere (Orange Spectrum) -->
+  <path d="M 205 100 C 260 100 300 135 300 180 C 300 210 285 235 270 255 C 255 275 230 285 205 285 Z" fill="#EA580C" opacity="0.95" />
+  <path d="M 205 100 C 240 115 275 150 275 185 C 275 220 245 250 205 285 Z" fill="#FB923C" opacity="0.8" />
+
+  <!-- Center Division Line -->
+  <line x1="200" y1="95" x2="200" y2="290" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" />
+
+  <!-- Stethoscope Chest Piece / Center Sensor -->
+  <circle cx="200" cy="200" r="22" fill="#1E293B" stroke="#FFFFFF" stroke-width="3.5" />
+  <circle cx="200" cy="200" r="14" fill="#38BDF8" />
+  <circle cx="200" cy="200" r="6" fill="#FFFFFF" />
+
+  <!-- Electrode Mapping Sensor Nodes -->
+  <circle cx="145" cy="140" r="6" fill="#FFFFFF" stroke="#0284C7" stroke-width="3" />
+  <circle cx="130" cy="190" r="6" fill="#FFFFFF" stroke="#0284C7" stroke-width="3" />
+  <circle cx="160" cy="235" r="6" fill="#FFFFFF" stroke="#0284C7" stroke-width="3" />
+  <circle cx="255" cy="140" r="6" fill="#FFFFFF" stroke="#EA580C" stroke-width="3" />
+  <circle cx="270" cy="190" r="6" fill="#FFFFFF" stroke="#EA580C" stroke-width="3" />
+  <circle cx="240" cy="235" r="6" fill="#FFFFFF" stroke="#EA580C" stroke-width="3" />
+
+  <!-- Clinical Line Graphics -->
+  <circle cx="85" cy="115" r="12" stroke="#94A3B8" stroke-width="2.5" />
+  <circle cx="115" cy="115" r="12" stroke="#94A3B8" stroke-width="2.5" />
+  <line x1="97" y1="115" x2="103" y2="115" stroke="#94A3B8" stroke-width="2.5" />
+  <path d="M 290 100 L 320 70 M 310 60 L 330 80" stroke="#94A3B8" stroke-width="2.5" stroke-linecap="round" />
+  <rect x="290" y="290" width="40" height="30" rx="4" stroke="#94A3B8" stroke-width="2.5" fill="#0F172A" />
+  <path d="M 298 312 L 308 302 L 316 308 L 324 298" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" />
+</svg>
