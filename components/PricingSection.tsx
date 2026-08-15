@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, ArrowRight } from "lucide-react";
 
 export default function PricingSection() {
   const features = [
@@ -69,7 +69,7 @@ export default function PricingSection() {
                 className="w-full py-3.5 px-5 text-sm font-semibold text-white bg-[#182638] hover:bg-[#111A27] rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2 group/btn"
               >
                 <span>Create your free account</span>
-                <span className="group-hover/btn:translate-x-1 transition-transform duration-200">→</span>
+                <ArrowRight className="w-4 h-4 text-white group-hover/btn:translate-x-1 transition-transform duration-200" />
               </Link>
               <div className="mt-3.5 text-center text-xs text-slate-500 flex items-center justify-center gap-1.5 font-normal">
                 <ShieldCheck className="w-4 h-4 text-slate-500" />

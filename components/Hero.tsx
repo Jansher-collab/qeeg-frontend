@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Activity } from "lucide-react";
+import { Activity, ArrowRight } from "lucide-react";
 
 export default function Hero() {
   return (
@@ -20,7 +20,7 @@ export default function Hero() {
               <span className="text-white">evidence-linked answers.</span>
             </h1>
 
-            {/* Lede Description (Zero em-dashes or underscores) */}
+            {/* Lede Description */}
             <p className="mt-6 text-base sm:text-lg text-slate-300 leading-relaxed font-normal max-w-xl">
               Upload your client&apos;s QEEG, TOVA, and symptom checklist. A{" "}
               <strong className="text-white font-medium">
@@ -44,19 +44,8 @@ export default function Hero() {
                 className="px-6 py-3.5 text-sm font-medium text-slate-200 hover:text-white bg-transparent hover:bg-slate-800/70 border border-slate-600/80 hover:border-slate-400 rounded-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center gap-2 group"
               >
                 <span>See how it works</span>
-                <span className="text-slate-400 group-hover:translate-x-1 group-hover:text-white transition-transform duration-200">
-                  →
-                </span>
+                <ArrowRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 group-hover:text-white transition-all duration-200" />
               </Link>
-            </div>
-
-            {/* Trust & Compliance Markers */}
-            <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-medium text-slate-400">
-              <span>AHPRA-conscious reporting</span>
-              <span className="text-slate-600">·</span>
-              <span>No monthly subscription fee</span>
-              <span className="text-slate-600">·</span>
-              <span>Purged upon download</span>
             </div>
           </div>
 

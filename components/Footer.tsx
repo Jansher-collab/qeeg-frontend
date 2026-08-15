@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { Mail, MapPin, ShieldAlert } from "lucide-react";
+import { Mail, MapPin } from "lucide-react";
 
 export default function Footer() {
   return (
     <footer className="bg-[#16233B] text-slate-300 pt-16 pb-12 text-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* 4-Column Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 pb-12 border-b border-slate-700/60">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 pb-10 border-b border-slate-700/60">
           {/* Column 1: Brand & Nav Links */}
           <div className="flex flex-col gap-3.5">
             <Link href="/" className="flex items-center gap-2">
@@ -113,17 +113,6 @@ export default function Footer() {
                 <span>Sydney Infrastructure and Review Desk</span>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Bottom Mandatory Legal Disclaimer Box */}
-        <div className="mt-8 pt-2">
-          <div className="bg-[#1C2F4A] rounded-2xl p-5 border border-slate-700/50 flex items-start gap-3 w-full">
-            <ShieldAlert className="w-4.5 h-4.5 text-amber-400 shrink-0 mt-0.5" />
-            <p className="text-xs text-slate-300 leading-relaxed font-normal">
-              <strong className="text-white font-medium">Clinical Scope Disclaimer:</strong>{" "}
-              QEEG.com.au reports present research correlations between QEEG, TOVA, and reported symptoms for the referring practitioner&apos;s own clinical consideration. Reports do not constitute a diagnosis or a clinical recommendation.
-            </p>
           </div>
         </div>
 

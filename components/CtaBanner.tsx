@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
 export default function CtaBanner() {
   return (
@@ -23,7 +24,7 @@ export default function CtaBanner() {
               className="px-8 py-4 text-sm font-semibold text-white bg-[#182638] hover:bg-[#111A27] rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center gap-2 group"
             >
               <span>Create your free account</span>
-              <span className="group-hover:translate-x-1.5 transition-transform duration-200">→</span>
+              <ArrowRight className="w-4 h-4 text-white group-hover:translate-x-1.5 transition-transform duration-200" />
             </Link>
           </div>
 

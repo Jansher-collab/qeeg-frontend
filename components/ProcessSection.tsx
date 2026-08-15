@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { UserPlus, UploadCloud, SearchCheck, Download, ShieldCheck } from "lucide-react";
 
 export default function ProcessSection() {
@@ -9,7 +8,7 @@ export default function ProcessSection() {
       title: "Create your account",
       description:
         "Free registration, and your referring details pre-fill every checklist after that.",
-      iconBg: "bg-orange-50 text-orange-500 border-orange-100 group-hover:bg-orange-100/80",
+      iconBg: "bg-orange-50 text-orange-500 border border-orange-100",
     },
     {
       number: "2",
@@ -17,7 +16,7 @@ export default function ProcessSection() {
       title: "Upload the files",
       description:
         "QEEG, TOVA, and the completed symptom checklist, through your secure portal.",
-      iconBg: "bg-blue-50 text-blue-500 border-blue-100 group-hover:bg-blue-100/80",
+      iconBg: "bg-emerald-50 text-emerald-600 border border-emerald-100",
     },
     {
       number: "3",
@@ -25,7 +24,7 @@ export default function ProcessSection() {
       title: "We review it",
       description:
         "Checked against the literature, then confirmed by a Clinical Neuroscientist.",
-      iconBg: "bg-emerald-50 text-emerald-600 border-emerald-100 group-hover:bg-emerald-100/80",
+      iconBg: "bg-sky-50 text-sky-500 border border-sky-100",
     },
     {
       number: "4",
@@ -33,93 +32,102 @@ export default function ProcessSection() {
       title: "Download your report",
       description:
         "A secure link, ready when approved. Save your download, as files are purged from our servers.",
-      iconBg: "bg-rose-50 text-rose-500 border-rose-100 group-hover:bg-rose-100/80",
+      iconBg: "bg-rose-50 text-rose-500 border border-rose-100",
     },
   ];
 
   return (
-    <section id="how-it-works" className="py-16 sm:py-24 bg-white relative overflow-hidden">
+    <section id="how-it-works" className="py-20 sm:py-28 bg-[#F4F7F9]/60 relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        {/* Section Header */}
-        <div className="max-w-3xl mb-14">
-          <div className="text-[11px] font-semibold tracking-[0.22em] text-slate-500 uppercase mb-3 font-sans">
-            THE PROCESS
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14 items-center">
+          {/* Left Column: Heading & Description matching screenshot */}
+          <div className="lg:col-span-5 flex flex-col items-start">
+            <div className="text-[11px] font-semibold tracking-[0.22em] text-slate-500 uppercase mb-3 font-sans">
+              THE PROCESS
+            </div>
+
+            <h2 className="text-3xl sm:text-4xl lg:text-[42px] font-serif font-normal text-[#16233B] leading-tight tracking-tight mb-5">
+              Four steps, from account to report
+            </h2>
+
+            <p className="text-slate-600 text-sm sm:text-base leading-relaxed font-normal max-w-md">
+              The full process includes a reliability gate and review queue, providing a seamless workflow from your side.
+            </p>
+
+            {/* Clean Reliability Gate Protection Box */}
+            <div className="mt-8 rounded-2xl bg-white border border-slate-200 p-5 shadow-xs flex items-start gap-4">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0 mt-0.5">
+                <ShieldCheck className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div>
+                <h4 className="text-xs font-semibold text-[#16233B] uppercase tracking-wider">
+                  Reliability Gate Included
+                </h4>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Server-side Test and Retest reliability verification ensures each file satisfies the <strong>&gt;= 0.80</strong> threshold before clinical review.
+                </p>
+              </div>
+            </div>
           </div>
 
-          <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-serif font-normal text-[#16233B] leading-tight tracking-tight">
-            Four steps, from account to report
-          </h2>
-
-          <p className="mt-4 text-slate-600 text-sm sm:text-base leading-relaxed max-w-2xl font-normal">
-            The full process includes a reliability gate and review queue, providing a seamless workflow from your side.
-          </p>
-        </div>
-
-        {/* 4-Step Grid Cards with Modern Micro-Interactions */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {steps.map((step, idx) => {
-            const Icon = step.icon;
-            return (
-              <div
-                key={idx}
-                className="bg-white rounded-3xl p-7 sm:p-8 border border-slate-200 shadow-sm hover:shadow-xl hover:border-slate-300 transition-all duration-300 flex flex-col justify-between group hover:-translate-y-1.5 relative overflow-hidden"
-              >
-                <div>
-                  {/* Top row with step number and circular pastel icon badge */}
-                  <div className="flex items-center justify-between mb-6">
-                    <span className="text-3xl sm:text-4xl font-serif font-light text-slate-300 group-hover:text-[#16233B] transition-colors duration-300">
-                      {step.number}
-                    </span>
-
-                    <div className={`w-12 h-12 rounded-2xl ${step.iconBg} border flex items-center justify-center shadow-2xs group-hover:scale-110 transition-all duration-300`}>
-                      <Icon className="w-6 h-6" />
-                    </div>
-                  </div>
-
-                  {/* Title & Description */}
-                  <h3 className="text-lg font-semibold text-[#16233B] tracking-tight mb-2.5 group-hover:text-slate-900 transition-colors">
-                    {step.title}
-                  </h3>
-
-                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
-                    {step.description}
-                  </p>
+          {/* Right Column: 2x2 Staggered Floating Cards Grid matching screenshot */}
+          <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
+            {/* Column 1: Step 1 & Step 3 */}
+            <div className="flex flex-col gap-6">
+              {/* Step 1 Card */}
+              <div className="bg-white rounded-[28px] p-7 sm:p-8 border border-slate-200/90 shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center group">
+                <div className={`w-14 h-14 rounded-full ${steps[0].iconBg} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}>
+                  <UserPlus className="w-6 h-6" />
                 </div>
-
-                <div className="mt-6 pt-3 border-t border-slate-100 flex items-center text-xs text-slate-400 font-medium">
-                  <span>Step {step.number} of 4</span>
-                </div>
+                <h3 className="text-base sm:text-lg font-semibold text-[#16233B] tracking-tight mb-2 group-hover:text-slate-900 transition-colors">
+                  {steps[0].title}
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-normal">
+                  {steps[0].description}
+                </p>
               </div>
-            );
-          })}
-        </div>
 
-        {/* Bottom Link */}
-        <div className="mt-12 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <Link
-            href="#reliability-policy"
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#16233B] hover:text-emerald-700 transition-colors group"
-          >
-            <span>Read the full process, including the 0.80 reliability check</span>
-            <span className="text-emerald-600 group-hover:translate-x-1.5 transition-transform duration-200">
-              →
-            </span>
-          </Link>
-        </div>
-
-        {/* Reliability Gate Protection Box */}
-        <div className="mt-12 rounded-2xl bg-slate-50/80 hover:bg-slate-50 border border-slate-200 p-5 sm:p-6 shadow-2xs transition-all duration-200 flex flex-col sm:flex-row items-center justify-between gap-5 text-center sm:text-left">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-emerald-100/80 border border-emerald-200 flex items-center justify-center shrink-0">
-              <ShieldCheck className="w-5 h-5 text-emerald-700" />
+              {/* Step 3 Card */}
+              <div className="bg-white rounded-[28px] p-7 sm:p-8 border border-slate-200/90 shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center group">
+                <div className={`w-14 h-14 rounded-full ${steps[2].iconBg} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}>
+                  <SearchCheck className="w-6 h-6" />
+                </div>
+                <h3 className="text-base sm:text-lg font-semibold text-[#16233B] tracking-tight mb-2 group-hover:text-slate-900 transition-colors">
+                  {steps[2].title}
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-normal">
+                  {steps[2].description}
+                </p>
+              </div>
             </div>
-            <div>
-              <h4 className="text-sm font-semibold text-[#16233B]">
-                Reliability Gate Protection
-              </h4>
-              <p className="text-xs text-slate-600 mt-0.5 max-w-2xl leading-relaxed">
-                Every uploaded QEEG file undergoes server-side Test and Retest reliability verification against the <strong>&gt;= 0.80</strong> threshold before proceeding to review. Low reliability files are voided with zero fee charged.
-              </p>
+
+            {/* Column 2: Step 2 & Step 4 (Staggered Offset on tablet/desktop) */}
+            <div className="flex flex-col gap-6 sm:translate-y-8">
+              {/* Step 2 Card */}
+              <div className="bg-white rounded-[28px] p-7 sm:p-8 border border-slate-200/90 shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center group">
+                <div className={`w-14 h-14 rounded-full ${steps[1].iconBg} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}>
+                  <UploadCloud className="w-6 h-6" />
+                </div>
+                <h3 className="text-base sm:text-lg font-semibold text-[#16233B] tracking-tight mb-2 group-hover:text-slate-900 transition-colors">
+                  {steps[1].title}
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-normal">
+                  {steps[1].description}
+                </p>
+              </div>
+
+              {/* Step 4 Card */}
+              <div className="bg-white rounded-[28px] p-7 sm:p-8 border border-slate-200/90 shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center group">
+                <div className={`w-14 h-14 rounded-full ${steps[3].iconBg} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}>
+                  <Download className="w-6 h-6" />
+                </div>
+                <h3 className="text-base sm:text-lg font-semibold text-[#16233B] tracking-tight mb-2 group-hover:text-slate-900 transition-colors">
+                  {steps[3].title}
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-normal">
+                  {steps[3].description}
+                </p>
+              </div>
             </div>
           </div>
         </div>

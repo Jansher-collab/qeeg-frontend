@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
 export default function PrivacySection() {
   const securityFacts = [
@@ -46,9 +47,7 @@ export default function PrivacySection() {
                 className="inline-flex items-center gap-2 px-6 py-3.5 text-sm font-medium text-slate-200 hover:text-white bg-transparent hover:bg-slate-800/70 border border-slate-600/80 hover:border-slate-400 rounded-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 group"
               >
                 <span>Read the full data policy</span>
-                <span className="text-slate-400 group-hover:translate-x-1 group-hover:text-white transition-transform duration-200">
-                  →
-                </span>
+                <ArrowRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 group-hover:text-white transition-all duration-200" />
               </Link>
             </div>
           </div>
