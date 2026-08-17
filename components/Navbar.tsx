@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Menu, X, User, ArrowRight } from "lucide-react";
 
 export default function Navbar() {
+  const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [user, setUser] = useState<{ email: string; role: string; fullName?: string } | null>(null);
@@ -34,70 +36,72 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [mobileMenuOpen]);
+
+  const navLinks = [
+    { label: "Home", href: "/" },
+    { label: "How it works", href: "/how-it-works" },
+    { label: "The Science", href: "/the-science" },
+    { label: "Privacy", href: "/privacy" },
+    { label: "Pricing", href: "/pricing" },
+    { label: "About", href: "/about" },
+    { label: "FAQ", href: "/faq" },
+  ];
+
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-[#16233B]/90 backdrop-blur-md border-b ${
-        scrolled ? "border-slate-800 shadow-lg py-3.5" : "border-slate-800/80 py-4.5"
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-[#16233B]/95 backdrop-blur-md border-b ${
+        scrolled ? "border-slate-800 shadow-lg py-3" : "border-slate-800/80 py-4"
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           {/* Brand Logo with Lora Serif */}
           <Link
             href="/"
-            className="flex items-center group focus:outline-none"
+            className="flex items-center group focus:outline-none shrink-0"
           >
             <span className="text-xl sm:text-2xl font-serif font-normal tracking-tight text-white group-hover:text-slate-200 transition-colors">
               QEEG.com.au
             </span>
           </Link>
 
-          {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-300">
-            <Link
-              href="/how-it-works"
-              className="hover:text-white transition-colors duration-200 relative py-1 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-white after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-200"
-            >
-              How it works
-            </Link>
-            <Link
-              href="/#why-us"
-              className="hover:text-white transition-colors duration-200 relative py-1 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-white after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-200"
-            >
-              Why us
-            </Link>
-            <Link
-              href="/#privacy"
-              className="hover:text-white transition-colors duration-200 relative py-1 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-white after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-200"
-            >
-              Data handling
-            </Link>
-            <Link
-              href="/#pricing"
-              className="hover:text-white transition-colors duration-200 relative py-1 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-white after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-200"
-            >
-              Pricing
-            </Link>
-            <Link
-              href="/about"
-              className="hover:text-white transition-colors duration-200 relative py-1 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-white after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-200"
-            >
-              About
-            </Link>
-            <Link
-              href="/faq"
-              className="hover:text-white transition-colors duration-200 relative py-1 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-white after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-200"
-            >
-              FAQ
-            </Link>
+          {/* Desktop / Laptop Navigation Links (Visible on lg and larger) */}
+          <nav className="hidden lg:flex items-center gap-4 xl:gap-6 text-xs lg:text-[13px] xl:text-sm font-medium text-slate-300">
+            {navLinks.map((link) => {
+              const isActive = pathname === link.href;
+              return (
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  className={`transition-colors duration-200 relative py-1 hover:text-white ${
+                    isActive ? "text-white font-semibold" : "text-slate-300"
+                  } after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-white ${
+                    isActive ? "after:scale-x-100" : "after:scale-x-0 hover:after:scale-x-100"
+                  } after:transition-transform after:duration-200`}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
           </nav>
 
-          {/* Action Buttons */}
-          <div className="hidden md:flex items-center gap-3.5">
+          {/* Action Buttons (Desktop / Laptop) */}
+          <div className="hidden lg:flex items-center gap-2.5 xl:gap-3.5 shrink-0">
             {user ? (
               <Link
                 href="/portal"
-                className="px-4.5 py-2 text-sm font-semibold text-[#16233B] bg-white hover:bg-slate-100 rounded-lg shadow-sm hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center gap-2"
+                className="px-4 py-2 text-xs lg:text-sm font-semibold text-[#16233B] bg-white hover:bg-slate-100 rounded-lg shadow-sm hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center gap-2"
               >
                 <User className="w-4 h-4 text-[#16233B]" />
                 <span>Practitioner Portal</span>
@@ -106,13 +110,13 @@ export default function Navbar() {
               <>
                 <Link
                   href="/login"
-                  className="px-4.5 py-2 text-sm font-medium text-slate-300 hover:text-white bg-transparent hover:bg-slate-800/80 border border-slate-700 hover:border-slate-500 rounded-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200"
+                  className="px-3.5 py-1.5 xl:px-4 xl:py-2 text-xs lg:text-sm font-medium text-slate-300 hover:text-white bg-transparent hover:bg-slate-800/80 border border-slate-700 hover:border-slate-500 rounded-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200"
                 >
                   Log in
                 </Link>
                 <Link
                   href="/signup"
-                  className="px-4.5 py-2 text-sm font-semibold text-[#16233B] bg-white hover:bg-slate-100 rounded-lg shadow-sm hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center gap-1.5"
+                  className="px-3.5 py-1.5 xl:px-4.5 xl:py-2 text-xs lg:text-sm font-semibold text-[#16233B] bg-white hover:bg-slate-100 rounded-lg shadow-sm hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center gap-1.5"
                 >
                   <span>Create free account</span>
                   <ArrowRight className="w-3.5 h-3.5 text-[#16233B]" />
@@ -121,11 +125,12 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Mobile Menu Button */}
+          {/* Mobile & Tablet Menu Hamburger Button (Visible below lg) */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 focus:outline-none transition-colors"
+            className="lg:hidden p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/80 focus:outline-none transition-colors"
             aria-label="Toggle navigation menu"
+            aria-expanded={mobileMenuOpen}
           >
             {mobileMenuOpen ? (
               <X className="w-6 h-6" />
@@ -136,82 +141,71 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Menu Drawer */}
+      {/* Mobile & Tablet Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-[#16233B] border-b border-slate-800 px-4 pt-4 pb-6 shadow-2xl">
-          <div className="flex flex-col gap-3 text-base font-medium">
-            <Link
-              href="/how-it-works"
-              onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2 text-slate-200 hover:bg-slate-800/80 rounded-lg transition-colors"
-            >
-              How it works
-            </Link>
-            <Link
-              href="/#why-us"
-              onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2 text-slate-200 hover:bg-slate-800/80 rounded-lg transition-colors"
-            >
-              Why us
-            </Link>
-            <Link
-              href="/#privacy"
-              onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2 text-slate-200 hover:bg-slate-800/80 rounded-lg transition-colors"
-            >
-              Data handling
-            </Link>
-            <Link
-              href="/#pricing"
-              onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2 text-slate-200 hover:bg-slate-800/80 rounded-lg transition-colors"
-            >
-              Pricing
-            </Link>
-            <Link
-              href="/about"
-              onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2 text-slate-200 hover:bg-slate-800/80 rounded-lg transition-colors"
-            >
-              About
-            </Link>
-            <Link
-              href="/faq"
-              onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2 text-slate-200 hover:bg-slate-800/80 rounded-lg transition-colors"
-            >
-              FAQ
-            </Link>
-            <div className="pt-3 border-t border-slate-800 flex flex-col gap-2.5">
-              {user ? (
-                <Link
-                  href="/portal"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="w-full text-center py-2.5 text-sm font-semibold text-[#16233B] bg-white hover:bg-slate-100 rounded-lg shadow-sm"
-                >
-                  Practitioner Portal
-                </Link>
-              ) : (
-                <>
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={() => setMobileMenuOpen(false)}
+            className="fixed inset-0 top-[60px] sm:top-[68px] z-40 bg-slate-950/70 backdrop-blur-xs lg:hidden animate-fadeIn"
+          />
+
+          {/* Drawer Content */}
+          <div className="lg:hidden bg-[#16233B] border-b border-slate-800 px-5 pt-3 pb-6 shadow-2xl relative z-50 animate-fadeIn max-h-[calc(100vh-70px)] overflow-y-auto">
+            <div className="flex flex-col gap-1.5 text-base font-medium">
+              {navLinks.map((link) => {
+                const isActive = pathname === link.href;
+                return (
                   <Link
-                    href="/login"
+                    key={link.label}
+                    href={link.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="w-full text-center py-2.5 text-sm font-medium text-slate-300 bg-slate-800 border border-slate-700 rounded-lg"
+                    className={`px-4 py-2.5 rounded-xl transition-colors flex items-center justify-between ${
+                      isActive
+                        ? "bg-[#1C2F4A] text-white font-semibold"
+                        : "text-slate-200 hover:bg-slate-800/80 hover:text-white"
+                    }`}
                   >
-                    Log in
+                    <span>{link.label}</span>
+                    {isActive && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
                   </Link>
+                );
+              })}
+
+              {/* Action Buttons in Mobile/Tablet Drawer */}
+              <div className="pt-4 mt-2 border-t border-slate-800 flex flex-col gap-3">
+                {user ? (
                   <Link
-                    href="/signup"
+                    href="/portal"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="w-full text-center py-2.5 text-sm font-semibold text-[#16233B] bg-white hover:bg-slate-100 rounded-lg shadow-sm"
+                    className="w-full text-center py-3 text-sm font-semibold text-[#16233B] bg-white hover:bg-slate-100 rounded-xl shadow-sm flex items-center justify-center gap-2"
                   >
-                    Create free account
+                    <User className="w-4 h-4 text-[#16233B]" />
+                    <span>Practitioner Portal</span>
                   </Link>
-                </>
-              )}
+                ) : (
+                  <>
+                    <Link
+                      href="/login"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="w-full text-center py-2.5 text-sm font-medium text-slate-200 bg-slate-800/90 hover:bg-slate-800 border border-slate-700 rounded-xl transition-colors"
+                    >
+                      Log in
+                    </Link>
+                    <Link
+                      href="/signup"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="w-full text-center py-3 text-sm font-semibold text-[#16233B] bg-white hover:bg-slate-100 rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      <span>Create free account</span>
+                      <ArrowRight className="w-4 h-4 text-[#16233B]" />
+                    </Link>
+                  </>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
     </header>
   );

@@ -29,13 +29,13 @@ export default function Footer() {
               <Link href="/faq" className="hover:text-white transition-colors">
                 FAQ
               </Link>
-              <Link href="/#why-us" className="hover:text-white transition-colors">
-                Why us
+              <Link href="/the-science" className="hover:text-white transition-colors">
+                The Science
               </Link>
-              <Link href="/#privacy" className="hover:text-white transition-colors">
-                Data handling
+              <Link href="/privacy" className="hover:text-white transition-colors">
+                Privacy &amp; Data handling
               </Link>
-              <Link href="/#pricing" className="hover:text-white transition-colors">
+              <Link href="/pricing" className="hover:text-white transition-colors">
                 Pricing
               </Link>
             </nav>
@@ -63,7 +63,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="#how-it-works" className="hover:text-white transition-colors">
+                <Link href="/how-it-works" className="hover:text-white transition-colors">
                   Reliability Gate Policy (≥ 0.80)
                 </Link>
               </li>
@@ -77,22 +77,22 @@ export default function Footer() {
             </h3>
             <ul className="flex flex-col gap-2 text-xs text-slate-400 font-normal">
               <li>
-                <Link href="#privacy" className="hover:text-white transition-colors">
-                  Service agreement
+                <Link href="/terms" className="hover:text-white transition-colors">
+                  Terms of service
                 </Link>
               </li>
               <li>
-                <Link href="#privacy" className="hover:text-white transition-colors">
-                  Privacy policy
+                <Link href="/privacy" className="hover:text-white transition-colors">
+                  Privacy &amp; Data handling
                 </Link>
               </li>
               <li>
-                <Link href="#why-us" className="hover:text-white transition-colors">
+                <Link href="/#why-us" className="hover:text-white transition-colors">
                   AHPRA Scope Alignment
                 </Link>
               </li>
               <li>
-                <Link href="#privacy" className="hover:text-white transition-colors">
+                <Link href="/privacy" className="hover:text-white transition-colors">
                   Australian Data Sovereignty
                 </Link>
               </li>
