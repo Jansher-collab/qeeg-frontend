@@ -15,7 +15,13 @@ export interface ActivityLogInput {
     | 'REPORT_GENERATED'
     | 'DOWNLOAD_INITIATED'
     | 'DOWNLOAD_COMPLETED'
-    | 'FILES_AND_RECORD_PURGED';
+    | 'FILES_AND_RECORD_PURGED'
+    | 'PRACTITIONER_REGISTERED'
+    | 'USER_LOGIN'
+    | 'USER_LOGOUT'
+    | 'REPORT_REVIEW_APPROVED'
+    | 'REPORT_REVIEW_REJECTED'
+    | string;
   details?: Record<string, unknown>;
   ipAddress?: string;
 }

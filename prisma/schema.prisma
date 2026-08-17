@@ -10,14 +10,17 @@ datasource db {
 enum UserRole {
   ADMIN
   PRACTITIONER
+  NEUROSCIENTIST
   PATIENT
 }
 
 enum ReportStatus {
+  AWAITING_UPLOAD
   PENDING_RELIABILITY
   RELIABILITY_REJECTED
   PAYMENT_AUTHORISED
   GENERATING
+  IN_NEUROSCIENTIST_REVIEW
   COMPLETED
   DOWNLOADED_AND_PURGED
 }
@@ -43,14 +46,32 @@ model User {
 }
 
 model PractitionerProfile {
-  id            String   @id @default(uuid())
-  userId        String   @unique
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  clinicName    String?
-  licenseNumber String?
-  phone         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName          String?
+  professionalTitle String?
+  profession        String?
+  providerNumber    String?
+  clinicName        String?
+  practiceAddress   String?
+  phone             String?
+  practiceEmail     String?
+  notificationEmail String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([token])
 }
 
 model QeeqReport {
@@ -67,6 +88,9 @@ model QeeqReport {
   checklistData          Json?
   findings               Json?
   reportSummary          String?
+  reviewerNotes          String?
+  reviewedBy             String?
+  reviewedAt             DateTime?
   paypalAuthorizationId  String?
   paypalCaptureId        String?
   feeAmount              Float         @default(65.0)
@@ -81,6 +105,7 @@ model QeeqReport {
 
   @@index([submittingPractitionerId])
   @@index([caseReference])
+  @@index([status])
 }
 
 model SystemSetting {

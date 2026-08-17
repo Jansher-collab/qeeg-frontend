@@ -50,6 +50,9 @@ export type QeeqReportMinAggregateOutputType = {
   gender: string | null
   handedness: string | null
   reportSummary: string | null
+  reviewerNotes: string | null
+  reviewedBy: string | null
+  reviewedAt: Date | null
   paypalAuthorizationId: string | null
   paypalCaptureId: string | null
   feeAmount: number | null
@@ -71,6 +74,9 @@ export type QeeqReportMaxAggregateOutputType = {
   gender: string | null
   handedness: string | null
   reportSummary: string | null
+  reviewerNotes: string | null
+  reviewedBy: string | null
+  reviewedAt: Date | null
   paypalAuthorizationId: string | null
   paypalCaptureId: string | null
   feeAmount: number | null
@@ -96,6 +102,9 @@ export type QeeqReportCountAggregateOutputType = {
   checklistData: number
   findings: number
   reportSummary: number
+  reviewerNotes: number
+  reviewedBy: number
+  reviewedAt: number
   paypalAuthorizationId: number
   paypalCaptureId: number
   feeAmount: number
@@ -133,6 +142,9 @@ export type QeeqReportMinAggregateInputType = {
   gender?: true
   handedness?: true
   reportSummary?: true
+  reviewerNotes?: true
+  reviewedBy?: true
+  reviewedAt?: true
   paypalAuthorizationId?: true
   paypalCaptureId?: true
   feeAmount?: true
@@ -154,6 +166,9 @@ export type QeeqReportMaxAggregateInputType = {
   gender?: true
   handedness?: true
   reportSummary?: true
+  reviewerNotes?: true
+  reviewedBy?: true
+  reviewedAt?: true
   paypalAuthorizationId?: true
   paypalCaptureId?: true
   feeAmount?: true
@@ -179,6 +194,9 @@ export type QeeqReportCountAggregateInputType = {
   checklistData?: true
   findings?: true
   reportSummary?: true
+  reviewerNotes?: true
+  reviewedBy?: true
+  reviewedAt?: true
   paypalAuthorizationId?: true
   paypalCaptureId?: true
   feeAmount?: true
@@ -291,6 +309,9 @@ export type QeeqReportGroupByOutputType = {
   checklistData: runtime.JsonValue | null
   findings: runtime.JsonValue | null
   reportSummary: string | null
+  reviewerNotes: string | null
+  reviewedBy: string | null
+  reviewedAt: Date | null
   paypalAuthorizationId: string | null
   paypalCaptureId: string | null
   feeAmount: number
@@ -339,6 +360,9 @@ export type QeeqReportWhereInput = {
   checklistData?: Prisma.JsonNullableFilter<"QeeqReport">
   findings?: Prisma.JsonNullableFilter<"QeeqReport">
   reportSummary?: Prisma.StringNullableFilter<"QeeqReport"> | string | null
+  reviewerNotes?: Prisma.StringNullableFilter<"QeeqReport"> | string | null
+  reviewedBy?: Prisma.StringNullableFilter<"QeeqReport"> | string | null
+  reviewedAt?: Prisma.DateTimeNullableFilter<"QeeqReport"> | Date | string | null
   paypalAuthorizationId?: Prisma.StringNullableFilter<"QeeqReport"> | string | null
   paypalCaptureId?: Prisma.StringNullableFilter<"QeeqReport"> | string | null
   feeAmount?: Prisma.FloatFilter<"QeeqReport"> | number
@@ -366,6 +390,9 @@ export type QeeqReportOrderByWithRelationInput = {
   checklistData?: Prisma.SortOrderInput | Prisma.SortOrder
   findings?: Prisma.SortOrderInput | Prisma.SortOrder
   reportSummary?: Prisma.SortOrderInput | Prisma.SortOrder
+  reviewerNotes?: Prisma.SortOrderInput | Prisma.SortOrder
+  reviewedBy?: Prisma.SortOrderInput | Prisma.SortOrder
+  reviewedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   paypalAuthorizationId?: Prisma.SortOrderInput | Prisma.SortOrder
   paypalCaptureId?: Prisma.SortOrderInput | Prisma.SortOrder
   feeAmount?: Prisma.SortOrder
@@ -396,6 +423,9 @@ export type QeeqReportWhereUniqueInput = Prisma.AtLeast<{
   checklistData?: Prisma.JsonNullableFilter<"QeeqReport">
   findings?: Prisma.JsonNullableFilter<"QeeqReport">
   reportSummary?: Prisma.StringNullableFilter<"QeeqReport"> | string | null
+  reviewerNotes?: Prisma.StringNullableFilter<"QeeqReport"> | string | null
+  reviewedBy?: Prisma.StringNullableFilter<"QeeqReport"> | string | null
+  reviewedAt?: Prisma.DateTimeNullableFilter<"QeeqReport"> | Date | string | null
   paypalAuthorizationId?: Prisma.StringNullableFilter<"QeeqReport"> | string | null
   paypalCaptureId?: Prisma.StringNullableFilter<"QeeqReport"> | string | null
   feeAmount?: Prisma.FloatFilter<"QeeqReport"> | number
@@ -423,6 +453,9 @@ export type QeeqReportOrderByWithAggregationInput = {
   checklistData?: Prisma.SortOrderInput | Prisma.SortOrder
   findings?: Prisma.SortOrderInput | Prisma.SortOrder
   reportSummary?: Prisma.SortOrderInput | Prisma.SortOrder
+  reviewerNotes?: Prisma.SortOrderInput | Prisma.SortOrder
+  reviewedBy?: Prisma.SortOrderInput | Prisma.SortOrder
+  reviewedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   paypalAuthorizationId?: Prisma.SortOrderInput | Prisma.SortOrder
   paypalCaptureId?: Prisma.SortOrderInput | Prisma.SortOrder
   feeAmount?: Prisma.SortOrder
@@ -456,6 +489,9 @@ export type QeeqReportScalarWhereWithAggregatesInput = {
   checklistData?: Prisma.JsonNullableWithAggregatesFilter<"QeeqReport">
   findings?: Prisma.JsonNullableWithAggregatesFilter<"QeeqReport">
   reportSummary?: Prisma.StringNullableWithAggregatesFilter<"QeeqReport"> | string | null
+  reviewerNotes?: Prisma.StringNullableWithAggregatesFilter<"QeeqReport"> | string | null
+  reviewedBy?: Prisma.StringNullableWithAggregatesFilter<"QeeqReport"> | string | null
+  reviewedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"QeeqReport"> | Date | string | null
   paypalAuthorizationId?: Prisma.StringNullableWithAggregatesFilter<"QeeqReport"> | string | null
   paypalCaptureId?: Prisma.StringNullableWithAggregatesFilter<"QeeqReport"> | string | null
   feeAmount?: Prisma.FloatWithAggregatesFilter<"QeeqReport"> | number
@@ -481,6 +517,9 @@ export type QeeqReportCreateInput = {
   checklistData?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   findings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reportSummary?: string | null
+  reviewerNotes?: string | null
+  reviewedBy?: string | null
+  reviewedAt?: Date | string | null
   paypalAuthorizationId?: string | null
   paypalCaptureId?: string | null
   feeAmount?: number
@@ -507,6 +546,9 @@ export type QeeqReportUncheckedCreateInput = {
   checklistData?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   findings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reportSummary?: string | null
+  reviewerNotes?: string | null
+  reviewedBy?: string | null
+  reviewedAt?: Date | string | null
   paypalAuthorizationId?: string | null
   paypalCaptureId?: string | null
   feeAmount?: number
@@ -533,6 +575,9 @@ export type QeeqReportUpdateInput = {
   checklistData?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   findings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reportSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewerNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   paypalAuthorizationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   paypalCaptureId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   feeAmount?: Prisma.FloatFieldUpdateOperationsInput | number
@@ -559,6 +604,9 @@ export type QeeqReportUncheckedUpdateInput = {
   checklistData?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   findings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reportSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewerNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   paypalAuthorizationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   paypalCaptureId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   feeAmount?: Prisma.FloatFieldUpdateOperationsInput | number
@@ -585,6 +633,9 @@ export type QeeqReportCreateManyInput = {
   checklistData?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   findings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reportSummary?: string | null
+  reviewerNotes?: string | null
+  reviewedBy?: string | null
+  reviewedAt?: Date | string | null
   paypalAuthorizationId?: string | null
   paypalCaptureId?: string | null
   feeAmount?: number
@@ -610,6 +661,9 @@ export type QeeqReportUpdateManyMutationInput = {
   checklistData?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   findings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reportSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewerNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   paypalAuthorizationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   paypalCaptureId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   feeAmount?: Prisma.FloatFieldUpdateOperationsInput | number
@@ -634,6 +688,9 @@ export type QeeqReportUncheckedUpdateManyInput = {
   checklistData?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   findings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reportSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewerNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   paypalAuthorizationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   paypalCaptureId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   feeAmount?: Prisma.FloatFieldUpdateOperationsInput | number
@@ -669,6 +726,9 @@ export type QeeqReportCountOrderByAggregateInput = {
   checklistData?: Prisma.SortOrder
   findings?: Prisma.SortOrder
   reportSummary?: Prisma.SortOrder
+  reviewerNotes?: Prisma.SortOrder
+  reviewedBy?: Prisma.SortOrder
+  reviewedAt?: Prisma.SortOrder
   paypalAuthorizationId?: Prisma.SortOrder
   paypalCaptureId?: Prisma.SortOrder
   feeAmount?: Prisma.SortOrder
@@ -697,6 +757,9 @@ export type QeeqReportMaxOrderByAggregateInput = {
   gender?: Prisma.SortOrder
   handedness?: Prisma.SortOrder
   reportSummary?: Prisma.SortOrder
+  reviewerNotes?: Prisma.SortOrder
+  reviewedBy?: Prisma.SortOrder
+  reviewedAt?: Prisma.SortOrder
   paypalAuthorizationId?: Prisma.SortOrder
   paypalCaptureId?: Prisma.SortOrder
   feeAmount?: Prisma.SortOrder
@@ -718,6 +781,9 @@ export type QeeqReportMinOrderByAggregateInput = {
   gender?: Prisma.SortOrder
   handedness?: Prisma.SortOrder
   reportSummary?: Prisma.SortOrder
+  reviewerNotes?: Prisma.SortOrder
+  reviewedBy?: Prisma.SortOrder
+  reviewedAt?: Prisma.SortOrder
   paypalAuthorizationId?: Prisma.SortOrder
   paypalCaptureId?: Prisma.SortOrder
   feeAmount?: Prisma.SortOrder
@@ -795,6 +861,10 @@ export type NullableFloatFieldUpdateOperationsInput = {
   divide?: number
 }
 
+export type NullableDateTimeFieldUpdateOperationsInput = {
+  set?: Date | string | null
+}
+
 export type FloatFieldUpdateOperationsInput = {
   set?: number
   increment?: number
@@ -805,10 +875,6 @@ export type FloatFieldUpdateOperationsInput = {
 
 export type EnumPaymentStatusFieldUpdateOperationsInput = {
   set?: $Enums.PaymentStatus
-}
-
-export type NullableDateTimeFieldUpdateOperationsInput = {
-  set?: Date | string | null
 }
 
 export type QeeqReportCreateNestedOneWithoutActivityLogsInput = {
@@ -841,6 +907,9 @@ export type QeeqReportCreateWithoutSubmittingPractitionerInput = {
   checklistData?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   findings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reportSummary?: string | null
+  reviewerNotes?: string | null
+  reviewedBy?: string | null
+  reviewedAt?: Date | string | null
   paypalAuthorizationId?: string | null
   paypalCaptureId?: string | null
   feeAmount?: number
@@ -866,6 +935,9 @@ export type QeeqReportUncheckedCreateWithoutSubmittingPractitionerInput = {
   checklistData?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   findings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reportSummary?: string | null
+  reviewerNotes?: string | null
+  reviewedBy?: string | null
+  reviewedAt?: Date | string | null
   paypalAuthorizationId?: string | null
   paypalCaptureId?: string | null
   feeAmount?: number
@@ -920,6 +992,9 @@ export type QeeqReportScalarWhereInput = {
   checklistData?: Prisma.JsonNullableFilter<"QeeqReport">
   findings?: Prisma.JsonNullableFilter<"QeeqReport">
   reportSummary?: Prisma.StringNullableFilter<"QeeqReport"> | string | null
+  reviewerNotes?: Prisma.StringNullableFilter<"QeeqReport"> | string | null
+  reviewedBy?: Prisma.StringNullableFilter<"QeeqReport"> | string | null
+  reviewedAt?: Prisma.DateTimeNullableFilter<"QeeqReport"> | Date | string | null
   paypalAuthorizationId?: Prisma.StringNullableFilter<"QeeqReport"> | string | null
   paypalCaptureId?: Prisma.StringNullableFilter<"QeeqReport"> | string | null
   feeAmount?: Prisma.FloatFilter<"QeeqReport"> | number
@@ -945,6 +1020,9 @@ export type QeeqReportCreateWithoutActivityLogsInput = {
   checklistData?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   findings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reportSummary?: string | null
+  reviewerNotes?: string | null
+  reviewedBy?: string | null
+  reviewedAt?: Date | string | null
   paypalAuthorizationId?: string | null
   paypalCaptureId?: string | null
   feeAmount?: number
@@ -970,6 +1048,9 @@ export type QeeqReportUncheckedCreateWithoutActivityLogsInput = {
   checklistData?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   findings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reportSummary?: string | null
+  reviewerNotes?: string | null
+  reviewedBy?: string | null
+  reviewedAt?: Date | string | null
   paypalAuthorizationId?: string | null
   paypalCaptureId?: string | null
   feeAmount?: number
@@ -1011,6 +1092,9 @@ export type QeeqReportUpdateWithoutActivityLogsInput = {
   checklistData?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   findings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reportSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewerNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   paypalAuthorizationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   paypalCaptureId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   feeAmount?: Prisma.FloatFieldUpdateOperationsInput | number
@@ -1036,6 +1120,9 @@ export type QeeqReportUncheckedUpdateWithoutActivityLogsInput = {
   checklistData?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   findings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reportSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewerNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   paypalAuthorizationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   paypalCaptureId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   feeAmount?: Prisma.FloatFieldUpdateOperationsInput | number
@@ -1061,6 +1148,9 @@ export type QeeqReportCreateManySubmittingPractitionerInput = {
   checklistData?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   findings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reportSummary?: string | null
+  reviewerNotes?: string | null
+  reviewedBy?: string | null
+  reviewedAt?: Date | string | null
   paypalAuthorizationId?: string | null
   paypalCaptureId?: string | null
   feeAmount?: number
@@ -1085,6 +1175,9 @@ export type QeeqReportUpdateWithoutSubmittingPractitionerInput = {
   checklistData?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   findings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reportSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewerNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   paypalAuthorizationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   paypalCaptureId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   feeAmount?: Prisma.FloatFieldUpdateOperationsInput | number
@@ -1110,6 +1203,9 @@ export type QeeqReportUncheckedUpdateWithoutSubmittingPractitionerInput = {
   checklistData?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   findings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reportSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewerNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   paypalAuthorizationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   paypalCaptureId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   feeAmount?: Prisma.FloatFieldUpdateOperationsInput | number
@@ -1135,6 +1231,9 @@ export type QeeqReportUncheckedUpdateManyWithoutSubmittingPractitionerInput = {
   checklistData?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   findings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reportSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewerNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   paypalAuthorizationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   paypalCaptureId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   feeAmount?: Prisma.FloatFieldUpdateOperationsInput | number
@@ -1190,6 +1289,9 @@ export type QeeqReportSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   checklistData?: boolean
   findings?: boolean
   reportSummary?: boolean
+  reviewerNotes?: boolean
+  reviewedBy?: boolean
+  reviewedAt?: boolean
   paypalAuthorizationId?: boolean
   paypalCaptureId?: boolean
   feeAmount?: boolean
@@ -1218,6 +1320,9 @@ export type QeeqReportSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   checklistData?: boolean
   findings?: boolean
   reportSummary?: boolean
+  reviewerNotes?: boolean
+  reviewedBy?: boolean
+  reviewedAt?: boolean
   paypalAuthorizationId?: boolean
   paypalCaptureId?: boolean
   feeAmount?: boolean
@@ -1244,6 +1349,9 @@ export type QeeqReportSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   checklistData?: boolean
   findings?: boolean
   reportSummary?: boolean
+  reviewerNotes?: boolean
+  reviewedBy?: boolean
+  reviewedAt?: boolean
   paypalAuthorizationId?: boolean
   paypalCaptureId?: boolean
   feeAmount?: boolean
@@ -1270,6 +1378,9 @@ export type QeeqReportSelectScalar = {
   checklistData?: boolean
   findings?: boolean
   reportSummary?: boolean
+  reviewerNotes?: boolean
+  reviewedBy?: boolean
+  reviewedAt?: boolean
   paypalAuthorizationId?: boolean
   paypalCaptureId?: boolean
   feeAmount?: boolean
@@ -1281,7 +1392,7 @@ export type QeeqReportSelectScalar = {
   purgedAt?: boolean
 }
 
-export type QeeqReportOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "caseReference" | "status" | "confidenceScore" | "reliabilityScore" | "filePaths" | "age" | "gender" | "handedness" | "tovaData" | "checklistData" | "findings" | "reportSummary" | "paypalAuthorizationId" | "paypalCaptureId" | "feeAmount" | "paymentStatus" | "submittingPractitionerId" | "createdAt" | "updatedAt" | "downloadedAt" | "purgedAt", ExtArgs["result"]["qeeqReport"]>
+export type QeeqReportOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "caseReference" | "status" | "confidenceScore" | "reliabilityScore" | "filePaths" | "age" | "gender" | "handedness" | "tovaData" | "checklistData" | "findings" | "reportSummary" | "reviewerNotes" | "reviewedBy" | "reviewedAt" | "paypalAuthorizationId" | "paypalCaptureId" | "feeAmount" | "paymentStatus" | "submittingPractitionerId" | "createdAt" | "updatedAt" | "downloadedAt" | "purgedAt", ExtArgs["result"]["qeeqReport"]>
 export type QeeqReportInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   submittingPractitioner?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   activityLogs?: boolean | Prisma.QeeqReport$activityLogsArgs<ExtArgs>
@@ -1314,6 +1425,9 @@ export type $QeeqReportPayload<ExtArgs extends runtime.Types.Extensions.Internal
     checklistData: runtime.JsonValue | null
     findings: runtime.JsonValue | null
     reportSummary: string | null
+    reviewerNotes: string | null
+    reviewedBy: string | null
+    reviewedAt: Date | null
     paypalAuthorizationId: string | null
     paypalCaptureId: string | null
     feeAmount: number
@@ -1761,6 +1875,9 @@ export interface QeeqReportFieldRefs {
   readonly checklistData: Prisma.FieldRef<"QeeqReport", 'Json'>
   readonly findings: Prisma.FieldRef<"QeeqReport", 'Json'>
   readonly reportSummary: Prisma.FieldRef<"QeeqReport", 'String'>
+  readonly reviewerNotes: Prisma.FieldRef<"QeeqReport", 'String'>
+  readonly reviewedBy: Prisma.FieldRef<"QeeqReport", 'String'>
+  readonly reviewedAt: Prisma.FieldRef<"QeeqReport", 'DateTime'>
   readonly paypalAuthorizationId: Prisma.FieldRef<"QeeqReport", 'String'>
   readonly paypalCaptureId: Prisma.FieldRef<"QeeqReport", 'String'>
   readonly feeAmount: Prisma.FieldRef<"QeeqReport", 'Float'>

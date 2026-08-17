@@ -10,6 +10,7 @@
  */
 export type * from './models/User'
 export type * from './models/PractitionerProfile'
+export type * from './models/PasswordResetToken'
 export type * from './models/QeeqReport'
 export type * from './models/SystemSetting'
 export type * from './models/ActivityLog'

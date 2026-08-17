@@ -3,9 +3,11 @@ import { prisma } from '@/lib/backend/prisma';
 import { verifyIngestionPayload, IngestionPayload } from '@/lib/backend/services/reliabilityParser';
 import { authorisePayment, getReportFeeAUD } from '@/lib/backend/services/paypalService';
 import { logActivity } from '@/lib/backend/services/activityLogger';
+import { getAuthenticatedUser } from '@/lib/backend/services/authService';
 
 export async function POST(req: NextRequest) {
   try {
+    const authUser = await getAuthenticatedUser(req);
     const body: IngestionPayload & { submittingPractitionerId?: string } = await req.json();
 
     if (!body.caseReference) {
@@ -15,7 +17,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const practitionerId = body.submittingPractitionerId || 'default-practitioner-id';
+    const practitionerId = authUser?.id || body.submittingPractitionerId || 'default-practitioner-id';
     const clientIp = req.headers.get('x-forwarded-for') || '127.0.0.1';
 
     // 1. Server-side Reliability Verification & De-identification Backstop

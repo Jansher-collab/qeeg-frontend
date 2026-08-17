@@ -1,50 +1,21 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
-function createMockPrismaClient(): any {
-  return new Proxy(
-    {},
-    {
-      get: (_target, prop) => {
-        if (prop === '$connect' || prop === '$disconnect') return async () => {};
-        if (prop === 'then') return undefined;
-        return new Proxy(
-          () => Promise.resolve([]),
-          {
-            get: (_t, method) => {
-              if (method === 'findUnique' || method === 'findFirst') return async () => null;
-              if (method === 'findMany') return async () => [];
-              if (method === 'create' || method === 'update' || method === 'upsert') {
-                return async (args: any) => ({ id: 'mock-id', ...args.data });
-              }
-              if (method === 'delete') return async () => ({ id: 'mock-id' });
-              return async () => null;
-            },
-          }
-        );
-      },
-    }
-  );
-}
-
-let prismaInstance: any;
-
-try {
-  if (process.env.DATABASE_URL) {
-    const { PrismaClient } = require('../../generated/prisma/client');
-    prismaInstance = new PrismaClient({
-      adapter: undefined as any,
-    });
-  } else {
-    prismaInstance = createMockPrismaClient();
-  }
-} catch {
-  prismaInstance = createMockPrismaClient();
-}
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '@/generated/prisma/client';
 
 const globalForPrisma = globalThis as unknown as {
-  prisma: any;
+  prisma: PrismaClient | undefined;
 };
 
-export const prisma = globalForPrisma.prisma ?? prismaInstance;
+const connectionString =
+  process.env.DATABASE_URL ||
+  'postgresql://postgres:postgres123@localhost:5432/qeeg_platform?schema=public';
+
+const adapter = new PrismaPg({ connectionString });
+
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    adapter,
+    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+  });
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;

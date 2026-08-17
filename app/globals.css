@@ -1,11 +1,23 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-serif: var(--font-lora), Georgia, Cambria, "Times New Roman", Times, serif;
+
+  --color-navy-dark: #16233B;
+  --color-navy-medium: #1C2F4A;
+  --color-navy-light: #243B5C;
+  --color-navy-deep: #0F172A;
+  --color-steel-blue: #4C7086;
+}
+
 @layer base {
   :root {
     --font-inter: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-lora: 'Lora', Georgia, serif;
     --color-navy-dark: #16233B;
     --color-navy-medium: #1C2F4A;
-    --color-emerald-primary: #10B981;
+    --color-steel-blue: #4C7086;
   }
 
   html {
@@ -62,4 +74,19 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94A3B8;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.4s ease-out forwards;
 }

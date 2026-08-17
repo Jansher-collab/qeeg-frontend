@@ -35,5 +35,5 @@
   <line x1="97" y1="115" x2="103" y2="115" stroke="#94A3B8" stroke-width="2.5" />
   <path d="M 290 100 L 320 70 M 310 60 L 330 80" stroke="#94A3B8" stroke-width="2.5" stroke-linecap="round" />
   <rect x="290" y="290" width="40" height="30" rx="4" stroke="#94A3B8" stroke-width="2.5" fill="#0F172A" />
-  <path d="M 298 312 L 308 302 L 316 308 L 324 298" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" />
+  <path d="M 298 312 L 308 302 L 316 308 L 324 298" stroke="#38BDF8" stroke-width="2.5" stroke-linecap="round" />
 </svg>

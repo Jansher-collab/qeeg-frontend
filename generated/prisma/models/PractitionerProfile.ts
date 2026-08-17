@@ -27,9 +27,15 @@ export type AggregatePractitionerProfile = {
 export type PractitionerProfileMinAggregateOutputType = {
   id: string | null
   userId: string | null
+  fullName: string | null
+  professionalTitle: string | null
+  profession: string | null
+  providerNumber: string | null
   clinicName: string | null
-  licenseNumber: string | null
+  practiceAddress: string | null
   phone: string | null
+  practiceEmail: string | null
+  notificationEmail: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -37,9 +43,15 @@ export type PractitionerProfileMinAggregateOutputType = {
 export type PractitionerProfileMaxAggregateOutputType = {
   id: string | null
   userId: string | null
+  fullName: string | null
+  professionalTitle: string | null
+  profession: string | null
+  providerNumber: string | null
   clinicName: string | null
-  licenseNumber: string | null
+  practiceAddress: string | null
   phone: string | null
+  practiceEmail: string | null
+  notificationEmail: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -47,9 +59,15 @@ export type PractitionerProfileMaxAggregateOutputType = {
 export type PractitionerProfileCountAggregateOutputType = {
   id: number
   userId: number
+  fullName: number
+  professionalTitle: number
+  profession: number
+  providerNumber: number
   clinicName: number
-  licenseNumber: number
+  practiceAddress: number
   phone: number
+  practiceEmail: number
+  notificationEmail: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -59,9 +77,15 @@ export type PractitionerProfileCountAggregateOutputType = {
 export type PractitionerProfileMinAggregateInputType = {
   id?: true
   userId?: true
+  fullName?: true
+  professionalTitle?: true
+  profession?: true
+  providerNumber?: true
   clinicName?: true
-  licenseNumber?: true
+  practiceAddress?: true
   phone?: true
+  practiceEmail?: true
+  notificationEmail?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -69,9 +93,15 @@ export type PractitionerProfileMinAggregateInputType = {
 export type PractitionerProfileMaxAggregateInputType = {
   id?: true
   userId?: true
+  fullName?: true
+  professionalTitle?: true
+  profession?: true
+  providerNumber?: true
   clinicName?: true
-  licenseNumber?: true
+  practiceAddress?: true
   phone?: true
+  practiceEmail?: true
+  notificationEmail?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -79,9 +109,15 @@ export type PractitionerProfileMaxAggregateInputType = {
 export type PractitionerProfileCountAggregateInputType = {
   id?: true
   userId?: true
+  fullName?: true
+  professionalTitle?: true
+  profession?: true
+  providerNumber?: true
   clinicName?: true
-  licenseNumber?: true
+  practiceAddress?: true
   phone?: true
+  practiceEmail?: true
+  notificationEmail?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -162,9 +198,15 @@ export type PractitionerProfileGroupByArgs<ExtArgs extends runtime.Types.Extensi
 export type PractitionerProfileGroupByOutputType = {
   id: string
   userId: string
+  fullName: string | null
+  professionalTitle: string | null
+  profession: string | null
+  providerNumber: string | null
   clinicName: string | null
-  licenseNumber: string | null
+  practiceAddress: string | null
   phone: string | null
+  practiceEmail: string | null
+  notificationEmail: string | null
   createdAt: Date
   updatedAt: Date
   _count: PractitionerProfileCountAggregateOutputType | null
@@ -193,9 +235,15 @@ export type PractitionerProfileWhereInput = {
   NOT?: Prisma.PractitionerProfileWhereInput | Prisma.PractitionerProfileWhereInput[]
   id?: Prisma.StringFilter<"PractitionerProfile"> | string
   userId?: Prisma.StringFilter<"PractitionerProfile"> | string
+  fullName?: Prisma.StringNullableFilter<"PractitionerProfile"> | string | null
+  professionalTitle?: Prisma.StringNullableFilter<"PractitionerProfile"> | string | null
+  profession?: Prisma.StringNullableFilter<"PractitionerProfile"> | string | null
+  providerNumber?: Prisma.StringNullableFilter<"PractitionerProfile"> | string | null
   clinicName?: Prisma.StringNullableFilter<"PractitionerProfile"> | string | null
-  licenseNumber?: Prisma.StringNullableFilter<"PractitionerProfile"> | string | null
+  practiceAddress?: Prisma.StringNullableFilter<"PractitionerProfile"> | string | null
   phone?: Prisma.StringNullableFilter<"PractitionerProfile"> | string | null
+  practiceEmail?: Prisma.StringNullableFilter<"PractitionerProfile"> | string | null
+  notificationEmail?: Prisma.StringNullableFilter<"PractitionerProfile"> | string | null
   createdAt?: Prisma.DateTimeFilter<"PractitionerProfile"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"PractitionerProfile"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -204,9 +252,15 @@ export type PractitionerProfileWhereInput = {
 export type PractitionerProfileOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
+  fullName?: Prisma.SortOrderInput | Prisma.SortOrder
+  professionalTitle?: Prisma.SortOrderInput | Prisma.SortOrder
+  profession?: Prisma.SortOrderInput | Prisma.SortOrder
+  providerNumber?: Prisma.SortOrderInput | Prisma.SortOrder
   clinicName?: Prisma.SortOrderInput | Prisma.SortOrder
-  licenseNumber?: Prisma.SortOrderInput | Prisma.SortOrder
+  practiceAddress?: Prisma.SortOrderInput | Prisma.SortOrder
   phone?: Prisma.SortOrderInput | Prisma.SortOrder
+  practiceEmail?: Prisma.SortOrderInput | Prisma.SortOrder
+  notificationEmail?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
@@ -218,9 +272,15 @@ export type PractitionerProfileWhereUniqueInput = Prisma.AtLeast<{
   AND?: Prisma.PractitionerProfileWhereInput | Prisma.PractitionerProfileWhereInput[]
   OR?: Prisma.PractitionerProfileWhereInput[]
   NOT?: Prisma.PractitionerProfileWhereInput | Prisma.PractitionerProfileWhereInput[]
+  fullName?: Prisma.StringNullableFilter<"PractitionerProfile"> | string | null
+  professionalTitle?: Prisma.StringNullableFilter<"PractitionerProfile"> | string | null
+  profession?: Prisma.StringNullableFilter<"PractitionerProfile"> | string | null
+  providerNumber?: Prisma.StringNullableFilter<"PractitionerProfile"> | string | null
   clinicName?: Prisma.StringNullableFilter<"PractitionerProfile"> | string | null
-  licenseNumber?: Prisma.StringNullableFilter<"PractitionerProfile"> | string | null
+  practiceAddress?: Prisma.StringNullableFilter<"PractitionerProfile"> | string | null
   phone?: Prisma.StringNullableFilter<"PractitionerProfile"> | string | null
+  practiceEmail?: Prisma.StringNullableFilter<"PractitionerProfile"> | string | null
+  notificationEmail?: Prisma.StringNullableFilter<"PractitionerProfile"> | string | null
   createdAt?: Prisma.DateTimeFilter<"PractitionerProfile"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"PractitionerProfile"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -229,9 +289,15 @@ export type PractitionerProfileWhereUniqueInput = Prisma.AtLeast<{
 export type PractitionerProfileOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
+  fullName?: Prisma.SortOrderInput | Prisma.SortOrder
+  professionalTitle?: Prisma.SortOrderInput | Prisma.SortOrder
+  profession?: Prisma.SortOrderInput | Prisma.SortOrder
+  providerNumber?: Prisma.SortOrderInput | Prisma.SortOrder
   clinicName?: Prisma.SortOrderInput | Prisma.SortOrder
-  licenseNumber?: Prisma.SortOrderInput | Prisma.SortOrder
+  practiceAddress?: Prisma.SortOrderInput | Prisma.SortOrder
   phone?: Prisma.SortOrderInput | Prisma.SortOrder
+  practiceEmail?: Prisma.SortOrderInput | Prisma.SortOrder
+  notificationEmail?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.PractitionerProfileCountOrderByAggregateInput
@@ -245,18 +311,30 @@ export type PractitionerProfileScalarWhereWithAggregatesInput = {
   NOT?: Prisma.PractitionerProfileScalarWhereWithAggregatesInput | Prisma.PractitionerProfileScalarWhereWithAggregatesInput[]
   id?: Prisma.StringWithAggregatesFilter<"PractitionerProfile"> | string
   userId?: Prisma.StringWithAggregatesFilter<"PractitionerProfile"> | string
+  fullName?: Prisma.StringNullableWithAggregatesFilter<"PractitionerProfile"> | string | null
+  professionalTitle?: Prisma.StringNullableWithAggregatesFilter<"PractitionerProfile"> | string | null
+  profession?: Prisma.StringNullableWithAggregatesFilter<"PractitionerProfile"> | string | null
+  providerNumber?: Prisma.StringNullableWithAggregatesFilter<"PractitionerProfile"> | string | null
   clinicName?: Prisma.StringNullableWithAggregatesFilter<"PractitionerProfile"> | string | null
-  licenseNumber?: Prisma.StringNullableWithAggregatesFilter<"PractitionerProfile"> | string | null
+  practiceAddress?: Prisma.StringNullableWithAggregatesFilter<"PractitionerProfile"> | string | null
   phone?: Prisma.StringNullableWithAggregatesFilter<"PractitionerProfile"> | string | null
+  practiceEmail?: Prisma.StringNullableWithAggregatesFilter<"PractitionerProfile"> | string | null
+  notificationEmail?: Prisma.StringNullableWithAggregatesFilter<"PractitionerProfile"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"PractitionerProfile"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"PractitionerProfile"> | Date | string
 }
 
 export type PractitionerProfileCreateInput = {
   id?: string
+  fullName?: string | null
+  professionalTitle?: string | null
+  profession?: string | null
+  providerNumber?: string | null
   clinicName?: string | null
-  licenseNumber?: string | null
+  practiceAddress?: string | null
   phone?: string | null
+  practiceEmail?: string | null
+  notificationEmail?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutPractitionerProfileInput
@@ -265,18 +343,30 @@ export type PractitionerProfileCreateInput = {
 export type PractitionerProfileUncheckedCreateInput = {
   id?: string
   userId: string
+  fullName?: string | null
+  professionalTitle?: string | null
+  profession?: string | null
+  providerNumber?: string | null
   clinicName?: string | null
-  licenseNumber?: string | null
+  practiceAddress?: string | null
   phone?: string | null
+  practiceEmail?: string | null
+  notificationEmail?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
 
 export type PractitionerProfileUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  fullName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  professionalTitle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  profession?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   clinicName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  licenseNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  practiceAddress?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  practiceEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  notificationEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutPractitionerProfileNestedInput
@@ -285,9 +375,15 @@ export type PractitionerProfileUpdateInput = {
 export type PractitionerProfileUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
+  fullName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  professionalTitle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  profession?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   clinicName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  licenseNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  practiceAddress?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  practiceEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  notificationEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -295,18 +391,30 @@ export type PractitionerProfileUncheckedUpdateInput = {
 export type PractitionerProfileCreateManyInput = {
   id?: string
   userId: string
+  fullName?: string | null
+  professionalTitle?: string | null
+  profession?: string | null
+  providerNumber?: string | null
   clinicName?: string | null
-  licenseNumber?: string | null
+  practiceAddress?: string | null
   phone?: string | null
+  practiceEmail?: string | null
+  notificationEmail?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
 
 export type PractitionerProfileUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  fullName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  professionalTitle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  profession?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   clinicName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  licenseNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  practiceAddress?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  practiceEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  notificationEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -314,9 +422,15 @@ export type PractitionerProfileUpdateManyMutationInput = {
 export type PractitionerProfileUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
+  fullName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  professionalTitle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  profession?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   clinicName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  licenseNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  practiceAddress?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  practiceEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  notificationEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -329,9 +443,15 @@ export type PractitionerProfileNullableScalarRelationFilter = {
 export type PractitionerProfileCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
+  fullName?: Prisma.SortOrder
+  professionalTitle?: Prisma.SortOrder
+  profession?: Prisma.SortOrder
+  providerNumber?: Prisma.SortOrder
   clinicName?: Prisma.SortOrder
-  licenseNumber?: Prisma.SortOrder
+  practiceAddress?: Prisma.SortOrder
   phone?: Prisma.SortOrder
+  practiceEmail?: Prisma.SortOrder
+  notificationEmail?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -339,9 +459,15 @@ export type PractitionerProfileCountOrderByAggregateInput = {
 export type PractitionerProfileMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
+  fullName?: Prisma.SortOrder
+  professionalTitle?: Prisma.SortOrder
+  profession?: Prisma.SortOrder
+  providerNumber?: Prisma.SortOrder
   clinicName?: Prisma.SortOrder
-  licenseNumber?: Prisma.SortOrder
+  practiceAddress?: Prisma.SortOrder
   phone?: Prisma.SortOrder
+  practiceEmail?: Prisma.SortOrder
+  notificationEmail?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -349,9 +475,15 @@ export type PractitionerProfileMaxOrderByAggregateInput = {
 export type PractitionerProfileMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
+  fullName?: Prisma.SortOrder
+  professionalTitle?: Prisma.SortOrder
+  profession?: Prisma.SortOrder
+  providerNumber?: Prisma.SortOrder
   clinicName?: Prisma.SortOrder
-  licenseNumber?: Prisma.SortOrder
+  practiceAddress?: Prisma.SortOrder
   phone?: Prisma.SortOrder
+  practiceEmail?: Prisma.SortOrder
+  notificationEmail?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -394,18 +526,30 @@ export type NullableStringFieldUpdateOperationsInput = {
 
 export type PractitionerProfileCreateWithoutUserInput = {
   id?: string
+  fullName?: string | null
+  professionalTitle?: string | null
+  profession?: string | null
+  providerNumber?: string | null
   clinicName?: string | null
-  licenseNumber?: string | null
+  practiceAddress?: string | null
   phone?: string | null
+  practiceEmail?: string | null
+  notificationEmail?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
 
 export type PractitionerProfileUncheckedCreateWithoutUserInput = {
   id?: string
+  fullName?: string | null
+  professionalTitle?: string | null
+  profession?: string | null
+  providerNumber?: string | null
   clinicName?: string | null
-  licenseNumber?: string | null
+  practiceAddress?: string | null
   phone?: string | null
+  practiceEmail?: string | null
+  notificationEmail?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -428,18 +572,30 @@ export type PractitionerProfileUpdateToOneWithWhereWithoutUserInput = {
 
 export type PractitionerProfileUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  fullName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  professionalTitle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  profession?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   clinicName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  licenseNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  practiceAddress?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  practiceEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  notificationEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type PractitionerProfileUncheckedUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  fullName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  professionalTitle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  profession?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   clinicName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  licenseNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  practiceAddress?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  practiceEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  notificationEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -449,9 +605,15 @@ export type PractitionerProfileUncheckedUpdateWithoutUserInput = {
 export type PractitionerProfileSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   userId?: boolean
+  fullName?: boolean
+  professionalTitle?: boolean
+  profession?: boolean
+  providerNumber?: boolean
   clinicName?: boolean
-  licenseNumber?: boolean
+  practiceAddress?: boolean
   phone?: boolean
+  practiceEmail?: boolean
+  notificationEmail?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -460,9 +622,15 @@ export type PractitionerProfileSelect<ExtArgs extends runtime.Types.Extensions.I
 export type PractitionerProfileSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   userId?: boolean
+  fullName?: boolean
+  professionalTitle?: boolean
+  profession?: boolean
+  providerNumber?: boolean
   clinicName?: boolean
-  licenseNumber?: boolean
+  practiceAddress?: boolean
   phone?: boolean
+  practiceEmail?: boolean
+  notificationEmail?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -471,9 +639,15 @@ export type PractitionerProfileSelectCreateManyAndReturn<ExtArgs extends runtime
 export type PractitionerProfileSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   userId?: boolean
+  fullName?: boolean
+  professionalTitle?: boolean
+  profession?: boolean
+  providerNumber?: boolean
   clinicName?: boolean
-  licenseNumber?: boolean
+  practiceAddress?: boolean
   phone?: boolean
+  practiceEmail?: boolean
+  notificationEmail?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -482,14 +656,20 @@ export type PractitionerProfileSelectUpdateManyAndReturn<ExtArgs extends runtime
 export type PractitionerProfileSelectScalar = {
   id?: boolean
   userId?: boolean
+  fullName?: boolean
+  professionalTitle?: boolean
+  profession?: boolean
+  providerNumber?: boolean
   clinicName?: boolean
-  licenseNumber?: boolean
+  practiceAddress?: boolean
   phone?: boolean
+  practiceEmail?: boolean
+  notificationEmail?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type PractitionerProfileOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "clinicName" | "licenseNumber" | "phone" | "createdAt" | "updatedAt", ExtArgs["result"]["practitionerProfile"]>
+export type PractitionerProfileOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "fullName" | "professionalTitle" | "profession" | "providerNumber" | "clinicName" | "practiceAddress" | "phone" | "practiceEmail" | "notificationEmail" | "createdAt" | "updatedAt", ExtArgs["result"]["practitionerProfile"]>
 export type PractitionerProfileInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
@@ -508,9 +688,15 @@ export type $PractitionerProfilePayload<ExtArgs extends runtime.Types.Extensions
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     userId: string
+    fullName: string | null
+    professionalTitle: string | null
+    profession: string | null
+    providerNumber: string | null
     clinicName: string | null
-    licenseNumber: string | null
+    practiceAddress: string | null
     phone: string | null
+    practiceEmail: string | null
+    notificationEmail: string | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["practitionerProfile"]>
@@ -939,9 +1125,15 @@ export interface Prisma__PractitionerProfileClient<T, Null = never, ExtArgs exte
 export interface PractitionerProfileFieldRefs {
   readonly id: Prisma.FieldRef<"PractitionerProfile", 'String'>
   readonly userId: Prisma.FieldRef<"PractitionerProfile", 'String'>
+  readonly fullName: Prisma.FieldRef<"PractitionerProfile", 'String'>
+  readonly professionalTitle: Prisma.FieldRef<"PractitionerProfile", 'String'>
+  readonly profession: Prisma.FieldRef<"PractitionerProfile", 'String'>
+  readonly providerNumber: Prisma.FieldRef<"PractitionerProfile", 'String'>
   readonly clinicName: Prisma.FieldRef<"PractitionerProfile", 'String'>
-  readonly licenseNumber: Prisma.FieldRef<"PractitionerProfile", 'String'>
+  readonly practiceAddress: Prisma.FieldRef<"PractitionerProfile", 'String'>
   readonly phone: Prisma.FieldRef<"PractitionerProfile", 'String'>
+  readonly practiceEmail: Prisma.FieldRef<"PractitionerProfile", 'String'>
+  readonly notificationEmail: Prisma.FieldRef<"PractitionerProfile", 'String'>
   readonly createdAt: Prisma.FieldRef<"PractitionerProfile", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"PractitionerProfile", 'DateTime'>
 }

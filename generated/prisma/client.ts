@@ -52,6 +52,11 @@ export type User = Prisma.UserModel
  */
 export type PractitionerProfile = Prisma.PractitionerProfileModel
 /**
+ * Model PasswordResetToken
+ * 
+ */
+export type PasswordResetToken = Prisma.PasswordResetTokenModel
+/**
  * Model QeeqReport
  * 
  */

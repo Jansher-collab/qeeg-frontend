@@ -1,4 +1,5 @@
-import { UserPlus, UploadCloud, SearchCheck, Download, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { UserPlus, UploadCloud, Cpu, Download, ShieldCheck, ArrowRight } from "lucide-react";
 
 export default function ProcessSection() {
   const steps = [
@@ -7,42 +8,46 @@ export default function ProcessSection() {
       icon: UserPlus,
       title: "Create your account",
       description:
-        "Free registration, and your referring details pre-fill every checklist after that.",
-      iconBg: "bg-orange-50 text-orange-500 border border-orange-100",
+        "Free, and your referring details pre-fill every checklist after that.",
+      iconBg: "bg-slate-100 text-[#16233B] border border-slate-200",
+      stepTag: "Step 01",
     },
     {
       number: "2",
       icon: UploadCloud,
       title: "Upload the files",
       description:
-        "QEEG, TOVA, and the completed symptom checklist, through your secure portal.",
-      iconBg: "bg-emerald-50 text-emerald-600 border border-emerald-100",
+        "QEEG, TOVA, and the completed checklist — de-identified in your browser before anything is sent.",
+      iconBg: "bg-slate-100 text-[#16233B] border border-slate-200",
+      stepTag: "Step 02",
     },
     {
       number: "3",
-      icon: SearchCheck,
-      title: "We review it",
+      icon: Cpu,
+      title: "We generate it",
       description:
-        "Checked against the literature, then confirmed by a Clinical Neuroscientist.",
-      iconBg: "bg-sky-50 text-sky-500 border border-sky-100",
+        "Checked against the literature by the correlation engine — AI-generated, with a clear notice to verify findings.",
+      iconBg: "bg-slate-100 text-[#16233B] border border-slate-200",
+      stepTag: "Step 03",
     },
     {
       number: "4",
       icon: Download,
       title: "Download your report",
       description:
-        "A secure link, ready when approved. Save your download, as files are purged from our servers.",
-      iconBg: "bg-rose-50 text-rose-500 border border-rose-100",
+        "One download — save it, it won't sit on our servers.",
+      iconBg: "bg-slate-100 text-[#16233B] border border-slate-200",
+      stepTag: "Step 04",
     },
   ];
 
   return (
-    <section id="how-it-works" className="py-20 sm:py-28 bg-[#F4F7F9]/60 relative overflow-hidden">
+    <section id="how-it-works" className="py-20 sm:py-28 bg-[#F4F7F9]/80 relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14 items-center">
-          {/* Left Column: Heading & Description matching screenshot */}
+          {/* Left Column: Heading & Subtitle */}
           <div className="lg:col-span-5 flex flex-col items-start">
-            <div className="text-[11px] font-semibold tracking-[0.22em] text-slate-500 uppercase mb-3 font-sans">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-200/80 text-[11px] font-semibold tracking-[0.22em] text-slate-700 uppercase mb-4 font-sans">
               THE PROCESS
             </div>
 
@@ -51,36 +56,48 @@ export default function ProcessSection() {
             </h2>
 
             <p className="text-slate-600 text-sm sm:text-base leading-relaxed font-normal max-w-md">
-              The full process includes a reliability gate and review queue, providing a seamless workflow from your side.
+              The full process has a few more checks behind the scenes — a reliability gate, a processing step — but this is what it looks like from your side.{" "}
+              <Link
+                href="#how-it-works"
+                className="text-[#16233B] hover:text-slate-700 font-semibold underline underline-offset-4 inline-flex items-center gap-1 group/link mt-2"
+              >
+                <span>See the full walkthrough</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover/link:translate-x-1 transition-transform duration-200" />
+              </Link>
             </p>
 
-            {/* Clean Reliability Gate Protection Box */}
+            {/* Reliability Gate Verification Box */}
             <div className="mt-8 rounded-2xl bg-white border border-slate-200 p-5 shadow-xs flex items-start gap-4">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0 mt-0.5">
-                <ShieldCheck className="w-5 h-5 text-emerald-600" />
+              <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0 mt-0.5">
+                <ShieldCheck className="w-5 h-5 text-[#16233B]" />
               </div>
               <div>
                 <h4 className="text-xs font-semibold text-[#16233B] uppercase tracking-wider">
-                  Reliability Gate Included
+                  Automated Reliability Gate
                 </h4>
                 <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                  Server-side Test and Retest reliability verification ensures each file satisfies the <strong>&gt;= 0.80</strong> threshold before clinical review.
+                  Every QEEG recording must achieve a Test-Retest reliability coefficient <strong>&ge; 0.80</strong> before correlation generation commences.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Right Column: 2x2 Staggered Floating Cards Grid matching screenshot */}
+          {/* Right Column: 4 Grid Cards */}
           <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
             {/* Column 1: Step 1 & Step 3 */}
             <div className="flex flex-col gap-6">
               {/* Step 1 Card */}
-              <div className="bg-white rounded-[28px] p-7 sm:p-8 border border-slate-200/90 shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center group">
-                <div className={`w-14 h-14 rounded-full ${steps[0].iconBg} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}>
-                  <UserPlus className="w-6 h-6" />
+              <div className="bg-white rounded-[24px] p-7 sm:p-8 border border-slate-200 shadow-sm hover:shadow-xl hover:border-slate-300 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-start text-left group">
+                <div className="w-full flex items-center justify-between mb-5">
+                  <div className={`w-12 h-12 rounded-xl ${steps[0].iconBg} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
+                    <UserPlus className="w-6 h-6" />
+                  </div>
+                  <span className="text-[11px] font-semibold text-slate-400 font-mono tracking-wider">
+                    {steps[0].stepTag}
+                  </span>
                 </div>
                 <h3 className="text-base sm:text-lg font-semibold text-[#16233B] tracking-tight mb-2 group-hover:text-slate-900 transition-colors">
-                  {steps[0].title}
+                  1. {steps[0].title}
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-normal">
                   {steps[0].description}
@@ -88,12 +105,17 @@ export default function ProcessSection() {
               </div>
 
               {/* Step 3 Card */}
-              <div className="bg-white rounded-[28px] p-7 sm:p-8 border border-slate-200/90 shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center group">
-                <div className={`w-14 h-14 rounded-full ${steps[2].iconBg} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}>
-                  <SearchCheck className="w-6 h-6" />
+              <div className="bg-white rounded-[24px] p-7 sm:p-8 border border-slate-200 shadow-sm hover:shadow-xl hover:border-slate-300 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-start text-left group">
+                <div className="w-full flex items-center justify-between mb-5">
+                  <div className={`w-12 h-12 rounded-xl ${steps[2].iconBg} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
+                    <Cpu className="w-6 h-6" />
+                  </div>
+                  <span className="text-[11px] font-semibold text-slate-400 font-mono tracking-wider">
+                    {steps[2].stepTag}
+                  </span>
                 </div>
                 <h3 className="text-base sm:text-lg font-semibold text-[#16233B] tracking-tight mb-2 group-hover:text-slate-900 transition-colors">
-                  {steps[2].title}
+                  3. {steps[2].title}
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-normal">
                   {steps[2].description}
@@ -101,15 +123,20 @@ export default function ProcessSection() {
               </div>
             </div>
 
-            {/* Column 2: Step 2 & Step 4 (Staggered Offset on tablet/desktop) */}
-            <div className="flex flex-col gap-6 sm:translate-y-8">
+            {/* Column 2: Step 2 & Step 4 (Staggered Offset on sm/desktop) */}
+            <div className="flex flex-col gap-6 sm:translate-y-6">
               {/* Step 2 Card */}
-              <div className="bg-white rounded-[28px] p-7 sm:p-8 border border-slate-200/90 shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center group">
-                <div className={`w-14 h-14 rounded-full ${steps[1].iconBg} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}>
-                  <UploadCloud className="w-6 h-6" />
+              <div className="bg-white rounded-[24px] p-7 sm:p-8 border border-slate-200 shadow-sm hover:shadow-xl hover:border-slate-300 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-start text-left group">
+                <div className="w-full flex items-center justify-between mb-5">
+                  <div className={`w-12 h-12 rounded-xl ${steps[1].iconBg} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
+                    <UploadCloud className="w-6 h-6" />
+                  </div>
+                  <span className="text-[11px] font-semibold text-slate-400 font-mono tracking-wider">
+                    {steps[1].stepTag}
+                  </span>
                 </div>
                 <h3 className="text-base sm:text-lg font-semibold text-[#16233B] tracking-tight mb-2 group-hover:text-slate-900 transition-colors">
-                  {steps[1].title}
+                  2. {steps[1].title}
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-normal">
                   {steps[1].description}
@@ -117,12 +144,17 @@ export default function ProcessSection() {
               </div>
 
               {/* Step 4 Card */}
-              <div className="bg-white rounded-[28px] p-7 sm:p-8 border border-slate-200/90 shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center group">
-                <div className={`w-14 h-14 rounded-full ${steps[3].iconBg} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}>
-                  <Download className="w-6 h-6" />
+              <div className="bg-white rounded-[24px] p-7 sm:p-8 border border-slate-200 shadow-sm hover:shadow-xl hover:border-slate-300 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-start text-left group">
+                <div className="w-full flex items-center justify-between mb-5">
+                  <div className={`w-12 h-12 rounded-xl ${steps[3].iconBg} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
+                    <Download className="w-6 h-6" />
+                  </div>
+                  <span className="text-[11px] font-semibold text-slate-400 font-mono tracking-wider">
+                    {steps[3].stepTag}
+                  </span>
                 </div>
                 <h3 className="text-base sm:text-lg font-semibold text-[#16233B] tracking-tight mb-2 group-hover:text-slate-900 transition-colors">
-                  {steps[3].title}
+                  4. {steps[3].title}
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-normal">
                   {steps[3].description}

@@ -53,6 +53,7 @@ export const AnyNull = runtime.AnyNull
 export const ModelName = {
   User: 'User',
   PractitionerProfile: 'PractitionerProfile',
+  PasswordResetToken: 'PasswordResetToken',
   QeeqReport: 'QeeqReport',
   SystemSetting: 'SystemSetting',
   ActivityLog: 'ActivityLog'
@@ -89,14 +90,32 @@ export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof User
 export const PractitionerProfileScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
+  fullName: 'fullName',
+  professionalTitle: 'professionalTitle',
+  profession: 'profession',
+  providerNumber: 'providerNumber',
   clinicName: 'clinicName',
-  licenseNumber: 'licenseNumber',
+  practiceAddress: 'practiceAddress',
   phone: 'phone',
+  practiceEmail: 'practiceEmail',
+  notificationEmail: 'notificationEmail',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type PractitionerProfileScalarFieldEnum = (typeof PractitionerProfileScalarFieldEnum)[keyof typeof PractitionerProfileScalarFieldEnum]
+
+
+export const PasswordResetTokenScalarFieldEnum = {
+  id: 'id',
+  email: 'email',
+  token: 'token',
+  expiresAt: 'expiresAt',
+  used: 'used',
+  createdAt: 'createdAt'
+} as const
+
+export type PasswordResetTokenScalarFieldEnum = (typeof PasswordResetTokenScalarFieldEnum)[keyof typeof PasswordResetTokenScalarFieldEnum]
 
 
 export const QeeqReportScalarFieldEnum = {
@@ -113,6 +132,9 @@ export const QeeqReportScalarFieldEnum = {
   checklistData: 'checklistData',
   findings: 'findings',
   reportSummary: 'reportSummary',
+  reviewerNotes: 'reviewerNotes',
+  reviewedBy: 'reviewedBy',
+  reviewedAt: 'reviewedAt',
   paypalAuthorizationId: 'paypalAuthorizationId',
   paypalCaptureId: 'paypalCaptureId',
   feeAmount: 'feeAmount',
