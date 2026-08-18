@@ -42,7 +42,7 @@ export default function ProcessSection() {
   ];
 
   return (
-    <section id="how-it-works" className="py-20 sm:py-28 bg-[#F4F7F9]/80 relative overflow-hidden">
+    <section id="how-it-works" className="py-12 sm:py-16 bg-[#F4F7F9]/80 relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14 items-center">
           {/* Left Column: Heading & Subtitle */}

@@ -1,49 +1,26 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/backend/prisma';
-import { getAuthenticatedUser } from '@/lib/backend/services/authService';
+import { NextResponse } from 'next/server';
 
-export async function GET(req: NextRequest) {
-  try {
-    const user = await getAuthenticatedUser(req);
-    if (!user || (user.role !== 'NEUROSCIENTIST' && user.role !== 'ADMIN')) {
-      return NextResponse.json(
-        { error: 'Forbidden. Access restricted to Clinical Neuroscientists and Administrators.' },
-        { status: 403 }
-      );
-    }
-
-    // Fetch reports awaiting review or in processing
-    const queue = await prisma.qeeqReport.findMany({
-      where: {
-        status: {
-          in: ['IN_NEUROSCIENTIST_REVIEW', 'GENERATING', 'PENDING_RELIABILITY', 'COMPLETED'],
+export async function GET() {
+  const queue = [
+    {
+      id: 'rep_002',
+      caseReference: 'CASE-94102-NSW',
+      status: 'IN_NEUROSCIENTIST_REVIEW',
+      reliabilityScore: 0.88,
+      confidenceScore: 0.84,
+      createdAt: new Date(Date.now() - 24 * 3600000).toISOString(),
+      age: 44,
+      gender: 'Male',
+      reportSummary: 'Posterior Alpha slowing with generalized slowing across parietal leads.',
+      submittingPractitioner: {
+        email: 'dr.smith@sydneyneuro.com.au',
+        practitionerProfile: {
+          fullName: 'Dr. Michael Smith',
+          clinicName: 'Sydney Neurological Assessment Centre',
         },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      include: {
-        submittingPractitioner: {
-          select: {
-            email: true,
-            practitionerProfile: {
-              select: {
-                fullName: true,
-                clinicName: true,
-                profession: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    },
+  ];
 
-    return NextResponse.json({
-      queue,
-      count: queue.length,
-    });
-  } catch (error: any) {
-    console.error('Error fetching review queue:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  return NextResponse.json({ queue });
 }

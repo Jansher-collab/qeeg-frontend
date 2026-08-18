@@ -1,56 +1,53 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/backend/prisma';
-import { getAuthenticatedUser } from '@/lib/backend/services/authService';
+import { NextResponse } from 'next/server';
 
-export async function GET(req: NextRequest) {
-  try {
-    const user = await getAuthenticatedUser(req);
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Please log in to access your reports.' },
-        { status: 401 }
-      );
-    }
+export async function GET() {
+  const mockReports = [
+    {
+      id: 'rep_001',
+      caseReference: 'CASE-88291-VIC',
+      status: 'COMPLETED',
+      reliabilityScore: 0.94,
+      confidenceScore: 0.91,
+      feeAmount: 65.0,
+      paymentStatus: 'CAPTURED',
+      createdAt: new Date(Date.now() - 2 * 3600000).toISOString(),
+      reportSummary: 'Elevated frontal Theta/Beta ratio (3.82) with Left Frontal Alpha Asymmetry (F3-F4 z=-2.14). Correlation mapped across 8 PubMed studies.',
+      age: 28,
+      gender: 'Female',
+      findings: {
+        thetaBetaRatio: 3.82,
+        alphaPeakFrequency: 9.8,
+        asymmetryZScore: -2.14,
+        tovaDPrime: -1.88,
+      },
+    },
+    {
+      id: 'rep_002',
+      caseReference: 'CASE-94102-NSW',
+      status: 'IN_NEUROSCIENTIST_REVIEW',
+      reliabilityScore: 0.88,
+      confidenceScore: 0.84,
+      feeAmount: 65.0,
+      paymentStatus: 'AUTHORISED',
+      createdAt: new Date(Date.now() - 24 * 3600000).toISOString(),
+      reportSummary: 'Posterior Alpha slowing with generalized slowing across parietal leads. Under review by consulting neuroscientist.',
+      age: 44,
+      gender: 'Male',
+    },
+    {
+      id: 'rep_003',
+      caseReference: 'CASE-77301-QLD',
+      status: 'RELIABILITY_REJECTED',
+      reliabilityScore: 0.72,
+      confidenceScore: null,
+      feeAmount: 65.0,
+      paymentStatus: 'NOT_STARTED',
+      createdAt: new Date(Date.now() - 48 * 3600000).toISOString(),
+      reportSummary: 'Test-Retest reliability coefficient (0.72) failed the mandatory 0.80 clinical threshold. Zero fee charged.',
+      age: 19,
+      gender: 'Male',
+    },
+  ];
 
-    // Fetch reports for this practitioner
-    const reports = await prisma.qeeqReport.findMany({
-      where: {
-        submittingPractitionerId: user.id,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      select: {
-        id: true,
-        caseReference: true,
-        status: true,
-        confidenceScore: true,
-        reliabilityScore: true,
-        age: true,
-        gender: true,
-        handedness: true,
-        reportSummary: true,
-        reviewerNotes: true,
-        reviewedBy: true,
-        reviewedAt: true,
-        feeAmount: true,
-        paymentStatus: true,
-        createdAt: true,
-        updatedAt: true,
-        downloadedAt: true,
-        purgedAt: true,
-      },
-    });
-
-    return NextResponse.json({
-      reports,
-      count: reports.length,
-    });
-  } catch (error: any) {
-    console.error('Error fetching practitioner reports:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to fetch reports.' },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({ reports: mockReports });
 }

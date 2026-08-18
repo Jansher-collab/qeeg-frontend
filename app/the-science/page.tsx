@@ -124,36 +124,36 @@ export default function TheSciencePage() {
         </div>
       </section>
 
-      {/* Main Body Wrap */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 space-y-14 sm:space-y-20">
+      {/* Main Body Wrap with responsive full container width */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 space-y-10 sm:space-y-12">
         {/* 2. Step 1 Section: The Three Inputs (id="inputs") */}
-        <section id="inputs" className="space-y-6 scroll-mt-24">
-          <div className="text-center sm:text-left">
+        <section id="inputs" className="space-y-5 scroll-mt-24">
+          <div className="text-left">
             <div className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-widest text-slate-500 uppercase font-sans mb-1.5">
               <span>Step 1: The Three Inputs</span>
             </div>
-            <h2 className="text-xl sm:text-2xl lg:text-[30px] font-serif font-normal text-[#16233B] tracking-tight leading-snug">
+            <h2 className="text-xl sm:text-2xl lg:text-[28px] font-serif font-normal text-[#16233B] tracking-tight leading-snug">
               Every correlation starts from the same three sources
             </h2>
-            <p className="text-xs sm:text-sm text-slate-600 font-normal leading-relaxed mt-2 max-w-3xl">
+            <p className="text-xs sm:text-sm text-slate-600 font-normal leading-relaxed mt-1.5 max-w-3xl">
               Nothing is inferred from QEEG alone. A finding only becomes part of a report when it is grounded in the actual pattern across all three.
             </p>
           </div>
 
           {/* 3-Card Row with Elevated Cards & Plus Connectors */}
-          <div className="flex flex-col lg:flex-row items-stretch gap-4 sm:gap-5">
+          <div className="flex flex-col lg:flex-row items-stretch gap-4 sm:gap-5 w-full">
             {/* Card 1: QEEG */}
-            <div className="flex-1 bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-sm hover:shadow-xl hover:border-slate-300 hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group">
-              <div className="space-y-3.5">
+            <div className="flex-1 bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-2xs hover:shadow-md hover:border-slate-300 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="w-11 h-11 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-[#16233B] group-hover:scale-105 group-hover:bg-slate-200/70 transition-all duration-300 shadow-2xs">
-                    <Activity className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-[#16233B] group-hover:scale-105 group-hover:bg-slate-200/70 transition-all duration-200 shadow-2xs">
+                    <Activity className="w-4.5 h-4.5" />
                   </div>
-                  <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/80">
+                  <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200/80">
                     01 · QEEG
                   </span>
                 </div>
-                <h3 className="text-base font-semibold text-[#16233B] tracking-tight group-hover:text-slate-900 transition-colors">
+                <h3 className="text-sm sm:text-base font-semibold text-[#16233B] tracking-tight group-hover:text-slate-900 transition-colors">
                   NeuroGuide QEEG Export
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-600 font-normal leading-relaxed">
@@ -163,24 +163,24 @@ export default function TheSciencePage() {
             </div>
 
             {/* Plus separator */}
-            <div className="flex items-center justify-center shrink-0 my-1 lg:my-0">
-              <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs shadow-2xs">
-                <Plus className="w-4 h-4" />
+            <div className="flex items-center justify-center shrink-0 my-0.5 lg:my-0">
+              <div className="w-7 h-7 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs shadow-2xs">
+                <Plus className="w-3.5 h-3.5" />
               </div>
             </div>
 
             {/* Card 2: TOVA */}
-            <div className="flex-1 bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-sm hover:shadow-xl hover:border-slate-300 hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group">
-              <div className="space-y-3.5">
+            <div className="flex-1 bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-2xs hover:shadow-md hover:border-slate-300 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="w-11 h-11 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-[#16233B] group-hover:scale-105 group-hover:bg-slate-200/70 transition-all duration-300 shadow-2xs">
-                    <Timer className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-[#16233B] group-hover:scale-105 group-hover:bg-slate-200/70 transition-all duration-200 shadow-2xs">
+                    <Timer className="w-4.5 h-4.5" />
                   </div>
-                  <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/80">
+                  <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200/80">
                     02 · TOVA
                   </span>
                 </div>
-                <h3 className="text-base font-semibold text-[#16233B] tracking-tight group-hover:text-slate-900 transition-colors">
+                <h3 className="text-sm sm:text-base font-semibold text-[#16233B] tracking-tight group-hover:text-slate-900 transition-colors">
                   Objective Attention Data
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-600 font-normal leading-relaxed">
@@ -190,24 +190,24 @@ export default function TheSciencePage() {
             </div>
 
             {/* Plus separator */}
-            <div className="flex items-center justify-center shrink-0 my-1 lg:my-0">
-              <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs shadow-2xs">
-                <Plus className="w-4 h-4" />
+            <div className="flex items-center justify-center shrink-0 my-0.5 lg:my-0">
+              <div className="w-7 h-7 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs shadow-2xs">
+                <Plus className="w-3.5 h-3.5" />
               </div>
             </div>
 
             {/* Card 3: Symptom Checklist */}
-            <div className="flex-1 bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-sm hover:shadow-xl hover:border-slate-300 hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group">
-              <div className="space-y-3.5">
+            <div className="flex-1 bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-2xs hover:shadow-md hover:border-slate-300 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="w-11 h-11 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-[#16233B] group-hover:scale-105 group-hover:bg-slate-200/70 transition-all duration-300 shadow-2xs">
-                    <ClipboardCheck className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-[#16233B] group-hover:scale-105 group-hover:bg-slate-200/70 transition-all duration-200 shadow-2xs">
+                    <ClipboardCheck className="w-4.5 h-4.5" />
                   </div>
-                  <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/80">
+                  <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200/80">
                     03 · Checklist
                   </span>
                 </div>
-                <h3 className="text-base font-semibold text-[#16233B] tracking-tight group-hover:text-slate-900 transition-colors">
+                <h3 className="text-sm sm:text-base font-semibold text-[#16233B] tracking-tight group-hover:text-slate-900 transition-colors">
                   Clinical Presentation
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-600 font-normal leading-relaxed">
@@ -218,62 +218,65 @@ export default function TheSciencePage() {
           </div>
         </section>
 
-        {/* 3. Step 2 Section: The Matching Engine */}
-        <section className="space-y-6">
-          <div className="text-center sm:text-left">
+        {/* 3. Step 2 Section: The Matching Engine (Dark Blue Theme Container) */}
+        <section className="space-y-5">
+          <div className="text-left">
             <div className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-widest text-slate-500 uppercase font-sans mb-1.5">
               <span>Step 2: The Matching Engine</span>
             </div>
-            <h2 className="text-xl sm:text-2xl lg:text-[30px] font-serif font-normal text-[#16233B] tracking-tight leading-snug">
+            <h2 className="text-xl sm:text-2xl lg:text-[28px] font-serif font-normal text-[#16233B] tracking-tight leading-snug">
               Matched against a curated library, then checked against current research
             </h2>
           </div>
 
-          <div className="bg-white rounded-3xl p-6 sm:p-9 border border-slate-200 shadow-sm grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+          <div className="bg-[#16233B] text-white rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-xl grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center relative overflow-hidden w-full">
+            {/* Background subtle glow */}
+            <div className="absolute -top-24 -right-24 w-72 h-72 bg-[#1C2F4A]/60 rounded-full blur-3xl pointer-events-none" />
+
             {/* Column 1: Core Engine Architecture */}
-            <div className="lg:col-span-5 space-y-4">
-              <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-700">
-                <Layers className="w-4 h-4 text-[#16233B]" />
+            <div className="lg:col-span-5 space-y-3 relative z-10">
+              <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-300">
+                <Layers className="w-4 h-4 text-sky-400" />
                 <span>Two sources, never one</span>
               </div>
-              <p className="text-xs sm:text-sm text-slate-600 font-normal leading-relaxed">
+              <p className="text-xs sm:text-sm text-slate-300 font-normal leading-relaxed">
                 A hand-curated library of literature, reviewed and tagged to specific QEEG, TOVA, and symptom patterns, is checked first. Live queries to published research databases then supplement it, never replacing it, for anything current the curated library does not cover yet.
               </p>
             </div>
 
             {/* Column 2: Sources with Visual Accents */}
-            <div className="lg:col-span-7 space-y-3 border-t lg:border-t-0 lg:border-l border-slate-200/80 pt-6 lg:pt-0 lg:pl-8">
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-white transition-all duration-200 flex items-start gap-3.5 shadow-2xs group">
-                <div className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-[#16233B] shrink-0 mt-0.5 shadow-2xs group-hover:scale-105 transition-transform">
-                  <BookMarked className="w-4.5 h-4.5" />
+            <div className="lg:col-span-7 space-y-3 border-t lg:border-t-0 lg:border-l border-slate-800/90 pt-5 lg:pt-0 lg:pl-6 relative z-10">
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-[#121E30] border border-slate-700/80 hover:border-slate-600 hover:bg-[#18273D] transition-all duration-200 flex items-start gap-3.5 shadow-2xs group">
+                <div className="w-8 h-8 rounded-xl bg-slate-800/90 border border-slate-700 flex items-center justify-center text-sky-400 shrink-0 mt-0.5 shadow-2xs group-hover:scale-105 transition-transform">
+                  <BookMarked className="w-4 h-4" />
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-[#16233B]">Curated knowledge base</div>
-                  <p className="text-xs text-slate-500 mt-0.5 font-normal leading-relaxed">
+                  <div className="text-xs font-semibold text-white">Curated knowledge base</div>
+                  <p className="text-xs text-slate-400 mt-0.5 font-normal leading-relaxed">
                     Reviewed and tagged in advance, spanning neuroscience, psychological, and lifestyle literature: not just EEG studies.
                   </p>
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-white transition-all duration-200 flex items-start gap-3.5 shadow-2xs group">
-                <div className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-[#16233B] shrink-0 mt-0.5 shadow-2xs group-hover:scale-105 transition-transform">
-                  <GraduationCap className="w-4.5 h-4.5" />
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-[#121E30] border border-slate-700/80 hover:border-slate-600 hover:bg-[#18273D] transition-all duration-200 flex items-start gap-3.5 shadow-2xs group">
+                <div className="w-8 h-8 rounded-xl bg-slate-800/90 border border-slate-700 flex items-center justify-center text-sky-400 shrink-0 mt-0.5 shadow-2xs group-hover:scale-105 transition-transform">
+                  <GraduationCap className="w-4 h-4" />
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-[#16233B]">PubMed</div>
-                  <p className="text-xs text-slate-500 mt-0.5 font-normal leading-relaxed">
+                  <div className="text-xs font-semibold text-white">PubMed</div>
+                  <p className="text-xs text-slate-400 mt-0.5 font-normal leading-relaxed">
                     Primary source for current clinical and biomedical literature.
                   </p>
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-white transition-all duration-200 flex items-start gap-3.5 shadow-2xs group">
-                <div className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-[#16233B] shrink-0 mt-0.5 shadow-2xs group-hover:scale-105 transition-transform">
-                  <Sparkles className="w-4.5 h-4.5" />
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-[#121E30] border border-slate-700/80 hover:border-slate-600 hover:bg-[#18273D] transition-all duration-200 flex items-start gap-3.5 shadow-2xs group">
+                <div className="w-8 h-8 rounded-xl bg-slate-800/90 border border-slate-700 flex items-center justify-center text-sky-400 shrink-0 mt-0.5 shadow-2xs group-hover:scale-105 transition-transform">
+                  <Sparkles className="w-4 h-4" />
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-[#16233B]">Semantic Scholar</div>
-                  <p className="text-xs text-slate-500 mt-0.5 font-normal leading-relaxed">
+                  <div className="text-xs font-semibold text-white">Semantic Scholar</div>
+                  <p className="text-xs text-slate-400 mt-0.5 font-normal leading-relaxed">
                     Supplementary source catching psychology and allied-health research PubMed indexes less completely.
                   </p>
                 </div>
@@ -283,23 +286,23 @@ export default function TheSciencePage() {
         </section>
 
         {/* 4. Step 3 Section: Worked Example (id="example") */}
-        <section id="example" className="space-y-6 scroll-mt-24">
+        <section id="example" className="space-y-5 scroll-mt-24 w-full">
           <div>
             <div className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-widest text-slate-500 uppercase font-sans mb-1.5">
               <span>Step 3: What comes out</span>
             </div>
-            <h2 className="text-xl sm:text-2xl lg:text-[30px] font-serif font-normal text-[#16233B] tracking-tight leading-snug">
+            <h2 className="text-xl sm:text-2xl lg:text-[28px] font-serif font-normal text-[#16233B] tracking-tight leading-snug">
               A worked example, start to finish
             </h2>
-            <p className="text-xs text-slate-500 italic mt-1.5">
+            <p className="text-xs text-slate-500 italic mt-1">
               Illustrative only: a constructed example to show the process, not a real case or a real client&apos;s data.
             </p>
           </div>
 
           {/* 4-Step Sequence with Cards */}
-          <div className="space-y-3.5">
+          <div className="space-y-3">
             {/* Step 1 */}
-            <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-2xs hover:shadow-sm hover:border-slate-300 transition-all duration-200 flex items-start gap-4">
+            <div className="bg-white rounded-2xl p-4.5 sm:p-5 border border-slate-200 shadow-2xs hover:shadow-sm hover:border-slate-300 transition-all duration-200 flex items-start gap-3.5">
               <div className="w-8 h-8 rounded-xl bg-[#16233B] text-white flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
                 <Waves className="w-4 h-4 text-sky-400" />
               </div>
@@ -315,7 +318,7 @@ export default function TheSciencePage() {
             </div>
 
             {/* Step 2 */}
-            <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-2xs hover:shadow-sm hover:border-slate-300 transition-all duration-200 flex items-start gap-4">
+            <div className="bg-white rounded-2xl p-4.5 sm:p-5 border border-slate-200 shadow-2xs hover:shadow-sm hover:border-slate-300 transition-all duration-200 flex items-start gap-3.5">
               <div className="w-8 h-8 rounded-xl bg-[#16233B] text-white flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
                 <ClipboardList className="w-4 h-4 text-sky-400" />
               </div>
@@ -331,7 +334,7 @@ export default function TheSciencePage() {
             </div>
 
             {/* Step 3 */}
-            <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-2xs hover:shadow-sm hover:border-slate-300 transition-all duration-200 flex items-start gap-4">
+            <div className="bg-white rounded-2xl p-4.5 sm:p-5 border border-slate-200 shadow-2xs hover:shadow-sm hover:border-slate-300 transition-all duration-200 flex items-start gap-3.5">
               <div className="w-8 h-8 rounded-xl bg-[#16233B] text-white flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
                 <BookOpenCheck className="w-4 h-4 text-sky-400" />
               </div>
@@ -347,7 +350,7 @@ export default function TheSciencePage() {
             </div>
 
             {/* Step 4 (Output Box) */}
-            <div className="bg-[#16233B] text-white rounded-2xl p-5 sm:p-7 border border-slate-800 shadow-lg flex items-start gap-4">
+            <div className="bg-[#16233B] text-white rounded-2xl p-5 sm:p-6 border border-slate-800 shadow-lg flex items-start gap-3.5">
               <div className="w-8 h-8 rounded-xl bg-white text-[#16233B] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
                 <FileCheck2 className="w-4 h-4 text-[#16233B]" />
               </div>
@@ -356,7 +359,7 @@ export default function TheSciencePage() {
                 <h3 className="text-sm sm:text-base font-serif font-normal text-white">
                   What the report says: A correlation, not a diagnosis
                 </h3>
-                <p className="text-xs text-slate-200 font-normal leading-relaxed italic bg-slate-800/90 p-4 rounded-xl border border-slate-700/80">
+                <p className="text-xs text-slate-200 font-normal leading-relaxed italic bg-slate-800/90 p-3.5 rounded-xl border border-slate-700/80">
                   &ldquo;The elevated frontal theta/beta ratio observed is consistent with patterns reported in the attention literature. This finding, alongside the checklist&apos;s inattention-domain result, may be relevant to the referring practitioner&apos;s clinical picture.&rdquo;
                 </p>
                 <p className="text-xs text-slate-400 font-normal">
@@ -368,27 +371,27 @@ export default function TheSciencePage() {
         </section>
 
         {/* 5. Rigour Grid (id="rigour") */}
-        <section id="rigour" className="space-y-6 scroll-mt-24">
+        <section id="rigour" className="space-y-5 scroll-mt-24 w-full">
           <div>
             <div className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-widest text-slate-500 uppercase font-sans mb-1.5">
               <span>What this means for you</span>
             </div>
-            <h2 className="text-xl sm:text-2xl lg:text-[30px] font-serif font-normal text-[#16233B] tracking-tight leading-snug">
+            <h2 className="text-xl sm:text-2xl lg:text-[28px] font-serif font-normal text-[#16233B] tracking-tight leading-snug">
               Three things that are true of every report, without exception
             </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
             {/* Card 01 */}
-            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-sm hover:shadow-xl hover:border-slate-300 hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between group">
-              <div className="space-y-3">
+            <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-2xs hover:shadow-md hover:border-slate-300 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group">
+              <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <div className="w-10 h-10 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-[#16233B] group-hover:scale-110 transition-transform duration-300 shadow-2xs">
-                    <BookOpenCheck className="w-5 h-5" />
+                  <div className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-[#16233B] group-hover:scale-105 transition-transform duration-200 shadow-2xs">
+                    <BookOpenCheck className="w-4.5 h-4.5" />
                   </div>
                   <span className="text-[11px] font-mono font-bold text-slate-400">01</span>
                 </div>
-                <h3 className="text-base font-serif font-normal text-[#16233B] group-hover:text-slate-900 transition-colors">
+                <h3 className="text-sm sm:text-base font-serif font-normal text-[#16233B] group-hover:text-slate-900 transition-colors">
                   Every citation traces to a real source
                 </h3>
                 <p className="text-xs text-slate-600 font-normal leading-relaxed">
@@ -398,15 +401,15 @@ export default function TheSciencePage() {
             </div>
 
             {/* Card 02 */}
-            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-sm hover:shadow-xl hover:border-slate-300 hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between group">
-              <div className="space-y-3">
+            <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-2xs hover:shadow-md hover:border-slate-300 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group">
+              <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <div className="w-10 h-10 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-[#16233B] group-hover:scale-110 transition-transform duration-300 shadow-2xs">
-                    <Scale className="w-5 h-5" />
+                  <div className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-[#16233B] group-hover:scale-105 transition-transform duration-200 shadow-2xs">
+                    <Scale className="w-4.5 h-4.5" />
                   </div>
                   <span className="text-[11px] font-mono font-bold text-slate-400">02</span>
                 </div>
-                <h3 className="text-base font-serif font-normal text-[#16233B] group-hover:text-slate-900 transition-colors">
+                <h3 className="text-sm sm:text-base font-serif font-normal text-[#16233B] group-hover:text-slate-900 transition-colors">
                   Findings, not diagnoses
                 </h3>
                 <p className="text-xs text-slate-600 font-normal leading-relaxed">
@@ -416,15 +419,15 @@ export default function TheSciencePage() {
             </div>
 
             {/* Card 03 */}
-            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-sm hover:shadow-xl hover:border-slate-300 hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between group">
-              <div className="space-y-3">
+            <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-2xs hover:shadow-md hover:border-slate-300 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group">
+              <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <div className="w-10 h-10 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-[#16233B] group-hover:scale-110 transition-transform duration-300 shadow-2xs">
-                    <ShieldCheck className="w-5 h-5" />
+                  <div className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-[#16233B] group-hover:scale-105 transition-transform duration-200 shadow-2xs">
+                    <ShieldCheck className="w-4.5 h-4.5" />
                   </div>
                   <span className="text-[11px] font-mono font-bold text-slate-400">03</span>
                 </div>
-                <h3 className="text-base font-serif font-normal text-[#16233B] group-hover:text-slate-900 transition-colors">
+                <h3 className="text-sm sm:text-base font-serif font-normal text-[#16233B] group-hover:text-slate-900 transition-colors">
                   AI-generated, and we say so
                 </h3>
                 <p className="text-xs text-slate-600 font-normal leading-relaxed">
@@ -436,23 +439,23 @@ export default function TheSciencePage() {
         </section>
 
         {/* 6. Final Call to Action Section (Matching Landing Page Banner Style) */}
-        <section className="pt-4">
-          <div className="bg-[#16233B] rounded-3xl p-8 sm:p-12 text-white border border-slate-800 shadow-xl text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-8 hover:border-slate-700 transition-colors relative overflow-hidden">
+        <section className="pt-2 w-full">
+          <div className="bg-[#16233B] rounded-3xl p-7 sm:p-10 text-white border border-slate-800 shadow-xl text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-6 hover:border-slate-700 transition-colors relative overflow-hidden">
             {/* Subtle glow */}
             <div className="absolute -top-24 -right-24 w-80 h-80 bg-[#1C2F4A]/40 rounded-full blur-3xl pointer-events-none" />
 
-            <div className="space-y-2 max-w-lg relative z-10">
-              <h3 className="text-2xl sm:text-3xl font-serif font-normal text-white tracking-tight leading-snug">
+            <div className="space-y-1.5 max-w-lg relative z-10">
+              <h3 className="text-xl sm:text-2xl font-serif font-normal text-white tracking-tight leading-snug">
                 See it applied to your own client&apos;s data
               </h3>
-              <p className="text-slate-300 text-sm font-normal">
+              <p className="text-slate-300 text-xs sm:text-sm font-normal">
                 Free to sign up. You only pay when a report is actually produced.
               </p>
             </div>
 
             <Link
               href="/signup"
-              className="px-7 py-4 text-sm font-semibold text-[#16233B] bg-white hover:bg-slate-100 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center gap-2 shrink-0 group relative z-10"
+              className="px-6 py-3.5 text-xs sm:text-sm font-semibold text-[#16233B] bg-white hover:bg-slate-100 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center gap-2 shrink-0 group relative z-10"
             >
               <span>Create your free account</span>
               <ArrowRight className="w-4 h-4 text-[#16233B] group-hover:translate-x-1 transition-transform duration-200" />

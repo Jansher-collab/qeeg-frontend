@@ -1,7 +1,97 @@
 import Link from "next/link";
-import { AlertTriangle, FileText, ArrowRight, ShieldCheck } from "lucide-react";
+import { AlertTriangle, FileText, ArrowRight, ShieldCheck, Mail, Scale, CheckCircle2 } from "lucide-react";
 
 export default function TermsPage() {
+  const sections = [
+    {
+      id: "section-1",
+      title: "1. What this service is",
+      content: (
+        <p>
+          QEEG.com.au, operated by Applied Neurosciences Pty Ltd (&ldquo;we&rdquo;, &ldquo;us&rdquo;), generates AI-produced reports correlating QEEG, TOVA, and symptom checklist data against published research literature. Reports describe research correlations only. They are not a diagnosis and do not constitute a clinical recommendation.
+        </p>
+      ),
+    },
+    {
+      id: "section-2",
+      title: "2. No human review",
+      content: (
+        <p>
+          Reports are generated automatically with no human review before delivery. You are responsible for independently checking a report&apos;s findings before relying on them or sharing them further with clients or allied health professionals.
+        </p>
+      ),
+    },
+    {
+      id: "section-3",
+      title: "3. Your responsibilities as the referring practitioner",
+      content: (
+        <ul className="space-y-2 list-disc pl-5 text-slate-600 marker:text-slate-400">
+          <li>
+            You are responsible for obtaining any consent required from your client before submitting their data.
+          </li>
+          <li>
+            You are responsible for keeping track of which case reference corresponds to which patient, as we do not hold this mapping and cannot recover it if lost.
+          </li>
+          <li>
+            You remain responsible for the clinical decisions you make; this service informs, but does not replace, your own clinical judgement.
+          </li>
+        </ul>
+      ),
+    },
+    {
+      id: "section-4",
+      title: "4. Data handling",
+      content: (
+        <p>
+          See our{" "}
+          <Link
+            href="/privacy"
+            className="text-[#16233B] font-semibold underline hover:text-slate-900 transition-colors"
+          >
+            Privacy &amp; Data Handling page
+          </Link>{" "}
+          for the full detail. In summary: identifying data is stripped in your browser before upload, and all data for a submission is purged from our servers the moment you download the finished report.
+        </p>
+      ),
+    },
+    {
+      id: "section-5",
+      title: "5. Fees",
+      content: (
+        <p>
+          The current fee is AU$65 per successfully generated report, charged only once a report is produced. Rejected submissions (failing the reliability threshold) are never charged. A resubmission is treated as a new report and charged in full if successful.
+        </p>
+      ),
+    },
+    {
+      id: "section-6",
+      title: "6. Scope",
+      content: (
+        <p>
+          This service is built around NeuroGuide QEEG exports and Australian data-handling law. It is not represented as suitable for QEEG data from other systems or for practitioners operating outside Australia.
+        </p>
+      ),
+    },
+    {
+      id: "section-7",
+      title: "7. Limitation of liability",
+      content: (
+        <p>
+          To the maximum extent permitted by law, Applied Neurosciences Pty Ltd is not liable for clinical decisions made in reliance on a generated report. This service provides research correlations for your own consideration, not clinical advice.
+        </p>
+      ),
+    },
+    {
+      id: "section-8",
+      title: "8. Changes to these terms",
+      content: (
+        <p>
+          We may update these terms from time to time. Continued use of the service after a change constitutes acceptance of the updated terms.
+        </p>
+      ),
+    },
+  ];
+
   return (
     <div className="bg-slate-50 text-slate-900 font-sans animate-fadeIn">
       {/* 1. Page Hero Section */}
@@ -13,156 +103,104 @@ export default function TermsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           {/* Eyebrow */}
           <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-slate-800/90 border border-slate-700/80 text-[11px] font-semibold tracking-[0.2em] text-slate-300 uppercase mb-5 font-sans">
-            <span>Legal</span>
+            <span>Legal Framework</span>
           </div>
 
           {/* Main Heading in Lora Serif */}
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[42px] font-serif font-normal text-white leading-[1.2] tracking-tight max-w-3xl">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[42px] font-serif font-normal text-white leading-[1.2] tracking-tight mb-4 max-w-3xl">
             Terms of Service
           </h1>
+
+          {/* Lede Paragraph */}
+          <p className="text-sm sm:text-base md:text-[17px] text-slate-300 font-normal max-w-3xl leading-relaxed">
+            Clear parameters governing practitioner responsibilities, correlation boundaries, and data destruction.
+          </p>
         </div>
       </section>
 
-      {/* 2. Legal Body Content Container */}
-      <section className="py-14 sm:py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
-          {/* Draft Notice Banner */}
-          <div className="rounded-2xl p-4 sm:p-5 bg-amber-50/80 border border-amber-200/90 shadow-2xs flex items-start gap-3.5 text-amber-950 text-xs sm:text-sm font-normal leading-relaxed">
-            <AlertTriangle className="w-5 h-5 text-amber-800 shrink-0 mt-0.5" />
-            <div>
-              <span className="font-semibold block text-amber-950 mb-0.5">
-                Draft Notice
-              </span>
-              Draft for review, not yet confirmed by legal counsel. Last edited 11 August 2026.
-            </div>
-          </div>
+      {/* 2. Main Two-Column Legal Container */}
+      <section className="py-12 sm:py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+            {/* Left Column: TOC & Status (4 cols) */}
+            <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-28">
+              {/* Draft Status Banner */}
+              <div className="rounded-2xl p-5 bg-amber-50/90 border border-amber-200/90 shadow-2xs space-y-2">
+                <div className="flex items-center gap-2 text-amber-950 font-semibold text-xs uppercase tracking-wider">
+                  <AlertTriangle className="w-4 h-4 text-amber-800" />
+                  <span>Draft Notice</span>
+                </div>
+                <p className="text-xs text-amber-950/90 leading-relaxed font-normal">
+                  Draft for review, not yet confirmed by legal counsel. Last edited August 2026.
+                </p>
+              </div>
 
-          {/* Legal Sections */}
-          <div className="bg-white rounded-3xl p-8 sm:p-12 border border-slate-200 shadow-2xs space-y-10 text-slate-700 text-sm sm:text-base leading-relaxed font-normal">
-            {/* Section 1 */}
-            <div className="space-y-3">
-              <h2 className="text-lg sm:text-xl font-serif font-normal text-[#16233B] tracking-tight">
-                1. What this service is
-              </h2>
-              <p>
-                QEEG.com.au, operated by Applied Neurosciences Pty Ltd (&ldquo;we&rdquo;, &ldquo;us&rdquo;), generates AI-produced reports correlating QEEG, TOVA, and symptom checklist data against published research literature. Reports describe research correlations only. They are not a diagnosis and do not constitute a clinical recommendation.
-              </p>
-            </div>
+              {/* Quick Navigation Card */}
+              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs space-y-2">
+                <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2 px-1">
+                  Table of Contents
+                </div>
+                <div className="flex flex-col gap-1 text-xs text-slate-700 font-medium">
+                  {sections.map((sec) => (
+                    <a
+                      key={sec.id}
+                      href={`#${sec.id}`}
+                      className="px-3 py-2 rounded-xl hover:bg-slate-100 hover:text-slate-950 transition-colors flex items-center justify-between"
+                    >
+                      <span>{sec.title}</span>
+                      <ArrowRight className="w-3 h-3 text-slate-400" />
+                    </a>
+                  ))}
+                </div>
+              </div>
 
-            <hr className="border-slate-100" />
-
-            {/* Section 2 */}
-            <div className="space-y-3">
-              <h2 className="text-lg sm:text-xl font-serif font-normal text-[#16233B] tracking-tight">
-                2. No human review
-              </h2>
-              <p>
-                Reports are generated automatically with no human review before delivery. You are responsible for independently checking a report&apos;s findings before relying on them or sharing them further.
-              </p>
-            </div>
-
-            <hr className="border-slate-100" />
-
-            {/* Section 3 */}
-            <div className="space-y-3">
-              <h2 className="text-lg sm:text-xl font-serif font-normal text-[#16233B] tracking-tight">
-                3. Your responsibilities as the referring practitioner
-              </h2>
-              <ul className="space-y-2.5 list-disc pl-5 text-slate-600 marker:text-slate-400">
-                <li>
-                  You are responsible for obtaining any consent required from your client before submitting their data.
-                </li>
-                <li>
-                  You are responsible for keeping track of which case reference corresponds to which patient, as we do not hold this mapping and cannot recover it if lost.
-                </li>
-                <li>
-                  You remain responsible for the clinical decisions you make; this service informs, but does not replace, your own clinical judgement.
-                </li>
-              </ul>
+              {/* Legal Support Card */}
+              <div className="bg-[#16233B] text-white rounded-2xl p-5 border border-slate-800 shadow-md space-y-3">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                  <Scale className="w-4 h-4 text-sky-400" />
+                  <span>Jurisdiction</span>
+                </div>
+                <p className="text-xs text-slate-300 font-normal leading-relaxed">
+                  Governed by the laws of Victoria, Australia. Built in alignment with the Privacy Act 1988.
+                </p>
+              </div>
             </div>
 
-            <hr className="border-slate-100" />
+            {/* Right Column: Legal Clauses (8 cols) */}
+            <div className="lg:col-span-8 space-y-6">
+              <div className="bg-white rounded-3xl p-7 sm:p-10 border border-slate-200 shadow-2xs space-y-8 text-slate-700 text-sm sm:text-base leading-relaxed font-normal">
+                {sections.map((sec, index) => (
+                  <div key={sec.id} id={sec.id} className="space-y-2.5 scroll-mt-28">
+                    <h2 className="text-base sm:text-lg font-serif font-normal text-[#16233B] tracking-tight flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#16233B] shrink-0" />
+                      <span>{sec.title}</span>
+                    </h2>
+                    <div className="text-xs sm:text-sm text-slate-600 font-normal leading-relaxed pl-3.5 border-l-2 border-slate-100">
+                      {sec.content}
+                    </div>
+                    {index < sections.length - 1 && (
+                      <hr className="border-slate-100 mt-6" />
+                    )}
+                  </div>
+                ))}
+              </div>
 
-            {/* Section 4 */}
-            <div className="space-y-3">
-              <h2 className="text-lg sm:text-xl font-serif font-normal text-[#16233B] tracking-tight">
-                4. Data handling
-              </h2>
-              <p>
-                See our{" "}
+              {/* Bottom Security Assurance Banner */}
+              <div className="p-6 rounded-3xl bg-[#16233B] text-white border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md">
+                <div className="flex items-center gap-3">
+                  <ShieldCheck className="w-5 h-5 text-sky-400 shrink-0" />
+                  <span className="text-xs sm:text-sm font-normal text-slate-200">
+                    Operating under Australian Privacy Principles (APPs) &amp; Sovereign Hosting
+                  </span>
+                </div>
                 <Link
                   href="/privacy"
-                  className="text-[#16233B] font-medium underline hover:text-slate-900 transition-colors"
+                  className="text-xs font-semibold text-white hover:text-slate-300 underline shrink-0 transition-colors"
                 >
-                  Privacy &amp; Data Handling page
-                </Link>{" "}
-                for the full detail. In summary: identifying data is stripped in your browser before upload, and all data for a submission is purged from our servers the moment you download the finished report.
-              </p>
+                  Review Data Protocol &rarr;
+                </Link>
+              </div>
             </div>
-
-            <hr className="border-slate-100" />
-
-            {/* Section 5 */}
-            <div className="space-y-3">
-              <h2 className="text-lg sm:text-xl font-serif font-normal text-[#16233B] tracking-tight">
-                5. Fees
-              </h2>
-              <p>
-                The current fee is AU$65 per successfully generated report, charged only once a report is produced. Rejected submissions (failing the reliability threshold) are never charged. A resubmission is treated as a new report and charged in full if successful.
-              </p>
-            </div>
-
-            <hr className="border-slate-100" />
-
-            {/* Section 6 */}
-            <div className="space-y-3">
-              <h2 className="text-lg sm:text-xl font-serif font-normal text-[#16233B] tracking-tight">
-                6. Scope
-              </h2>
-              <p>
-                This service is built around NeuroGuide QEEG exports and Australian data-handling law. It is not represented as suitable for QEEG data from other systems or for practitioners operating outside Australia.
-              </p>
-            </div>
-
-            <hr className="border-slate-100" />
-
-            {/* Section 7 */}
-            <div className="space-y-3">
-              <h2 className="text-lg sm:text-xl font-serif font-normal text-[#16233B] tracking-tight">
-                7. Limitation of liability
-              </h2>
-              <p>
-                To the maximum extent permitted by law, Applied Neurosciences Pty Ltd is not liable for clinical decisions made in reliance on a generated report. This service provides research correlations for your own consideration, not clinical advice.
-              </p>
-            </div>
-
-            <hr className="border-slate-100" />
-
-            {/* Section 8 */}
-            <div className="space-y-3">
-              <h2 className="text-lg sm:text-xl font-serif font-normal text-[#16233B] tracking-tight">
-                8. Changes to these terms
-              </h2>
-              <p>
-                We may update these terms from time to time. Continued use of the service after a change constitutes acceptance of the updated terms.
-              </p>
-            </div>
-          </div>
-
-          {/* Bottom Security Assurance */}
-          <div className="p-6 rounded-3xl bg-[#16233B] text-white border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="w-5 h-5 text-slate-300 shrink-0" />
-              <span className="text-xs sm:text-sm font-normal text-slate-200">
-                Operating under Australian Privacy Principles (APPs) &amp; Sovereign Hosting
-              </span>
-            </div>
-            <Link
-              href="/privacy"
-              className="text-xs font-semibold text-white hover:text-slate-300 underline shrink-0 transition-colors"
-            >
-              Review Data Protocol &rarr;
-            </Link>
           </div>
         </div>
       </section>

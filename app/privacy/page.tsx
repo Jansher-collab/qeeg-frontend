@@ -10,7 +10,6 @@ import {
   ArrowRight,
   Mail,
   HelpCircle,
-  EyeOff,
 } from "lucide-react";
 
 export default function PrivacyPage() {
@@ -67,56 +66,51 @@ export default function PrivacyPage() {
         </div>
       </section>
 
-      {/* Main Body Wrap */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 space-y-14 sm:space-y-20">
+      {/* Main Body Wrap with responsive full container width */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 space-y-10 sm:space-y-12">
         {/* 2. Core Design Section */}
         <section className="space-y-5">
           <div>
-            <div className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-widest text-slate-500 uppercase font-sans mb-2.5">
+            <div className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-widest text-slate-500 uppercase font-sans mb-2">
               <span>The core design</span>
             </div>
-            <h2 className="text-xl sm:text-2xl lg:text-[30px] font-serif font-normal text-[#16233B] tracking-tight leading-snug">
+            <h2 className="text-xl sm:text-2xl lg:text-[28px] font-serif font-normal text-[#16233B] tracking-tight leading-snug">
               Your server never receives a patient&apos;s identity: not even briefly
             </h2>
-            <p className="text-base sm:text-lg text-slate-600 font-normal leading-relaxed mt-4">
+            <p className="text-sm sm:text-base text-slate-600 font-normal leading-relaxed mt-2.5 max-w-3xl">
               This isn&apos;t a retention policy layered on top of a normal upload. Identity is stripped in your browser before the first byte is ever sent.
             </p>
           </div>
 
-          {/* Info Box / Callout */}
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-2xs space-y-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-[#16233B]">
-                <EyeOff className="w-4 h-4" />
-              </div>
-              <h3 className="text-base sm:text-lg font-serif font-normal text-[#16233B]">
-                What&apos;s stripped, before anything uploads
-              </h3>
-            </div>
-            <p className="text-sm sm:text-base text-slate-600 font-normal leading-relaxed">
+          {/* Callout Box matching Screenshot 2 (Pale sage tint background and clean typography) */}
+          <div className="rounded-2xl p-6 sm:p-7 bg-[#EAF4EF] border border-[#BBDED3] shadow-2xs space-y-2 w-full">
+            <h3 className="text-sm sm:text-base font-bold text-[#16233B]">
+              What&apos;s stripped, before anything uploads
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-700 font-normal leading-relaxed">
               Name, date of birth, date of test, time of test: every date field, not just the obvious ones. Only age and gender remain, plus an opaque case reference that is never linked to a patient name anywhere on our servers.
             </p>
           </div>
         </section>
 
-        {/* 3. 4-Card Infrastructure & Security Grid */}
-        <section className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* 3. 4-Card Infrastructure & Security Grid stretching cleanly */}
+        <section className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 w-full">
             {infraCards.map((card, index) => {
               const Icon = card.icon;
               return (
                 <div
                   key={index}
-                  className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-2xs hover:shadow-sm hover:border-slate-300 hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between"
+                  className="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200 shadow-2xs hover:shadow-sm hover:border-slate-300 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between"
                 >
                   <div>
-                    <div className="w-10 h-10 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center text-[#16233B] mb-5 shadow-2xs">
-                      <Icon className="w-5 h-5" />
+                    <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-[#16233B] mb-4 shadow-2xs">
+                      <Icon className="w-4.5 h-4.5" />
                     </div>
-                    <h3 className="text-lg sm:text-xl font-serif font-normal text-[#16233B] tracking-tight mb-3">
+                    <h3 className="text-base sm:text-lg font-serif font-normal text-[#16233B] tracking-tight mb-2">
                       {card.title}
                     </h3>
-                    <p className="text-sm text-slate-600 font-normal leading-relaxed">
+                    <p className="text-xs sm:text-sm text-slate-600 font-normal leading-relaxed">
                       {card.description}
                     </p>
                   </div>
@@ -127,45 +121,43 @@ export default function PrivacyPage() {
         </section>
 
         {/* 4. Trade-off Callout Box (Amber/Neutral Theme) */}
-        <section>
-          <div className="rounded-3xl p-6 sm:p-8 bg-amber-50/70 border border-amber-200/90 shadow-2xs space-y-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-900">
-                <AlertTriangle className="w-4 h-4" />
-              </div>
-              <h3 className="text-base sm:text-lg font-serif font-normal text-amber-950">
+        <section className="w-full">
+          <div className="rounded-2xl p-6 sm:p-7 bg-amber-50/70 border border-amber-200/90 shadow-2xs space-y-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-800 shrink-0" />
+              <h3 className="text-sm sm:text-base font-serif font-normal text-amber-950">
                 What we can&apos;t do, as a result
               </h3>
             </div>
-            <p className="text-sm sm:text-base text-amber-900 font-normal leading-relaxed">
+            <p className="text-xs sm:text-sm text-amber-900 font-normal leading-relaxed">
               Because we never hold the identity mapping, we can&apos;t recover it if you lose track of a case reference, and we can&apos;t verify what you enter at download time. That trade-off is the whole point: the alternative is us holding data we do not need to.
             </p>
           </div>
         </section>
 
         {/* 5. Reports Section */}
-        <section className="space-y-4">
+        <section className="space-y-3 w-full">
           <div>
-            <div className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-widest text-slate-500 uppercase font-sans mb-3">
+            <div className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-widest text-slate-500 uppercase font-sans mb-1">
               <span>Reports themselves</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-serif font-normal text-[#16233B] tracking-tight leading-snug">
+            <h2 className="text-xl sm:text-2xl font-serif font-normal text-[#16233B] tracking-tight leading-snug">
               Even the report addresses your client only by age and gender
             </h2>
-            <p className="text-base sm:text-lg text-slate-600 font-normal leading-relaxed mt-3">
+            <p className="text-sm sm:text-base text-slate-600 font-normal leading-relaxed mt-2 max-w-3xl">
               &ldquo;The client is a 39-year-old female.&rdquo; That is the extent of it: nothing else identifying ever appears in a generated report.
             </p>
           </div>
         </section>
 
         {/* 6. Final Call to Action Section */}
-        <section>
-          <div className="bg-[#16233B] rounded-3xl p-8 sm:p-12 text-white border border-slate-800 shadow-xl text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-8 hover:border-slate-700 transition-colors">
-            <div className="space-y-2 max-w-lg">
-              <h3 className="text-2xl sm:text-3xl font-serif font-normal text-white tracking-tight leading-snug">
+        <section className="w-full pt-2">
+          <div className="bg-[#16233B] rounded-3xl p-7 sm:p-10 text-white border border-slate-800 shadow-xl text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-6 hover:border-slate-700 transition-colors">
+            <div className="space-y-1.5 max-w-lg">
+              <h3 className="text-xl sm:text-2xl font-serif font-normal text-white tracking-tight leading-snug">
                 Questions about how your data is handled?
               </h3>
-              <p className="text-slate-300 text-sm sm:text-base font-normal">
+              <p className="text-slate-300 text-xs sm:text-sm font-normal">
                 Check the{" "}
                 <Link
                   href="/faq"
@@ -177,10 +169,10 @@ export default function PrivacyPage() {
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 shrink-0">
+            <div className="flex flex-wrap items-center gap-3 shrink-0">
               <Link
                 href="/terms"
-                className="px-6 py-3.5 text-sm font-semibold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center gap-2 group"
+                className="px-5 py-3 text-xs sm:text-sm font-semibold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center gap-2 group"
               >
                 <FileText className="w-4 h-4 text-slate-300" />
                 <span>Terms of Service</span>

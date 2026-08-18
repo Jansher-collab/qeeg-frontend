@@ -1,17 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getSessionCookieName } from '@/lib/backend/services/authService';
+import { NextResponse } from 'next/server';
 
-export async function POST(req: NextRequest) {
+export async function POST() {
   const response = NextResponse.json({ message: 'Logged out successfully.' });
-  const cookieName = getSessionCookieName();
-
-  response.cookies.set(cookieName, '', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 0,
-  });
-
+  response.cookies.delete('qeeg_session_token');
   return response;
 }

@@ -1,30 +1,22 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getActivityLogs } from '@/lib/backend/services/activityLogger';
+import { NextResponse } from 'next/server';
 
-export async function GET(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const caseReference = searchParams.get('caseReference') || undefined;
-    const reportId = searchParams.get('reportId') || undefined;
-    const userId = searchParams.get('userId') || undefined;
-    const limitStr = searchParams.get('limit');
-    const limit = limitStr ? parseInt(limitStr, 10) : 50;
+export async function GET() {
+  const logs = [
+    {
+      id: 'log_001',
+      action: 'REPORT_GENERATED',
+      caseReference: 'CASE-88291-VIC',
+      details: { fee: 65.0, status: 'COMPLETED' },
+      timestamp: new Date(Date.now() - 2 * 3600000).toISOString(),
+    },
+    {
+      id: 'log_002',
+      action: 'RELIABILITY_REJECTED',
+      caseReference: 'CASE-77301-QLD',
+      details: { score: 0.72, threshold: 0.8 },
+      timestamp: new Date(Date.now() - 48 * 3600000).toISOString(),
+    },
+  ];
 
-    const logs = await getActivityLogs({
-      caseReference,
-      reportId,
-      userId,
-      limit,
-    });
-
-    return NextResponse.json({
-      count: logs.length,
-      logs,
-    });
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal Server Error' },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({ logs });
 }

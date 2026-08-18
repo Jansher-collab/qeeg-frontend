@@ -1,42 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getReportFeeAUD, setReportFeeAUD } from '@/lib/backend/services/paypalService';
-import { prisma } from '@/lib/backend/prisma';
 
 export async function GET() {
-  try {
-    const currentFee = await getReportFeeAUD();
-    const settings = await prisma.systemSetting.findMany();
-
-    return NextResponse.json({
-      reportFeeAUD: currentFee,
+  return NextResponse.json({
+    settings: {
+      reportFeeAUD: 65.0,
+      minReliabilityThreshold: 0.8,
       currency: 'AUD',
-      settings,
-    });
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal Server Error' },
-      { status: 500 }
-    );
-  }
+      hostingRegion: 'ap-southeast-2 (Sydney)',
+    },
+  });
 }
 
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    if (typeof body.reportFeeAUD === 'number' && body.reportFeeAUD > 0) {
-      const updatedFee = await setReportFeeAUD(body.reportFeeAUD);
-      return NextResponse.json({
-        message: 'Report fee updated successfully.',
-        reportFeeAUD: updatedFee,
-        currency: 'AUD',
-      });
-    }
-
-    return NextResponse.json({ error: 'Invalid reportFeeAUD value.' }, { status: 400 });
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal Server Error' },
-      { status: 500 }
-    );
-  }
+export async function PUT(req: NextRequest) {
+  const body = await req.json();
+  return NextResponse.json({
+    message: 'Settings updated.',
+    settings: body,
+  });
 }

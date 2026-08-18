@@ -3,7 +3,7 @@ import { ArrowRight, ShieldCheck, Lock, Sparkles } from "lucide-react";
 
 export default function CtaBanner() {
   return (
-    <section id="signup" className="py-20 sm:py-28 bg-white relative overflow-hidden border-t border-slate-200">
+    <section id="signup" className="py-12 sm:py-16 bg-white relative overflow-hidden border-t border-slate-200">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="bg-[#16233B] rounded-3xl p-10 sm:p-14 text-center text-white border border-slate-800 shadow-2xl relative overflow-hidden">
           {/* Subtle Glow Overlays */}

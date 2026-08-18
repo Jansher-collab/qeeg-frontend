@@ -44,7 +44,7 @@ export default function WhyUsSection() {
   ];
 
   return (
-    <section id="why-us" className="py-20 sm:py-28 bg-[#F8FAFC] border-t border-slate-200 relative">
+    <section id="why-us" className="py-12 sm:py-16 bg-[#F8FAFC] border-t border-slate-200 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="max-w-3xl mb-14">

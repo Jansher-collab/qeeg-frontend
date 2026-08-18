@@ -24,7 +24,7 @@ export default function PrivacySection() {
   ];
 
   return (
-    <section id="privacy" className="py-20 sm:py-28 bg-[#16233B] text-white border-t border-slate-800 relative overflow-hidden">
+    <section id="privacy" className="py-12 sm:py-16 bg-[#16233B] text-white border-t border-slate-800 relative overflow-hidden">
       {/* Background Subtle Gradient Glow */}
       <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-[#1C2F4A]/40 rounded-full blur-3xl pointer-events-none" />
 

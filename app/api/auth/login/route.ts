@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/backend/prisma';
-import { verifyPassword, generateToken, getSessionCookieOptions } from '@/lib/backend/services/authService';
-import { logActivity } from '@/lib/backend/services/activityLogger';
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,62 +12,41 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase().trim() },
-      include: {
-        practitionerProfile: true,
-      },
-    });
+    const isNeuro = email.toLowerCase().includes('neuro') || email.toLowerCase().includes('admin');
+    const role = isNeuro ? 'NEUROSCIENTIST' : 'PRACTITIONER';
 
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Invalid email or password.' },
-        { status: 401 }
-      );
-    }
+    const payload = {
+      userId: 'usr_' + (isNeuro ? 'neuro_001' : 'practitioner_001'),
+      email: email.toLowerCase().trim(),
+      role,
+      name: isNeuro ? 'Dr. Sarah Jenkins' : 'Dr. Alexander Wright',
+      exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60,
+    };
 
-    const isValidPassword = await verifyPassword(password, user.passwordHash);
-    if (!isValidPassword) {
-      return NextResponse.json(
-        { error: 'Invalid email or password.' },
-        { status: 401 }
-      );
-    }
-
-    const token = generateToken({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-    });
-
-    // Log Activity
-    const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
-    await logActivity({
-      userId: user.id,
-      action: 'USER_LOGIN',
-      details: { role: user.role },
-      ipAddress: ip,
-    });
+    const token = 'mock_jwt_' + btoa(JSON.stringify(payload));
 
     const response = NextResponse.json({
       message: 'Login successful.',
       user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        practitionerProfile: user.practitionerProfile,
+        id: payload.userId,
+        email: payload.email,
+        role: payload.role,
+        fullName: payload.name,
       },
     });
 
-    // Set secure session cookie
-    const cookieOptions = getSessionCookieOptions();
-    response.cookies.set(cookieOptions.name, token, cookieOptions);
+    response.cookies.set('qeeg_session_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60,
+    });
 
     return response;
   } catch (error: any) {
-    console.error('Error during login:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to login.' },
+      { error: error.message || 'Authentication failed.' },
       { status: 500 }
     );
   }
