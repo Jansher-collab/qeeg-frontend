@@ -17,7 +17,7 @@ export default function ProcessSection() {
       icon: UploadCloud,
       title: "Upload the files",
       description:
-        "QEEG, TOVA, and the completed checklist — de-identified in your browser before anything is sent.",
+        "QEEG, TOVA, and the completed checklist, de-identified in your browser before anything is sent.",
       iconBg: "bg-slate-100 text-[#16233B] border border-slate-200",
       stepTag: "Step 02",
     },
@@ -26,7 +26,7 @@ export default function ProcessSection() {
       icon: Cpu,
       title: "We generate it",
       description:
-        "Checked against the literature by the correlation engine — AI-generated, with a clear notice to verify findings.",
+        "Checked against the literature by the correlation engine: AI-generated, with a clear notice to verify findings.",
       iconBg: "bg-slate-100 text-[#16233B] border border-slate-200",
       stepTag: "Step 03",
     },
@@ -35,7 +35,7 @@ export default function ProcessSection() {
       icon: Download,
       title: "Download your report",
       description:
-        "One download — save it, it won't sit on our servers.",
+        "One download only: save it locally, as it will not remain on our servers.",
       iconBg: "bg-slate-100 text-[#16233B] border border-slate-200",
       stepTag: "Step 04",
     },
@@ -56,9 +56,9 @@ export default function ProcessSection() {
             </h2>
 
             <p className="text-slate-600 text-sm sm:text-base leading-relaxed font-normal max-w-md">
-              The full process has a few more checks behind the scenes — a reliability gate, a processing step — but this is what it looks like from your side.{" "}
+              The full process has a few more checks behind the scenes (a reliability gate, a processing step), but this is what it looks like from your side.{" "}
               <Link
-                href="#how-it-works"
+                href="/how-it-works"
                 className="text-[#16233B] hover:text-slate-700 font-semibold underline underline-offset-4 inline-flex items-center gap-1 group/link mt-2"
               >
                 <span>See the full walkthrough</span>

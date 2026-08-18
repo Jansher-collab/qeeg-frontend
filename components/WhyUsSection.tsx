@@ -6,7 +6,7 @@ export default function WhyUsSection() {
       icon: Zap,
       title: "Fast turnaround",
       description:
-        "Your report moves through a dedicated processing queue — not a general clinic waitlist.",
+        "Your report moves through a dedicated processing queue rather than a general clinic waitlist.",
       badge: "Rapid Processing",
       accentColor: "text-slate-700 bg-slate-100 border-slate-200",
       highlights: [
@@ -19,7 +19,7 @@ export default function WhyUsSection() {
       icon: BookOpen,
       title: "Curated, published correlations",
       description:
-        "Every correlation traces to peer-reviewed literature — PubMed, Semantic Scholar, and a hand-curated library.",
+        "Every correlation traces to peer-reviewed literature across PubMed, Semantic Scholar, and a hand-curated library.",
       badge: "Peer-Reviewed",
       accentColor: "text-[#16233B] bg-slate-100 border-slate-200",
       highlights: [
@@ -32,7 +32,7 @@ export default function WhyUsSection() {
       icon: ShieldCheck,
       title: "AHPRA-conscious reporting",
       description:
-        "Reports state what the research shows and stop there — no clinical recommendations.",
+        "Reports state what the research shows and stop there, providing zero clinical recommendations.",
       badge: "Practitioner-Safe",
       accentColor: "text-slate-700 bg-slate-100 border-slate-200",
       highlights: [

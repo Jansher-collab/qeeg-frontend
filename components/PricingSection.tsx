@@ -50,7 +50,7 @@ export default function PricingSection() {
 
             {/* Exact Description */}
             <p className="mt-4 text-slate-600 text-sm leading-relaxed border-b border-slate-100 pb-6 font-normal">
-              You&apos;re only charged once your report is generated — never for a submission that doesn&apos;t meet the reliability threshold.
+              You&apos;re only charged once your report is generated, and never for a submission that doesn&apos;t meet the reliability threshold.
             </p>
 
             {/* Feature Checklist */}

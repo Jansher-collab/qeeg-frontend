@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Create Account | QEEG.com.au — Referring Practitioner Portal",
+  title: "Create Account | QEEG.com.au - Referring Practitioner Portal",
   description:
-    "Create your free referring practitioner account on QEEG.com.au. No cost to sign up — zero fee if reliability is under 0.80.",
+    "Create your free referring practitioner account on QEEG.com.au. No cost to sign up: zero fee if reliability is under 0.80.",
 };
 
 export default function SignupLayout({

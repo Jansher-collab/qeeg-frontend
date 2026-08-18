@@ -1,12 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Sparkles, ShieldCheck, BookOpen, Activity } from "lucide-react";
+import { ArrowRight, Sparkles, Activity } from "lucide-react";
 
 export default function Hero() {
   const bands = [
     {
       name: "Delta",
-      range: "0.5 – 4 Hz",
+      range: "0.5 - 4 Hz",
       color: "from-sky-400 to-cyan-500",
       textColor: "text-sky-400",
       borderColor: "border-sky-500/30",
@@ -16,7 +16,7 @@ export default function Hero() {
     },
     {
       name: "Theta",
-      range: "4 – 8 Hz",
+      range: "4 - 8 Hz",
       color: "from-teal-400 to-cyan-600",
       textColor: "text-teal-300",
       borderColor: "border-teal-500/30",
@@ -26,7 +26,7 @@ export default function Hero() {
     },
     {
       name: "Alpha",
-      range: "8 – 12 Hz",
+      range: "8 - 12 Hz",
       color: "from-amber-400 to-yellow-500",
       textColor: "text-amber-400",
       borderColor: "border-amber-500/30",
@@ -36,7 +36,7 @@ export default function Hero() {
     },
     {
       name: "Beta",
-      range: "12 – 30 Hz",
+      range: "12 - 30 Hz",
       color: "from-indigo-400 to-violet-500",
       textColor: "text-indigo-400",
       borderColor: "border-indigo-500/30",
@@ -47,29 +47,28 @@ export default function Hero() {
   ];
 
   return (
-    <section className="relative pt-32 pb-16 md:pt-40 md:pb-24 overflow-hidden bg-[#16233B] text-white border-b border-slate-800">
+    <section className="relative pt-28 pb-14 md:pt-32 md:pb-20 overflow-hidden bg-[#16233B] text-white border-b border-slate-800">
       {/* Background Subtle Gradient Glows */}
       <div className="absolute top-1/4 -left-32 w-96 h-96 bg-[#1C2F4A]/40 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute top-1/3 -right-32 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
           {/* Left Column: Headline, Copy & Action Buttons */}
           <div className="lg:col-span-7 flex flex-col items-start">
             {/* Clean Uppercase Eyebrow Tag */}
-            <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-slate-800/90 border border-slate-700/80 text-[11px] font-semibold tracking-[0.22em] text-slate-300 uppercase mb-6 font-sans">
+            <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-slate-800/90 border border-slate-700/80 text-[11px] font-semibold tracking-[0.2em] text-slate-300 uppercase mb-5 font-sans">
               <span>QEEG · TOVA · Literature Correlation</span>
             </div>
 
             {/* Elegant Lora Serif Headline */}
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[54px] font-serif font-normal text-white leading-[1.18] tracking-tight">
-              Turn QEEG and TOVA data into{" "}
-              <span className="text-slate-100 italic">evidence-linked answers.</span>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[44px] font-serif font-normal text-white leading-[1.2] tracking-tight">
+              Turn QEEG and TOVA data into evidence-linked answers.
             </h1>
 
             {/* Exact Lede Paragraph */}
-            <p className="mt-6 text-base sm:text-lg text-slate-300 leading-relaxed font-normal max-w-xl">
-              Upload your client&apos;s QEEG, TOVA, and symptom checklist. An AI-generated report comes back describing what the published research actually associates with the pattern — correlations, not recommendations. Every report carries a clear notice: AI-generated content can be wrong, so check the findings.
+            <p className="mt-5 text-sm sm:text-base md:text-[17px] text-slate-300 leading-relaxed font-normal max-w-xl">
+              Upload your client&apos;s QEEG, TOVA, and symptom checklist. An AI-generated report comes back describing what the published research actually associates with the pattern, focusing on correlations rather than recommendations. Every report carries a clear notice: AI-generated content can be wrong, so check the findings.
             </p>
 
             {/* Action Buttons with Smooth Hover Interactions */}
@@ -83,24 +82,12 @@ export default function Hero() {
               </Link>
 
               <Link
-                href="#how-it-works"
+                href="/how-it-works"
                 className="px-6 py-3.5 text-sm font-medium text-slate-200 hover:text-white bg-slate-800/60 hover:bg-slate-800 border border-slate-700 hover:border-slate-500 rounded-xl hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center gap-2 group"
               >
                 <span>See how it works</span>
                 <span className="text-slate-300 group-hover:translate-x-1 group-hover:text-white transition-transform duration-200">→</span>
               </Link>
-            </div>
-
-            {/* Trust Micro-Badges */}
-            <div className="mt-8 flex flex-wrap items-center gap-y-2 gap-x-6 text-xs text-slate-400">
-              <div className="flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-sky-400" />
-                <span>Sydney Sovereign Infrastructure</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <BookOpen className="w-4 h-4 text-sky-400" />
-                <span>PubMed & Semantic Scholar Linked</span>
-              </div>
             </div>
           </div>
 

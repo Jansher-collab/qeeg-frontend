@@ -5,26 +5,26 @@ export default function TermsPage() {
   return (
     <div className="bg-slate-50 text-slate-900 font-sans animate-fadeIn">
       {/* 1. Page Hero Section */}
-      <section className="relative pt-32 pb-16 md:pt-40 md:pb-24 overflow-hidden bg-[#16233B] text-white border-b border-slate-800 text-left">
+      <section className="relative pt-28 pb-14 md:pt-32 md:pb-20 overflow-hidden bg-[#16233B] text-white border-b border-slate-800 text-left">
         {/* Background Subtle Glows */}
         <div className="absolute top-1/4 -left-32 w-96 h-96 bg-[#1C2F4A]/40 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute top-1/3 -right-32 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           {/* Eyebrow */}
-          <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-slate-800/90 border border-slate-700/80 text-[11px] font-semibold tracking-[0.22em] text-slate-300 uppercase mb-6 font-sans">
+          <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-slate-800/90 border border-slate-700/80 text-[11px] font-semibold tracking-[0.2em] text-slate-300 uppercase mb-5 font-sans">
             <span>Legal</span>
           </div>
 
           {/* Main Heading in Lora Serif */}
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[52px] font-serif font-normal text-white leading-[1.2] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[42px] font-serif font-normal text-white leading-[1.2] tracking-tight">
             Terms of Service
           </h1>
         </div>
       </section>
 
       {/* 2. Legal Body Content Container (wrap-narrow legal-body) */}
-      <section className="py-16 sm:py-24">
+      <section className="py-14 sm:py-20">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
           {/* Draft Notice Banner */}
           <div className="rounded-2xl p-4 sm:p-5 bg-amber-50/80 border border-amber-200/90 shadow-2xs flex items-start gap-3.5 text-amber-950 text-xs sm:text-sm font-normal leading-relaxed">
@@ -33,7 +33,7 @@ export default function TermsPage() {
               <span className="font-semibold block text-amber-950 mb-0.5">
                 Draft Notice
               </span>
-              Draft for review — not yet confirmed by legal counsel. Last edited 11 August 2026.
+              Draft for review, not yet confirmed by legal counsel. Last edited 11 August 2026.
             </div>
           </div>
 
@@ -73,7 +73,7 @@ export default function TermsPage() {
                   You are responsible for obtaining any consent required from your client before submitting their data.
                 </li>
                 <li>
-                  You are responsible for keeping track of which case reference corresponds to which patient — we do not hold this mapping and cannot recover it if lost.
+                  You are responsible for keeping track of which case reference corresponds to which patient, as we do not hold this mapping and cannot recover it if lost.
                 </li>
                 <li>
                   You remain responsible for the clinical decisions you make; this service informs, but does not replace, your own clinical judgement.

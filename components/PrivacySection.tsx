@@ -13,7 +13,7 @@ export default function PrivacySection() {
       icon: Shield,
       dotColor: "bg-slate-800 text-slate-300 border-slate-700",
       title: "De-identified before upload",
-      description: "Only age and gender — no names, no dates, ever transmitted.",
+      description: "Only age and gender: no names or dates ever transmitted.",
     },
     {
       icon: Trash2,
@@ -46,7 +46,7 @@ export default function PrivacySection() {
 
             <div>
               <Link
-                href="#privacy"
+                href="/privacy"
                 className="inline-flex items-center gap-2 px-6 py-3.5 text-sm font-semibold text-white bg-slate-800/80 hover:bg-slate-700/90 border border-slate-600/80 hover:border-slate-500 rounded-xl hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 group"
               >
                 <span>Read the full data policy</span>

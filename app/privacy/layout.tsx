@@ -3,7 +3,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "Privacy & Data Handling | QEEG.com.au — Sovereign Australian Infrastructure",
+  title: "Privacy & Data Handling | QEEG.com.au - Sovereign Australian Infrastructure",
   description:
     "Patient identity is stripped in your browser before upload. Hosted exclusively on Australian sovereign infrastructure in Sydney and purged immediately upon download.",
 };

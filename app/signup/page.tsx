@@ -81,7 +81,7 @@ export default function SignupPage() {
               Create your free account
             </h1>
             <p className="mt-2 text-xs sm:text-sm text-slate-500 font-normal leading-relaxed">
-              No cost to sign up — you&apos;re only charged when a report is successfully generated.
+              No cost to sign up: you&apos;re only charged when a report is successfully generated.
             </p>
           </div>
 

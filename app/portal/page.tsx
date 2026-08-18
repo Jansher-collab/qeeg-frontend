@@ -149,7 +149,7 @@ function PortalDashboardContent() {
     const profession = profileFormData.profession || profile?.profession || "Psychologist";
 
     const content = `========================================================================
-QEEG.COM.AU — SYMPTOM & CLINICAL CHECKLIST
+QEEG.COM.AU - SYMPTOM & CLINICAL CHECKLIST
 Evidence-Linked Correlation Intake Form
 ========================================================================
 
@@ -174,15 +174,15 @@ CLINICAL SYMPTOM INTAKE (Check all that apply):
 [ ] Working Memory Decline
 
 TOVA TEST RESULTS (If applicable):
-D-Prime Score          : ________
-Response Time (ms)     : ________
-Variability (ms)       : ________
-Commission Errors      : ________
-Omission Errors        : ________
+D-Prime Score          : [          ]
+Response Time (ms)     : [          ]
+Variability (ms)       : [          ]
+Commission Errors      : [          ]
+Omission Errors        : [          ]
 
 NOTES FOR LITERATURE CORRELATION:
-________________________________________________________________________
-________________________________________________________________________
+------------------------------------------------------------------------
+------------------------------------------------------------------------
 
 INSTRUCTIONS: Complete this checklist offline, then upload alongside the
 NeuroGuide .tdt export in your QEEG.com.au referrer portal.
@@ -192,7 +192,7 @@ NeuroGuide .tdt export in your QEEG.com.au referrer portal.
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `Symptom_Checklist_${newCaseData.caseReference}.txt`;
+    a.download = `Symptom-Checklist-${newCaseData.caseReference}.txt`;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
@@ -202,7 +202,7 @@ NeuroGuide .tdt export in your QEEG.com.au referrer portal.
   // Simulate QEEG File Selection & Client-Side De-Identification
   const handleSelectQeegFile = () => {
     setQeegFileSelected(true);
-    setQeegFileName(`QEEG_Record_${newCaseData.caseReference}.tdt`);
+    setQeegFileName(`QEEG-Record-${newCaseData.caseReference}.tdt`);
     setQeegReliabilityPassed(true);
   };
 
@@ -305,7 +305,7 @@ NeuroGuide .tdt export in your QEEG.com.au referrer portal.
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `QEEG_Correlation_Report_${report.caseReference}.json`;
+      a.download = `QEEG-Correlation-Report-${report.caseReference}.json`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -465,7 +465,7 @@ NeuroGuide .tdt export in your QEEG.com.au referrer portal.
                 Awaiting your download
               </span>
               <div className="text-3xl sm:text-4xl font-serif font-normal text-[#16233B]">
-                {awaitingDownloadCount > 0 ? awaitingDownloadCount : "—"}
+                {awaitingDownloadCount > 0 ? awaitingDownloadCount : "0"}
               </div>
               <span className="text-xs text-slate-500 block mt-2">
                 Ready and not yet downloaded
@@ -478,7 +478,7 @@ NeuroGuide .tdt export in your QEEG.com.au referrer portal.
                 In processing
               </span>
               <div className="text-3xl sm:text-4xl font-serif font-normal text-[#16233B]">
-                {inProcessingCount > 0 ? inProcessingCount : "—"}
+                {inProcessingCount > 0 ? inProcessingCount : "0"}
               </div>
               <span className="text-xs text-slate-500 block mt-2">
                 Correlation engine running
@@ -509,7 +509,7 @@ NeuroGuide .tdt export in your QEEG.com.au referrer portal.
                   Report Requests
                 </h2>
                 <p className="text-xs text-slate-500 mt-1 font-normal">
-                  Reports are identified by case reference only — never by patient name.
+                  Reports are identified by case reference only, never by patient name.
                 </p>
               </div>
 
@@ -646,7 +646,7 @@ NeuroGuide .tdt export in your QEEG.com.au referrer portal.
           {/* Notice Banner */}
           <div className="p-4 rounded-2xl bg-slate-100 border border-slate-200 text-xs text-slate-700 flex items-center gap-3 font-normal">
             <ShieldCheck className="w-5 h-5 text-[#16233B] shrink-0" />
-            <span>Reports are identified by case reference only — never by patient name.</span>
+            <span>Reports are identified by case reference only, never by patient name.</span>
           </div>
 
           {/* Step Progress Tracker Indicators */}
@@ -693,12 +693,12 @@ NeuroGuide .tdt export in your QEEG.com.au referrer portal.
 
           {/* Multi-Step Content Card */}
           <div className="bg-white rounded-3xl p-8 sm:p-10 border border-slate-200 shadow-2xs space-y-8">
-            {/* Step 1 — Download Symptom Checklist */}
+            {/* Step 1: Download Symptom Checklist */}
             <div className="space-y-4 pb-8 border-b border-slate-100">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h3 className="text-base font-semibold text-[#16233B]">
-                    Step 1 — Download the symptom checklist
+                    Step 1: Download the symptom checklist
                   </h3>
                   <p className="text-xs text-slate-500 mt-1 leading-relaxed">
                     Pre-filled with your referring details. Complete it offline, then come back to upload it below.
@@ -716,11 +716,11 @@ NeuroGuide .tdt export in your QEEG.com.au referrer portal.
               </div>
             </div>
 
-            {/* Step 2 — Upload QEEG File */}
+            {/* Step 2: Upload QEEG File */}
             <div className="space-y-4 pb-8 border-b border-slate-100">
               <div>
                 <h3 className="text-base font-semibold text-[#16233B]">
-                  Step 2 — Upload QEEG file
+                  Step 2: Upload QEEG file
                 </h3>
                 <p className="text-xs text-slate-500 mt-1 leading-relaxed">
                   Parsed and de-identified in your browser. Nothing uploads until the reliability check passes.
@@ -769,11 +769,11 @@ NeuroGuide .tdt export in your QEEG.com.au referrer portal.
               )}
             </div>
 
-            {/* Step 2b — Upload TOVA results & completed checklist */}
+            {/* Step 2b: Upload TOVA results & completed checklist */}
             <div className="space-y-4 pb-8 border-b border-slate-100">
               <div>
                 <h3 className="text-base font-semibold text-[#16233B]">
-                  Step 2b — Upload TOVA results & completed checklist
+                  Step 2b: Upload TOVA results & completed checklist
                 </h3>
                 <p className="text-xs text-slate-500 mt-1 leading-relaxed">
                   Same de-identify-before-upload flow, once the QEEG file above passes.
@@ -1129,7 +1129,7 @@ NeuroGuide .tdt export in your QEEG.com.au referrer portal.
 
           <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700 leading-relaxed space-y-4">
             <p>
-              Questions about a report, the reliability threshold, or your account — email{" "}
+              Questions about a report, the reliability threshold, or your account: email{" "}
               <a
                 href="mailto:reception@adhd.com.au"
                 className="font-semibold text-[#16233B] underline hover:text-slate-900"
@@ -1230,7 +1230,7 @@ NeuroGuide .tdt export in your QEEG.com.au referrer portal.
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600 leading-relaxed font-normal">
-              This case reference was never linked to a patient name on our servers. Confirm the details below to stamp them into your downloaded copy — this happens only in your browser.
+              This case reference was never linked to a patient name on our servers. Confirm the details below to stamp them into your downloaded copy: this happens only in your browser.
             </div>
 
             <div>
@@ -1246,7 +1246,7 @@ NeuroGuide .tdt export in your QEEG.com.au referrer portal.
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] outline-none"
               />
               <span className="text-[11px] text-slate-400 mt-1 block">
-                We can&apos;t verify this against anything — only you hold this mapping. Double-check it before continuing.
+                We cannot verify this against anything: only you hold this mapping. Double-check it before continuing.
               </span>
             </div>
 

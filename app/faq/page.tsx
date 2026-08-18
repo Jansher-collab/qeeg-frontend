@@ -37,7 +37,7 @@ export default function FaqPage() {
       question: "Is the report reviewed by a person before I get it?",
       answer: (
         <p>
-          No — every report is AI-generated and delivered directly, with a clear disclaimer stating this. Please check the findings yourself before relying on them.
+          No: every report is AI-generated and delivered directly, with a clear disclaimer stating this. Please check the findings yourself before relying on them.
         </p>
       ),
     },
@@ -61,7 +61,7 @@ export default function FaqPage() {
       question: "Can I get a report re-sent if I lose the download?",
       answer: (
         <p>
-          No — download is a one-time action, and the report is purged from our servers the instant it completes. Save it somewhere safe on your own systems immediately.
+          No: download is a one-time action, and the report is purged from our servers the instant it completes. Save it somewhere safe on your own systems immediately.
         </p>
       ),
     },
@@ -69,7 +69,7 @@ export default function FaqPage() {
       question: "What QEEG format do you accept?",
       answer: (
         <p>
-          NeuroGuide .tdt exports specifically — the correlation engine and its normative-database reasoning are built around this format and won&apos;t give meaningful results for QEEG data from a different system.
+          NeuroGuide .tdt exports specifically. The correlation engine and its normative-database reasoning are built around this format and will not produce meaningful results for QEEG data from a different system.
         </p>
       ),
     },
@@ -85,9 +85,9 @@ export default function FaqPage() {
       question: "How is my client's data kept private if I don't send their name?",
       answer: (
         <p>
-          Your browser strips identity before anything uploads — see{" "}
+          Your browser strips identity before anything uploads. Please see{" "}
           <Link
-            href="/#privacy"
+            href="/privacy"
             className="text-[#16233B] underline font-semibold hover:text-slate-700 transition-colors"
           >
             our privacy page
@@ -101,26 +101,26 @@ export default function FaqPage() {
   return (
     <div className="bg-slate-50 text-slate-900 font-sans animate-fadeIn">
       {/* 1. Page Hero Section */}
-      <section className="relative pt-32 pb-16 md:pt-40 md:pb-24 overflow-hidden bg-[#16233B] text-white border-b border-slate-800">
+      <section className="relative pt-28 pb-14 md:pt-32 md:pb-20 overflow-hidden bg-[#16233B] text-white border-b border-slate-800">
         {/* Background Subtle Glows */}
         <div className="absolute top-1/4 -left-32 w-96 h-96 bg-[#1C2F4A]/40 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute top-1/3 -right-32 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-left">
           {/* Eyebrow */}
-          <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-slate-800/90 border border-slate-700/80 text-[11px] font-semibold tracking-[0.22em] text-slate-300 uppercase mb-6 font-sans">
+          <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-slate-800/90 border border-slate-700/80 text-[11px] font-semibold tracking-[0.2em] text-slate-300 uppercase mb-5 font-sans">
             <span>FAQ</span>
           </div>
 
           {/* Main Heading in Lora Serif */}
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[52px] font-serif font-normal text-white leading-[1.2] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[42px] font-serif font-normal text-white leading-[1.2] tracking-tight">
             Common questions
           </h1>
         </div>
       </section>
 
       {/* 2. Main FAQ Accordion Section */}
-      <section className="py-16 sm:py-24">
+      <section className="py-14 sm:py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
           {/* Accordion List */}
           <div className="space-y-4">

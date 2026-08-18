@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Log in | QEEG.com.au — Referring Practitioner Portal",
+  title: "Log in | QEEG.com.au - Referring Practitioner Portal",
   description:
     "Log in to your QEEG.com.au practitioner account to submit cases, track reliability reports, and download evidence-linked correlation findings.",
 };

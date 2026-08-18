@@ -3,7 +3,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "Terms of Service | QEEG.com.au — Legal & Operational Scope",
+  title: "Terms of Service | QEEG.com.au - Legal & Operational Scope",
   description:
     "Terms of Service governing the use of QEEG.com.au AI-generated research correlation reports operated by Applied Neurosciences Pty Ltd.",
 };

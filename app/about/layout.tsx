@@ -3,7 +3,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "About Us | QEEG.com.au — Evidence-Linked Literature Correlation",
+  title: "About Us | QEEG.com.au - Evidence-Linked Literature Correlation",
   description:
     "QEEG.com.au is operated by Applied Neurosciences Pty Ltd, an Australian company focused on QEEG interpretation grounded in published research.",
 };

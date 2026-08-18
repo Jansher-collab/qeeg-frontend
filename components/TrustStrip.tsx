@@ -5,7 +5,7 @@ export default function TrustStrip() {
     {
       icon: Bot,
       bullet: "AI-generated, disclosed clearly",
-      detail: "Transparency first — every finding flagged for clinical verification.",
+      detail: "Transparency first: every finding flagged for clinical verification.",
     },
     {
       icon: BookOpen,
@@ -15,7 +15,7 @@ export default function TrustStrip() {
     {
       icon: MapPin,
       bullet: "Australian-hosted, Sydney",
-      detail: "Zero offshore hops — strictly compliant with Australian privacy laws.",
+      detail: "Zero offshore hops, strictly compliant with Australian privacy laws.",
     },
     {
       icon: Trash2,

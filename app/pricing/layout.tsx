@@ -3,7 +3,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "Pricing | QEEG.com.au — One Price, No Subscription",
+  title: "Pricing | QEEG.com.au - One Price, No Subscription",
   description:
     "Transparent pricing of $65 AUD per successfully generated report. Zero subscription fees, zero charges for files under 0.80 reliability.",
 };

@@ -18,25 +18,25 @@ export default function PrivacyPage() {
     {
       title: "Hosted in Sydney",
       description:
-        "All infrastructure — application, database, file storage — runs on a single Australian server. Nothing crosses a border to be processed.",
+        "All infrastructure (application, database, file storage) runs on a single Australian server. Nothing crosses a border to be processed.",
       icon: Server,
     },
     {
       title: "Encrypted end to end",
       description:
-        "In transit and at rest, for as long as anything exists on the platform at all — which, by design, isn't long.",
+        "In transit and at rest, for as long as anything exists on the platform at all, which, by design, is not long.",
       icon: Lock,
     },
     {
       title: "Purged the moment you download",
       description:
-        "QEEG, TOVA, checklist, and report — all deleted the instant your download completes. No fixed retention window, no scheduled cleanup job you have to trust.",
+        "QEEG, TOVA, checklist, and report are all deleted the instant your download completes. No fixed retention window, and no scheduled cleanup job you have to trust.",
       icon: Trash2,
     },
     {
       title: "Re-identification happens on your machine",
       description:
-        "At download, you confirm the patient's identity yourself. That's the only point identity and clinical content ever meet — and it never touches our servers.",
+        "At download, you confirm the patient's identity yourself. That is the only point identity and clinical content ever meet, and it never touches our servers.",
       icon: Cpu,
     },
   ];
@@ -44,39 +44,39 @@ export default function PrivacyPage() {
   return (
     <div className="bg-slate-50 text-slate-900 font-sans animate-fadeIn">
       {/* 1. Page Hero Section */}
-      <section className="relative pt-32 pb-16 md:pt-40 md:pb-24 overflow-hidden bg-[#16233B] text-white border-b border-slate-800 text-left">
+      <section className="relative pt-28 pb-14 md:pt-32 md:pb-20 overflow-hidden bg-[#16233B] text-white border-b border-slate-800 text-left">
         {/* Background Subtle Glows */}
         <div className="absolute top-1/4 -left-32 w-96 h-96 bg-[#1C2F4A]/40 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute top-1/3 -right-32 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           {/* Eyebrow */}
-          <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-slate-800/90 border border-slate-700/80 text-[11px] font-semibold tracking-[0.22em] text-slate-300 uppercase mb-6 font-sans">
+          <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-slate-800/90 border border-slate-700/80 text-[11px] font-semibold tracking-[0.2em] text-slate-300 uppercase mb-5 font-sans">
             <span>Privacy & Data Handling</span>
           </div>
 
           {/* Main Heading in Lora Serif */}
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[52px] font-serif font-normal text-white leading-[1.15] tracking-tight mb-6">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[42px] font-serif font-normal text-white leading-[1.2] tracking-tight mb-4">
             The fewer places sensitive data lives, the fewer things to worry about
           </h1>
 
           {/* Lede Paragraph */}
-          <p className="text-base sm:text-lg md:text-xl text-slate-300 font-normal max-w-3xl leading-relaxed">
-            Most platforms store what you send them indefinitely. This one is built specifically not to — down to where identity ever exists at all.
+          <p className="text-sm sm:text-base md:text-[17px] text-slate-300 font-normal max-w-3xl leading-relaxed">
+            Most platforms store what you send them indefinitely. This one is built specifically not to, down to where identity ever exists at all.
           </p>
         </div>
       </section>
 
       {/* Main Body Wrap */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 space-y-16 sm:space-y-24">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 space-y-14 sm:space-y-20">
         {/* 2. Core Design Section */}
-        <section className="space-y-6">
+        <section className="space-y-5">
           <div>
-            <div className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-widest text-slate-500 uppercase font-sans mb-3">
+            <div className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-widest text-slate-500 uppercase font-sans mb-2.5">
               <span>The core design</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-serif font-normal text-[#16233B] tracking-tight leading-snug">
-              Your server never receives a patient&apos;s identity — not even briefly
+            <h2 className="text-xl sm:text-2xl lg:text-[30px] font-serif font-normal text-[#16233B] tracking-tight leading-snug">
+              Your server never receives a patient&apos;s identity: not even briefly
             </h2>
             <p className="text-base sm:text-lg text-slate-600 font-normal leading-relaxed mt-4">
               This isn&apos;t a retention policy layered on top of a normal upload. Identity is stripped in your browser before the first byte is ever sent.
@@ -94,7 +94,7 @@ export default function PrivacyPage() {
               </h3>
             </div>
             <p className="text-sm sm:text-base text-slate-600 font-normal leading-relaxed">
-              Name, date of birth, date of test, time of test — every date field, not just the obvious ones. Only age and gender remain, plus an opaque case reference that&apos;s never linked to a patient name anywhere on our servers.
+              Name, date of birth, date of test, time of test: every date field, not just the obvious ones. Only age and gender remain, plus an opaque case reference that is never linked to a patient name anywhere on our servers.
             </p>
           </div>
         </section>
@@ -138,7 +138,7 @@ export default function PrivacyPage() {
               </h3>
             </div>
             <p className="text-sm sm:text-base text-amber-900 font-normal leading-relaxed">
-              Because we never hold the identity mapping, we can&apos;t recover it if you lose track of a case reference, and we can&apos;t verify what you enter at download time. That trade-off is the whole point — the alternative is us holding data we don&apos;t need to.
+              Because we never hold the identity mapping, we can&apos;t recover it if you lose track of a case reference, and we can&apos;t verify what you enter at download time. That trade-off is the whole point: the alternative is us holding data we do not need to.
             </p>
           </div>
         </section>
@@ -153,7 +153,7 @@ export default function PrivacyPage() {
               Even the report addresses your client only by age and gender
             </h2>
             <p className="text-base sm:text-lg text-slate-600 font-normal leading-relaxed mt-3">
-              &ldquo;The client is a 39-year-old female.&rdquo; That&apos;s the extent of it — nothing else identifying ever appears in a generated report.
+              &ldquo;The client is a 39-year-old female.&rdquo; That is the extent of it: nothing else identifying ever appears in a generated report.
             </p>
           </div>
         </section>
@@ -173,32 +173,19 @@ export default function PrivacyPage() {
                 >
                   FAQ
                 </Link>{" "}
-                or email{" "}
-                <a
-                  href="mailto:reception@adhd.com.au"
-                  className="font-medium text-white underline decoration-slate-400 hover:decoration-white transition-colors"
-                >
-                  reception@adhd.com.au
-                </a>
-                .
+                or read our full legal terms.
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0">
+            <div className="flex flex-wrap items-center gap-4 shrink-0">
               <Link
-                href="/faq"
-                className="w-full sm:w-auto px-5 py-3 text-sm font-semibold text-slate-200 hover:text-white bg-slate-800/80 hover:bg-slate-800 rounded-xl border border-slate-700 transition-all flex items-center justify-center gap-2"
+                href="/terms"
+                className="px-6 py-3.5 text-sm font-semibold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center gap-2 group"
               >
-                <HelpCircle className="w-4 h-4 text-slate-300" />
-                <span>Read the FAQ</span>
+                <FileText className="w-4 h-4 text-slate-300" />
+                <span>Terms of Service</span>
+                <ArrowRight className="w-4 h-4 text-slate-300 group-hover:translate-x-1 transition-transform duration-200" />
               </Link>
-              <a
-                href="mailto:reception@adhd.com.au"
-                className="w-full sm:w-auto px-5 py-3 text-sm font-semibold text-[#16233B] bg-white hover:bg-slate-100 rounded-xl shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2"
-              >
-                <Mail className="w-4 h-4 text-[#16233B]" />
-                <span>Email Support</span>
-              </a>
             </div>
           </div>
         </section>

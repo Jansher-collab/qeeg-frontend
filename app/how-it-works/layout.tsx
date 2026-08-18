@@ -3,7 +3,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "How It Works | QEEG.com.au — 9-Step Correlation Process",
+  title: "How It Works | QEEG.com.au - 9-Step Correlation Process",
   description:
     "Every step of the QEEG & TOVA correlation process, and exactly where it happens: client-side in your browser vs secure Sydney server execution.",
 };

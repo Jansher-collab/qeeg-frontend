@@ -34,7 +34,7 @@ export default function HowItWorksPage() {
       icon: FileUp,
       title: "Select the QEEG file",
       description:
-        "Your browser reads the file locally — nothing has been sent anywhere yet.",
+        "Your browser reads the file locally: nothing has been sent anywhere yet.",
     },
     {
       number: "03",
@@ -43,7 +43,7 @@ export default function HowItWorksPage() {
       icon: CheckCircle2,
       title: "Reliability checked, locally",
       description:
-        "The Test/Retest reliability figure is checked against a 0.80 threshold before anything uploads. Below that, nothing is sent — you're asked to resubmit, and there's no charge.",
+        "The Test/Retest reliability figure is checked against a 0.80 threshold before anything uploads. Below that, nothing is sent: you are asked to resubmit, and there is no charge.",
     },
     {
       number: "04",
@@ -52,7 +52,7 @@ export default function HowItWorksPage() {
       icon: FileLock2,
       title: "De-identified before it ever leaves your machine",
       description:
-        "Name, date of birth, and every date field are stripped. Only age and gender remain, plus a case reference that's never linked to a patient name on our end — that mapping stays entirely with you.",
+        "Name, date of birth, and every date field are stripped. Only age and gender remain, plus a case reference that is never linked to a patient name on our end: that mapping stays entirely with you.",
     },
     {
       number: "05",
@@ -61,7 +61,7 @@ export default function HowItWorksPage() {
       icon: ShieldCheck,
       title: "Reliability re-checked, independently",
       description:
-        "We never trust a client-side check alone — the figure is re-verified server-side before anything proceeds.",
+        "We never trust a client-side check alone: the figure is re-verified server-side before anything proceeds.",
     },
     {
       number: "06",
@@ -70,14 +70,14 @@ export default function HowItWorksPage() {
       icon: BookOpen,
       title: "Matched against the literature",
       description:
-        "Checked against a curated knowledge base, then PubMed and Semantic Scholar for current research — spanning medical, psychological, nutritional, lifestyle, and neurofeedback correlates.",
+        "Checked against a curated knowledge base, then PubMed and Semantic Scholar for current research spanning medical, psychological, nutritional, lifestyle, and neurofeedback correlates.",
     },
     {
       number: "07",
       location: "Our server",
       isBrowser: false,
       icon: Cpu,
-      title: "Report generated — no human review",
+      title: "Report generated without human review",
       description:
         "The report is generated directly, addressing your client only by age and gender, with an AI-generation disclaimer appended automatically. Only now is your payment captured.",
     },
@@ -88,7 +88,7 @@ export default function HowItWorksPage() {
       icon: DownloadCloud,
       title: "Download, and confirm the identity yourself",
       description:
-        "You're prompted to confirm the patient's identity for that case reference — the only place identity and clinical content ever meet, and it happens on your own machine.",
+        "You are prompted to confirm the patient identity for that case reference: the only place identity and clinical content ever meet, and it happens on your own machine.",
     },
     {
       number: "09",
@@ -104,31 +104,31 @@ export default function HowItWorksPage() {
   return (
     <div className="bg-slate-50 text-slate-900 font-sans">
       {/* 1. Page Hero Section */}
-      <section className="relative pt-32 pb-16 md:pt-40 md:pb-24 overflow-hidden bg-[#16233B] text-white border-b border-slate-800">
+      <section className="relative pt-28 pb-14 md:pt-32 md:pb-20 overflow-hidden bg-[#16233B] text-white border-b border-slate-800">
         {/* Background Subtle Glows */}
         <div className="absolute top-1/4 -left-32 w-96 h-96 bg-[#1C2F4A]/40 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute top-1/3 -right-32 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-left">
           {/* Eyebrow */}
-          <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-slate-800/90 border border-slate-700/80 text-[11px] font-semibold tracking-[0.22em] text-slate-300 uppercase mb-6 font-sans">
+          <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-slate-800/90 border border-slate-700/80 text-[11px] font-semibold tracking-[0.2em] text-slate-300 uppercase mb-5 font-sans">
             <span>How it works</span>
           </div>
 
           {/* Main Heading in Lora Serif */}
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[52px] font-serif font-normal text-white leading-[1.2] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[42px] font-serif font-normal text-white leading-[1.2] tracking-tight">
             Every step, and exactly where it happens
           </h1>
 
           {/* Lede Paragraph */}
-          <p className="mt-6 text-base sm:text-lg text-slate-300 leading-relaxed font-normal max-w-3xl">
+          <p className="mt-5 text-sm sm:text-base md:text-[17px] text-slate-300 leading-relaxed font-normal max-w-3xl">
             Some of this happens in your own browser before anything is sent anywhere. The rest happens on our server. Both are labelled below.
           </p>
         </div>
       </section>
 
       {/* 2. 9-Step Process Section (Narrow Wrap Layout) */}
-      <section className="py-16 sm:py-24">
+      <section className="py-14 sm:py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
           {/* Legend / Info Bar */}
           <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs text-xs text-slate-600">
@@ -206,7 +206,7 @@ export default function HowItWorksPage() {
                   Read the findings before you rely on them
                 </h3>
                 <p className="text-amber-900/90 text-sm sm:text-base leading-relaxed font-normal">
-                  Every report is AI-generated, with no human review before delivery. It states research correlations, never a recommendation — but AI-generated content can be wrong, and checking it is part of the process, not an afterthought.
+                  Every report is AI-generated, with no human review before delivery. It states research correlations, never a recommendation: but AI-generated content can be wrong, and checking it is part of the process, not an afterthought.
                 </p>
               </div>
             </div>

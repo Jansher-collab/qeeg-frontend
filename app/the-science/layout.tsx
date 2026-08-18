@@ -3,7 +3,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "The Science | QEEG.com.au — Literature Correlation & Matching Engine",
+  title: "The Science | QEEG.com.au - Literature Correlation & Matching Engine",
   description:
     "Explore how QEEG, TOVA, and symptom data get matched to published research literature via curated knowledge bases and live PubMed cross-referencing.",
 };
