@@ -40,25 +40,25 @@ export default function PricingPage() {
 
   return (
     <div className="bg-slate-50 text-slate-900 font-sans animate-fadeIn">
-      {/* 1. Page Hero Section (Centered Layout) */}
-      <section className="relative pt-28 pb-16 md:pt-32 md:pb-24 overflow-hidden bg-[#16233B] text-white border-b border-slate-800 text-center">
+      {/* 1. Page Hero Section */}
+      <section className="relative pt-28 pb-16 md:pt-32 md:pb-24 overflow-hidden bg-[#16233B] text-white border-b border-slate-800 text-left">
         {/* Background Subtle Glows */}
         <div className="absolute top-1/4 -left-32 w-96 h-96 bg-[#1C2F4A]/40 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute top-1/3 -right-32 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           {/* Eyebrow */}
           <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-slate-800/90 border border-slate-700/80 text-[11px] font-semibold tracking-[0.2em] text-slate-300 uppercase mb-5 font-sans">
             <span>Pricing</span>
           </div>
 
           {/* Main Heading in Lora Serif */}
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[42px] font-serif font-normal text-white leading-[1.2] tracking-tight mb-4">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[42px] font-serif font-normal text-white leading-[1.2] tracking-tight mb-4 max-w-3xl">
             One price, no subscription
           </h1>
 
           {/* Lede Paragraph */}
-          <p className="text-sm sm:text-base md:text-[17px] text-slate-300 font-normal max-w-2xl mx-auto leading-relaxed">
+          <p className="text-sm sm:text-base md:text-[17px] text-slate-300 font-normal max-w-2xl leading-relaxed">
             You&apos;re only ever charged for a report that&apos;s actually produced.
           </p>
         </div>

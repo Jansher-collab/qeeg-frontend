@@ -69,24 +69,24 @@ export default function TheSciencePage() {
         <div className="absolute top-1/4 -left-32 w-96 h-96 bg-[#1C2F4A]/40 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute top-1/3 -right-32 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-left">
           {/* Eyebrow */}
           <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-slate-800/90 border border-slate-700/80 text-[11px] font-semibold tracking-[0.2em] text-slate-300 uppercase mb-5 font-sans">
             <span>The Science</span>
           </div>
 
           {/* Main Heading in Lora Serif */}
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[44px] font-serif font-normal text-white leading-[1.2] tracking-tight mb-4 max-w-3xl mx-auto">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[44px] font-serif font-normal text-white leading-[1.2] tracking-tight mb-4 max-w-3xl">
             How QEEG, TOVA, and symptom data get matched to published research
           </h1>
 
           {/* Lede Paragraph */}
-          <p className="text-sm sm:text-base md:text-[17px] text-slate-300 font-normal max-w-2xl mx-auto leading-relaxed mb-10">
+          <p className="text-sm sm:text-base md:text-[17px] text-slate-300 font-normal max-w-2xl leading-relaxed mb-10">
             Every report starts with three inputs from your client and ends with citations from the published literature. Here is exactly what happens in between, and what it never does.
           </p>
 
           {/* High-Fidelity Frequency Indicator Cards Matching Homepage Visuals */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 text-left max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 text-left w-full">
             {bands.map((b, idx) => (
               <div
                 key={idx}
@@ -125,7 +125,7 @@ export default function TheSciencePage() {
       </section>
 
       {/* Main Body Wrap */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 space-y-14 sm:space-y-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 space-y-14 sm:space-y-20">
         {/* 2. Step 1 Section: The Three Inputs (id="inputs") */}
         <section id="inputs" className="space-y-6 scroll-mt-24">
           <div className="text-center sm:text-left">

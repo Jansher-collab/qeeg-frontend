@@ -10,22 +10,22 @@ export default function TermsPage() {
         <div className="absolute top-1/4 -left-32 w-96 h-96 bg-[#1C2F4A]/40 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute top-1/3 -right-32 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           {/* Eyebrow */}
           <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-slate-800/90 border border-slate-700/80 text-[11px] font-semibold tracking-[0.2em] text-slate-300 uppercase mb-5 font-sans">
             <span>Legal</span>
           </div>
 
           {/* Main Heading in Lora Serif */}
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[42px] font-serif font-normal text-white leading-[1.2] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[42px] font-serif font-normal text-white leading-[1.2] tracking-tight max-w-3xl">
             Terms of Service
           </h1>
         </div>
       </section>
 
-      {/* 2. Legal Body Content Container (wrap-narrow legal-body) */}
+      {/* 2. Legal Body Content Container */}
       <section className="py-14 sm:py-20">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
           {/* Draft Notice Banner */}
           <div className="rounded-2xl p-4 sm:p-5 bg-amber-50/80 border border-amber-200/90 shadow-2xs flex items-start gap-3.5 text-amber-950 text-xs sm:text-sm font-normal leading-relaxed">
             <AlertTriangle className="w-5 h-5 text-amber-800 shrink-0 mt-0.5" />

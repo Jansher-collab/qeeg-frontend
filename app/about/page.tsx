@@ -10,14 +10,14 @@ export default function AboutPage() {
         <div className="absolute top-1/4 -left-32 w-96 h-96 bg-[#1C2F4A]/40 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute top-1/3 -right-32 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-left">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-left">
           {/* Eyebrow */}
           <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-slate-800/90 border border-slate-700/80 text-[11px] font-semibold tracking-[0.2em] text-slate-300 uppercase mb-5 font-sans">
             <span>About</span>
           </div>
 
           {/* Main Heading in Lora Serif */}
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[42px] font-serif font-normal text-white leading-[1.2] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[42px] font-serif font-normal text-white leading-[1.2] tracking-tight max-w-3xl">
             Built on a curated literature base, not a black box
           </h1>
 
@@ -28,9 +28,9 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* 2. Main Body Content (Narrow Wrap Layout) */}
+      {/* 2. Main Body Content */}
       <section className="py-14 sm:py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-14 sm:space-y-18">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-14 sm:space-y-18">
           {/* Section: What we do */}
           <div className="space-y-5">
             <div className="inline-flex items-center px-3 py-1 rounded-full bg-slate-200/80 text-[11px] font-semibold tracking-[0.2em] text-slate-700 uppercase font-sans">
