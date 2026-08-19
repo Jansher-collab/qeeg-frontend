@@ -97,19 +97,19 @@ export default function PricingPage() {
       </section>
 
       {/* 2. Elevated & Smooth Pricing Card Section */}
-      <section className="py-12 sm:py-16 -mt-10 sm:-mt-14 relative z-20">
+      <section className="py-14 sm:py-20 -mt-10 sm:-mt-14 relative z-20">
         <div className="max-w-lg mx-auto px-4 sm:px-6">
-          <div className="bg-white rounded-[28px] p-8 sm:p-12 sm:py-14 border border-slate-200 shadow-xl hover:shadow-2xl hover:border-slate-300 transition-all duration-300 text-center flex flex-col justify-between relative overflow-hidden">
+          <div className="bg-white rounded-[28px] p-8 sm:p-12 sm:py-16 border-2 border-slate-200/90 hover:border-slate-300 transition-all duration-300 text-center flex flex-col justify-between relative overflow-hidden">
             {/* Top Area: Badge & Price */}
             <div>
               {/* Badge */}
-              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-100/90 border border-slate-200 text-[11px] font-semibold text-[#16233B] uppercase tracking-wider mb-6 font-mono">
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-100 border border-slate-200/80 text-[11px] font-semibold text-[#16233B] uppercase tracking-wider mb-8 font-mono">
                 <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
                 <span>Pay-Per-Report</span>
               </div>
 
               {/* Price Display */}
-              <div className="flex items-baseline justify-center gap-2 mb-3">
+              <div className="flex items-baseline justify-center gap-2.5 mb-4">
                 <span className="text-5xl sm:text-6xl font-serif font-normal text-[#16233B] tracking-tight">
                   $65
                 </span>
@@ -122,15 +122,15 @@ export default function PricingPage() {
               </div>
 
               {/* Price Lede */}
-              <p className="text-slate-600 text-xs sm:text-sm font-normal max-w-xs mx-auto mb-8 leading-relaxed">
+              <p className="text-slate-600 text-xs sm:text-sm font-normal max-w-xs mx-auto mb-10 leading-relaxed">
                 Charged once generated. No subscription, no recurring commitments.
               </p>
 
               {/* Feature Checklist inside Card */}
-              <div className="py-6 border-y border-slate-100 space-y-3.5 text-left mb-8">
+              <div className="py-8 border-y border-slate-100 space-y-4 text-left mb-10">
                 {cardFeatures.map((feat, idx) => (
-                  <div key={idx} className="flex items-center gap-3 text-xs sm:text-sm text-slate-700 font-normal">
-                    <div className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0 text-[#16233B]">
+                  <div key={idx} className="flex items-center gap-3.5 text-xs sm:text-sm text-slate-700 font-normal">
+                    <div className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200/90 flex items-center justify-center shrink-0 text-[#16233B]">
                       <Check className="w-3 h-3 text-[#16233B]" />
                     </div>
                     <span>{feat}</span>
@@ -140,16 +140,16 @@ export default function PricingPage() {
             </div>
 
             {/* Bottom Area: Action CTA */}
-            <div className="flex flex-col items-center gap-3.5">
+            <div className="flex flex-col items-center gap-4">
               <Link
                 href="/signup"
-                className="w-full py-4 px-8 text-sm font-semibold text-white bg-[#16233B] hover:bg-slate-800 rounded-xl shadow-md hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2 group"
+                className="w-full py-4 px-8 text-sm font-semibold text-white bg-[#16233B] hover:bg-slate-800 rounded-xl hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2 group"
               >
                 <span>Create free account</span>
                 <ArrowRight className="w-4 h-4 text-white group-hover:translate-x-1 transition-transform duration-200" />
               </Link>
 
-              <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-slate-500 font-normal">
+              <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-slate-500 font-normal pt-1">
                 <Lock className="w-3.5 h-3.5 text-slate-400" />
                 <span>Free to register. You only pay when a report is produced.</span>
               </div>

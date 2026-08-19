@@ -13,30 +13,6 @@ import {
 } from "lucide-react";
 
 export default function AboutPage() {
-  const pillars = [
-    {
-      title: "Curated Research Foundation",
-      description:
-        "Every finding is cross-referenced against a verified literature library and peer-reviewed clinical databases, not opaque AI heuristics.",
-      icon: BookOpen,
-      badge: "Evidence-Backed",
-    },
-    {
-      title: "Australian Data Sovereignty",
-      description:
-        "Engineered for Australian practitioners. Hosted in Sydney under the Privacy Act 1988 and the Health Records Act 2001 (Vic).",
-      icon: Server,
-      badge: "Sydney Infrastructure",
-    },
-    {
-      title: "Strict Correlation Boundary",
-      description:
-        "Reports stop intentionally short of medical diagnosis or treatment plans. We provide the literature correlates; you make the clinical decisions.",
-      icon: Scale,
-      badge: "Practitioner-Led",
-    },
-  ];
-
   return (
     <div className="bg-slate-50 text-slate-900 font-sans animate-fadeIn">
       {/* 1. Page Hero Section */}
@@ -63,40 +39,9 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* 2. Main Body Content with Full Responsive Grid */}
+      {/* 2. Main Body Content: Two-Column Architecture */}
       <section className="py-12 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
-          {/* 3 Top Core Pillars */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {pillars.map((p, idx) => {
-              const Icon = p.icon;
-              return (
-                <div
-                  key={idx}
-                  className="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200 shadow-2xs hover:shadow-md hover:border-slate-300 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-[#16233B] shadow-2xs">
-                        <Icon className="w-5 h-5" />
-                      </div>
-                      <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200/80">
-                        {p.badge}
-                      </span>
-                    </div>
-
-                    <h3 className="text-base sm:text-lg font-serif font-normal text-[#16233B] tracking-tight">
-                      {p.title}
-                    </h3>
-                    <p className="text-xs sm:text-sm text-slate-600 font-normal leading-relaxed">
-                      {p.description}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
           {/* Detailed 2-Column Split */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
             {/* Left Sidebar Details (4 cols) */}
@@ -117,7 +62,7 @@ export default function AboutPage() {
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-slate-100 space-y-2 text-xs text-slate-600">
+                <div className="pt-3 border-t border-slate-100 space-y-2.5 text-xs text-slate-600">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500">Jurisdiction:</span>
                     <span className="font-medium text-slate-900">Australia (Victoria)</span>
@@ -141,6 +86,17 @@ export default function AboutPage() {
                 </div>
                 <p className="text-xs text-slate-300 font-normal leading-relaxed">
                   Our correlation engine checks multi-disciplinary literature spanning neurobiology, clinical psychology, nutritional neuroscience, lifestyle interventions, and neurofeedback.
+                </p>
+              </div>
+
+              {/* Direct Support Micro-Card */}
+              <div className="bg-slate-100/80 rounded-2xl p-5 border border-slate-200/90 space-y-2.5 text-xs text-slate-600">
+                <div className="flex items-center gap-2 font-semibold text-[#16233B]">
+                  <ShieldCheck className="w-4 h-4 text-[#16233B]" />
+                  <span>Clinical Questions</span>
+                </div>
+                <p className="leading-relaxed text-slate-600 font-normal">
+                  Have a question regarding how a report was compiled? Email our team with your case reference.
                 </p>
               </div>
             </div>
