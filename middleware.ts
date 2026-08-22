@@ -10,16 +10,31 @@ interface JwtPayload {
 
 function decodeJwtPayload(token: string): JwtPayload | null {
   try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const payloadJson = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
-    const payload = JSON.parse(payloadJson) as JwtPayload;
+    if (!token) return null;
 
-    // Check expiration if present
+    // 1. Standard 3-part JWT (header.payload.signature)
+    if (token.includes('.')) {
+      const parts = token.split('.');
+      if (parts.length >= 2) {
+        const payloadJson = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
+        const payload = JSON.parse(payloadJson) as JwtPayload;
+        if (payload.exp && Date.now() >= payload.exp * 1000) {
+          return null;
+        }
+        return payload;
+      }
+    }
+
+    // 2. Base64 payload or mock token
+    let rawStr = token;
+    if (rawStr.startsWith('mock_jwt_')) {
+      rawStr = rawStr.replace('mock_jwt_', '');
+    }
+    const decoded = atob(rawStr);
+    const payload = JSON.parse(decoded) as JwtPayload;
     if (payload.exp && Date.now() >= payload.exp * 1000) {
       return null;
     }
-
     return payload;
   } catch {
     return null;
@@ -32,10 +47,10 @@ export function middleware(request: NextRequest) {
   const user = sessionCookie ? decodeJwtPayload(sessionCookie) : null;
 
   const isAuthPage =
-    pathname.startsWith('/login') ||
-    pathname.startsWith('/signup') ||
-    pathname.startsWith('/forgot-password') ||
-    pathname.startsWith('/reset-password');
+    pathname === '/login' ||
+    pathname === '/signup' ||
+    pathname === '/forgot-password' ||
+    pathname === '/reset-password';
 
   const isPortalPage = pathname.startsWith('/portal');
   const isReviewQueue = pathname.startsWith('/portal/review');
@@ -55,7 +70,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // 3. If practitioner tries to access the neuroscientist review queue, redirect to their practitioner portal
+  // 3. If practitioner tries to access the neuroscientist review queue, redirect to practitioner portal
   if (user && isReviewQueue) {
     if (user.role !== 'NEUROSCIENTIST' && user.role !== 'ADMIN') {
       return NextResponse.redirect(new URL('/portal', request.url));

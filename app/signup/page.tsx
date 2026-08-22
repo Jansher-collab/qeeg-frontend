@@ -12,8 +12,12 @@ export default function SignupPage() {
 
   const [formData, setFormData] = useState({
     fullName: "",
+    professionalTitle: "",
     profession: "",
+    providerNumber: "",
     clinicName: "",
+    practiceAddress: "",
+    phone: "",
     email: "",
     password: "",
   });
@@ -32,11 +36,17 @@ export default function SignupPage() {
     try {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fullName: formData.fullName,
+          professionalTitle: formData.professionalTitle,
           profession: formData.profession,
+          providerNumber: formData.providerNumber,
           clinicName: formData.clinicName,
+          practiceAddress: formData.practiceAddress,
+          phone: formData.phone,
+          practiceEmail: formData.email,
           email: formData.email,
           password: formData.password,
           role: "PRACTITIONER",
@@ -49,8 +59,7 @@ export default function SignupPage() {
         throw new Error(data.error || "Failed to create account.");
       }
 
-      router.push("/portal");
-      router.refresh();
+      window.location.href = "/login?registered=true";
     } catch (err: any) {
       setError(err.message || "Failed to create account.");
     } finally {
@@ -59,14 +68,11 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F3F6F8] py-12 px-4 sm:px-6 lg:px-8 flex flex-col justify-center items-center animate-fadeIn">
-      <div className="max-w-md w-full mx-auto space-y-6">
+    <div className="min-h-screen bg-[#F3F6F8] py-12 px-4 sm:px-6 lg:px-8 flex flex-col justify-center items-center animate-fadeIn" suppressHydrationWarning>
+      <div className="max-w-xl w-full mx-auto space-y-6">
         {/* Minimal Brand Header */}
         <div className="text-center">
-          <Link
-            href="/"
-            className="inline-block group focus:outline-none"
-          >
+          <Link href="/" className="inline-block group focus:outline-none">
             <span className="text-2xl sm:text-3xl font-serif font-normal text-[#16233B] tracking-tight group-hover:text-slate-700 transition-colors">
               QEEG.com.au
             </span>
@@ -77,11 +83,15 @@ export default function SignupPage() {
         <div className="bg-white rounded-3xl p-8 sm:p-10 border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
           {/* Card Title & Subtitle */}
           <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-[11px] font-semibold text-[#16233B] uppercase tracking-wider mb-3">
+              <ShieldCheck className="w-3.5 h-3.5 text-sky-600" />
+              <span>Australian Practitioner Registration</span>
+            </div>
             <h1 className="text-2xl sm:text-3xl font-serif text-[#16233B] font-normal tracking-tight">
-              Create your free account
+              Create your referring account
             </h1>
             <p className="mt-2 text-xs sm:text-sm text-slate-500 font-normal leading-relaxed">
-              No cost to sign up: you&apos;re only charged when a report is successfully generated.
+              {"Saved once to automatically pre-fill your client symptom checklists. No subscription fees."}
             </p>
           </div>
 
@@ -95,65 +105,123 @@ export default function SignupPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 font-sans">
+                  Full Name &amp; Post-Nominals *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.fullName}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  placeholder="Dr Jane Smith, PhD"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] focus:ring-1 focus:ring-[#16233B] outline-none transition-all placeholder:text-slate-400 font-sans"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 font-sans">
+                  Professional Title / Credentials
+                </label>
+                <input
+                  type="text"
+                  value={formData.professionalTitle}
+                  onChange={(e) => setFormData({ ...formData, professionalTitle: e.target.value })}
+                  placeholder="Senior Clinical Specialist"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] focus:ring-1 focus:ring-[#16233B] outline-none transition-all placeholder:text-slate-400 font-sans"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 font-sans">
+                  Profession / Registration Type *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.profession}
+                  onChange={(e) => setFormData({ ...formData, profession: e.target.value })}
+                  placeholder="e.g. Psychologist, Neurologist, GP"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] focus:ring-1 focus:ring-[#16233B] outline-none transition-all placeholder:text-slate-400 font-sans"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 font-sans">
+                  Registration / Provider Number
+                </label>
+                <input
+                  type="text"
+                  value={formData.providerNumber}
+                  onChange={(e) => setFormData({ ...formData, providerNumber: e.target.value })}
+                  placeholder="e.g. PR-88921-VIC / PSY000123"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] focus:ring-1 focus:ring-[#16233B] outline-none transition-all placeholder:text-slate-400 font-sans"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 font-sans">
+                  Practice / Clinic Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.clinicName}
+                  onChange={(e) => setFormData({ ...formData, clinicName: e.target.value })}
+                  placeholder="Riverside NeuroCare Practice"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] focus:ring-1 focus:ring-[#16233B] outline-none transition-all placeholder:text-slate-400 font-sans"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 font-sans">
+                  Practice Contact Phone
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="+61 3 9820 1144"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] focus:ring-1 focus:ring-[#16233B] outline-none transition-all placeholder:text-slate-400 font-sans"
+                />
+              </div>
+            </div>
+
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5 font-sans">
-                Full name
+                Practice Address
               </label>
               <input
                 type="text"
-                required
-                value={formData.fullName}
-                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                placeholder="Dr Jane Smith"
+                value={formData.practiceAddress}
+                onChange={(e) => setFormData({ ...formData, practiceAddress: e.target.value })}
+                placeholder="Suite 4B, 120 Collins Street, Melbourne VIC 3000"
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] focus:ring-1 focus:ring-[#16233B] outline-none transition-all placeholder:text-slate-400 font-sans"
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5 font-sans">
-                Credentials / profession
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.profession}
-                onChange={(e) => setFormData({ ...formData, profession: e.target.value })}
-                placeholder="e.g. Psychologist, GP"
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] focus:ring-1 focus:ring-[#16233B] outline-none transition-all placeholder:text-slate-400 font-sans"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5 font-sans">
-                Practice name
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.clinicName}
-                onChange={(e) => setFormData({ ...formData, clinicName: e.target.value })}
-                placeholder="Riverside Clinic"
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] focus:ring-1 focus:ring-[#16233B] outline-none transition-all placeholder:text-slate-400 font-sans"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5 font-sans">
-                Email
+                Login &amp; Notification Email *
               </label>
               <input
                 type="email"
                 required
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="you@practice.com.au"
+                placeholder="practitioner@clinic.com.au"
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] focus:ring-1 focus:ring-[#16233B] outline-none transition-all placeholder:text-slate-400 font-sans"
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5 font-sans">
-                Password
+                Password *
               </label>
               <input
                 type="password"
@@ -175,10 +243,10 @@ export default function SignupPage() {
                 className="w-full py-3.5 px-6 text-sm font-semibold text-white bg-[#182638] hover:bg-[#111A27] disabled:opacity-60 rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
               >
                 {loading ? (
-                  <span>Creating account...</span>
+                  <span>Registering practitioner account...</span>
                 ) : (
                   <>
-                    <span>Create account</span>
+                    <span>Create Practitioner Account</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -189,12 +257,12 @@ export default function SignupPage() {
           {/* Switch Link Footer */}
           <div className="mt-8 pt-6 border-t border-slate-100 text-center">
             <p className="text-xs text-slate-600 font-normal">
-              Already have an account?{" "}
+              {"Already registered? "}
               <Link
                 href="/login"
                 className="font-semibold text-[#16233B] hover:text-slate-700 underline transition-colors"
               >
-                Log in
+                Log in to portal
               </Link>
             </p>
           </div>
@@ -204,11 +272,11 @@ export default function SignupPage() {
         <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-slate-500 font-normal">
           <div className="flex items-center gap-1.5">
             <ShieldCheck className="w-4 h-4 text-slate-600" />
-            <span>Sydney Sovereign Hosting</span>
+            <span>Sydney Sovereign Server (ap-southeast-2)</span>
           </div>
           <div className="flex items-center gap-1.5">
             <CheckCircle2 className="w-4 h-4 text-slate-600" />
-            <span>TLS 1.3 Encrypted Session</span>
+            <span>Zero Data Stored Outside Australia</span>
           </div>
         </div>
       </div>

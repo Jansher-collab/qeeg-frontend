@@ -1,6 +1,27 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET() {
+const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+
+export async function GET(req: NextRequest) {
+  const sessionCookie = req.cookies.get('qeeg_session_token')?.value;
+
+  if (sessionCookie) {
+    try {
+      const backendRes = await fetch(`${BACKEND_URL}/api/practitioner/reports`, {
+        headers: {
+          Cookie: `qeeg_session_token=${sessionCookie}`,
+        },
+      });
+
+      if (backendRes.ok) {
+        const backendData = await backendRes.json();
+        return NextResponse.json(backendData);
+      }
+    } catch {
+      // Backend not running, proceed to mock data
+    }
+  }
+
   const mockReports = [
     {
       id: 'rep_001',
