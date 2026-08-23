@@ -2,23 +2,27 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
-export async function GET(req: NextRequest, { params }: { params: { action: string[] } }) {
-  const action = params.action.join('/');
+export async function GET(req: NextRequest, { params }: { params: Promise<{ action: string[] }> }) {
+  const resolvedParams = await params;
+  const action = resolvedParams.action.join('/');
   return handleRequest(req, action, 'GET');
 }
 
-export async function POST(req: NextRequest, { params }: { params: { action: string[] } }) {
-  const action = params.action.join('/');
+export async function POST(req: NextRequest, { params }: { params: Promise<{ action: string[] }> }) {
+  const resolvedParams = await params;
+  const action = resolvedParams.action.join('/');
   return handleRequest(req, action, 'POST');
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { action: string[] } }) {
-  const action = params.action.join('/');
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ action: string[] }> }) {
+  const resolvedParams = await params;
+  const action = resolvedParams.action.join('/');
   return handleRequest(req, action, 'PUT');
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { action: string[] } }) {
-  const action = params.action.join('/');
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ action: string[] }> }) {
+  const resolvedParams = await params;
+  const action = resolvedParams.action.join('/');
   return handleRequest(req, action, 'DELETE');
 }
 
