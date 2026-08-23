@@ -99,13 +99,24 @@ export default function Navbar() {
           {/* Action Buttons (Desktop / Laptop) */}
           <div className="hidden lg:flex items-center gap-2.5 xl:gap-3.5 shrink-0">
             {user ? (
-              <Link
-                href="/portal"
-                className="px-4 py-2 text-xs lg:text-sm font-semibold text-[#16233B] bg-white hover:bg-slate-100 rounded-lg shadow-sm hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center gap-2"
-              >
-                <User className="w-4 h-4 text-[#16233B]" />
-                <span>Practitioner Portal</span>
-              </Link>
+              <>
+                <Link
+                  href="/portal"
+                  className="px-4 py-2 text-xs lg:text-sm font-semibold text-[#16233B] bg-white hover:bg-slate-100 rounded-lg shadow-sm hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center gap-2"
+                >
+                  <User className="w-4 h-4 text-[#16233B]" />
+                  <span>Practitioner Portal</span>
+                </Link>
+                <button
+                  onClick={async () => {
+                    await fetch('/api/auth/logout', { method: 'POST' });
+                    window.location.href = '/login';
+                  }}
+                  className="px-3.5 py-1.5 xl:px-4 xl:py-2 text-xs lg:text-sm font-medium text-slate-300 hover:text-white bg-transparent hover:bg-slate-800/80 border border-slate-700 hover:border-slate-500 rounded-lg transition-all duration-200 cursor-pointer"
+                >
+                  Log out
+                </button>
+              </>
             ) : (
               <>
                 <Link
@@ -175,14 +186,25 @@ export default function Navbar() {
               {/* Action Buttons in Mobile/Tablet Drawer */}
               <div className="pt-4 mt-2 border-t border-slate-800 flex flex-col gap-3">
                 {user ? (
-                  <Link
-                    href="/portal"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="w-full text-center py-3 text-sm font-semibold text-[#16233B] bg-white hover:bg-slate-100 rounded-xl shadow-sm flex items-center justify-center gap-2"
-                  >
-                    <User className="w-4 h-4 text-[#16233B]" />
-                    <span>Practitioner Portal</span>
-                  </Link>
+                  <>
+                    <Link
+                      href="/portal"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="w-full text-center py-3 text-sm font-semibold text-[#16233B] bg-white hover:bg-slate-100 rounded-xl shadow-sm flex items-center justify-center gap-2"
+                    >
+                      <User className="w-4 h-4 text-[#16233B]" />
+                      <span>Practitioner Portal</span>
+                    </Link>
+                    <button
+                      onClick={async () => {
+                        await fetch('/api/auth/logout', { method: 'POST' });
+                        window.location.href = '/login';
+                      }}
+                      className="w-full text-center py-2.5 text-sm font-medium text-slate-200 bg-slate-800/90 hover:bg-slate-800 border border-slate-700 rounded-xl transition-colors cursor-pointer"
+                    >
+                      Log out
+                    </button>
+                  </>
                 ) : (
                   <>
                     <Link

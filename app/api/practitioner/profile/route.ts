@@ -17,24 +17,13 @@ export async function GET(req: NextRequest) {
         const backendData = await backendRes.json();
         return NextResponse.json(backendData);
       }
-    } catch {
-      // Backend not running, proceed to default mock profile
+      return NextResponse.json({ error: 'Failed to fetch profile from backend' }, { status: backendRes.status });
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message }, { status: 500 });
     }
   }
 
-  return NextResponse.json({
-    profile: {
-      fullName: 'Dr. Alexander Wright',
-      professionalTitle: 'Senior Clinical Neuropsychologist',
-      profession: 'Clinical Neuropsychologist',
-      providerNumber: 'PR-88921-VIC',
-      clinicName: 'Melbourne NeuroCare Clinic',
-      practiceAddress: 'Suite 4B, 120 Collins Street, Melbourne VIC 3000',
-      phone: '+61 3 9820 1144',
-      practiceEmail: 'reception@melbourneneurocare.com.au',
-      notificationEmail: 'a.wright@melbourneneurocare.com.au',
-    },
-  });
+  return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 }
 
 export async function PUT(req: NextRequest) {
@@ -56,13 +45,11 @@ export async function PUT(req: NextRequest) {
         const backendData = await backendRes.json();
         return NextResponse.json(backendData);
       }
-    } catch {
-      // Backend not running, proceed to mock response
+      return NextResponse.json({ error: 'Failed to update profile in backend' }, { status: backendRes.status });
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message }, { status: 500 });
     }
   }
 
-  return NextResponse.json({
-    message: 'Profile updated successfully.',
-    profile: body,
-  });
+  return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 }
