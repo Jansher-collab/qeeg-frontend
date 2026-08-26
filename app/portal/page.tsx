@@ -200,7 +200,6 @@ function PortalDashboardContent() {
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = (e.target?.result as string) || "";
-      setRawTdtText(text);
 
       // In-browser quality gate check
       const parseResult = parseQeegTdtInBrowser(text);
@@ -221,6 +220,12 @@ function PortalDashboardContent() {
       setReliabilityCheckMessage(
         `✓ Quality Gate Verified: Test/Retest Reliability is ${parseResult.reliabilityScore.toFixed(2)} (≥ 0.80). De-identified in browser.`
       );
+      
+      if (parseResult.deidentifiedContent) {
+        setRawTdtText(parseResult.deidentifiedContent);
+      } else {
+        setRawTdtText(text);
+      }
 
       // Auto-populate parsed demographics
       setNewCaseData((prev) => ({
@@ -240,6 +245,10 @@ function PortalDashboardContent() {
     e.preventDefault();
     if (!qeegReliabilityPassed) {
       setSubmitError("Please upload a valid QEEG .tdt file that passes the 0.80 reliability threshold first.");
+      return;
+    }
+    if (!checklistFileSelected) {
+      setSubmitError("Please attach the completed Symptom Checklist PDF.");
       return;
     }
 

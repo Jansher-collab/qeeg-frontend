@@ -7,6 +7,7 @@ export interface ClientReliabilityResult {
   gender?: string;
   handedness?: string;
   deidentified: boolean;
+  deidentifiedContent?: string;
   rawPiiDetected: boolean;
   error?: string;
 }
@@ -121,6 +122,27 @@ export function parseQeegTdtInBrowser(fileContent: string): ClientReliabilityRes
 
   const passed = testRetestScore >= MINIMUM_THRESHOLD;
 
+  // 3. Strip Identifying Lines if Passed
+  let deidentifiedContent = "";
+  if (passed) {
+    const strippedLines = lines.filter((line) => {
+      const lowerLine = line.toLowerCase();
+      // Identifying lines to strip:
+      if (lowerLine.startsWith("name") ||
+          lowerLine.startsWith("subject id") ||
+          lowerLine.startsWith("dob") ||
+          lowerLine.startsWith("date of test") ||
+          lowerLine.startsWith("time of test") ||
+          lowerLine.startsWith("patient name") ||
+          lowerLine.startsWith("first name") ||
+          lowerLine.startsWith("last name")) {
+        return false;
+      }
+      return true;
+    });
+    deidentifiedContent = strippedLines.join("\n");
+  }
+
   return {
     passed,
     reliabilityScore: testRetestScore,
@@ -130,6 +152,7 @@ export function parseQeegTdtInBrowser(fileContent: string): ClientReliabilityRes
     gender,
     handedness,
     deidentified: true,
+    deidentifiedContent: passed ? deidentifiedContent : undefined,
     rawPiiDetected: false,
     error: passed
       ? undefined
