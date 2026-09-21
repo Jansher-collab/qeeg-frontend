@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { SESSION_COOKIE_NAME, sessionCookieClearOptions } from './lib/session';
 
 interface JwtPayload {
   userId: string;
@@ -12,26 +13,12 @@ function decodeJwtPayload(token: string): JwtPayload | null {
   try {
     if (!token) return null;
 
-    // 1. Standard 3-part JWT (header.payload.signature)
-    if (token.includes('.')) {
-      const parts = token.split('.');
-      if (parts.length >= 2) {
-        const payloadJson = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
-        const payload = JSON.parse(payloadJson) as JwtPayload;
-        if (payload.exp && Date.now() >= payload.exp * 1000) {
-          return null;
-        }
-        return payload;
-      }
-    }
+    // Only accept standard 3-part JWT (header.payload.signature)
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
 
-    // 2. Base64 payload or mock token
-    let rawStr = token;
-    if (rawStr.startsWith('mock_jwt_')) {
-      rawStr = rawStr.replace('mock_jwt_', '');
-    }
-    const decoded = atob(rawStr);
-    const payload = JSON.parse(decoded) as JwtPayload;
+    const payloadJson = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
+    const payload = JSON.parse(payloadJson) as JwtPayload;
     if (payload.exp && Date.now() >= payload.exp * 1000) {
       return null;
     }
@@ -41,10 +28,9 @@ function decodeJwtPayload(token: string): JwtPayload | null {
   }
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const sessionCookie = request.cookies.get('qeeg_session_token')?.value;
-  const user = sessionCookie ? decodeJwtPayload(sessionCookie) : null;
+  const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
 
   const isAuthPage =
     pathname === '/login' ||
@@ -54,6 +40,29 @@ export function middleware(request: NextRequest) {
 
   const isPortalPage = pathname.startsWith('/portal');
   const isReviewQueue = pathname.startsWith('/portal/review');
+
+  // Decode the session token strictly. A malformed, expired, or mock token
+  // is treated as no session at all and is explicitly evicted so old cookies
+  // never leak through to a dashboard or trap a user on an auth page.
+  const tokenPayload = sessionCookie ? decodeJwtPayload(sessionCookie) : null;
+  const hasStaleCookie = !!sessionCookie && tokenPayload === null;
+
+  if (hasStaleCookie && isPortalPage) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('callbackUrl', pathname);
+    const redirect = NextResponse.redirect(loginUrl);
+    redirect.cookies.set(SESSION_COOKIE_NAME, '', sessionCookieClearOptions());
+    return redirect;
+  }
+
+  if (hasStaleCookie) {
+    // Auth pages (and everywhere else): evict the stale cookie and keep going.
+    const response = NextResponse.next();
+    response.cookies.set(SESSION_COOKIE_NAME, '', sessionCookieClearOptions());
+    return response;
+  }
+
+  const user = tokenPayload;
 
   // 1. If user is logged in and visits auth pages, redirect to appropriate dashboard
   if (user && isAuthPage) {

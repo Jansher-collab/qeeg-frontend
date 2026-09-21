@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { clearSessionStateClientSide } from "@/lib/clearSession";
 import {
   LayoutDashboard,
   PlusCircle,
@@ -44,27 +45,37 @@ function PortalShell({ children }: { children: React.ReactNode }) {
       try {
         const res = await fetch("/api/auth/me");
         if (!res.ok) {
-          router.push("/login");
+          // Session was rejected (invalid/expired/revoked): strip any stale
+          // session cookies/storage so we aren't bounced around a broken loop.
+          clearSessionStateClientSide();
+          const currentUrl = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+          router.push(`/login?redirect=${encodeURIComponent(currentUrl)}`);
           return;
         }
         const data = await res.json();
         setUser(data.user);
       } catch (err) {
-        router.push("/login");
+        clearSessionStateClientSide();
+        const currentUrl = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+        router.push(`/login?redirect=${encodeURIComponent(currentUrl)}`);
       } finally {
         setLoading(false);
       }
     }
     checkAuth();
-  }, [router]);
+  }, [router, pathname, searchParams]);
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
-      router.push("/login");
-      router.refresh();
-    } catch (err) {
-      router.push("/login");
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    } catch {
+      // Ignore network errors; still clear the session locally below.
+    } finally {
+      // Aggressively strip all session cookies and storage client-side, then
+      // force a full page reload to the login view so no stale auth state
+      // survives in memory or the URL.
+      clearSessionStateClientSide();
+      window.location.href = "/login";
     }
   };
 
@@ -91,18 +102,19 @@ function PortalShell({ children }: { children: React.ReactNode }) {
     { label: "Support", href: "/portal?view=support", view: "support", icon: HelpCircle },
   ];
 
-  const profileFullName = user?.practitionerProfile?.fullName || "Dr S. Patel";
-  const profileProfession = user?.practitionerProfile?.profession || "Psychologist";
+  const profileFullName = user?.practitionerProfile?.fullName || user?.email || "";
+  const profileProfession = user?.practitionerProfile?.profession || "";
   
   const initials = profileFullName
     ? profileFullName
         .replace(/^(Dr\.|Prof\.|Mr\.|Ms\.|Mrs\.)\s+/i, "")
         .split(" ")
+        .filter(Boolean)
         .map((n) => n[0])
         .join("")
         .toUpperCase()
         .substring(0, 2)
-    : "SP";
+    : "U";
 
   return (
     <div className="min-h-screen bg-[#F3F6F8] flex flex-col lg:flex-row selection:bg-[#16233B] selection:text-white">

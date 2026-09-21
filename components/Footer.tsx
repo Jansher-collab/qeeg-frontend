@@ -110,11 +110,11 @@ export default function Footer() {
 
             <div className="flex flex-col gap-2 pt-1 text-xs">
               <a
-                href="mailto:reception@adhd.com.au"
+                href="mailto:admin@qeeg.com.au"
                 className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors font-normal"
               >
                 <Mail className="w-3.5 h-3.5 shrink-0 text-slate-400" />
-                <span>reception@adhd.com.au</span>
+                <span>admin@qeeg.com.au</span>
               </a>
 
               <div className="flex items-center gap-2 text-slate-400 font-normal">

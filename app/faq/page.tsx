@@ -249,17 +249,17 @@ export default function FaqPage() {
               <p className="text-slate-300 text-xs sm:text-sm font-normal">
                 Email{" "}
                 <a
-                  href="mailto:reception@adhd.com.au"
+                  href="mailto:admin@qeeg.com.au"
                   className="font-medium text-white underline decoration-slate-400 hover:decoration-white transition-colors"
                 >
-                  reception@adhd.com.au
+                  admin@qeeg.com.au
                 </a>{" "}
                 with your enquiry or case reference.
               </p>
             </div>
 
             <a
-              href="mailto:reception@adhd.com.au"
+              href="mailto:admin@qeeg.com.au"
               className="px-6 py-3.5 text-xs sm:text-sm font-semibold text-[#16233B] bg-white hover:bg-slate-100 rounded-xl shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center gap-2 shrink-0 group"
             >
               <Mail className="w-4 h-4 text-[#16233B]" />

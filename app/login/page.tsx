@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { clearSessionStateClientSide } from "@/lib/clearSession";
 import { AlertCircle, ArrowRight, ShieldCheck, CheckCircle2, Check } from "lucide-react";
 
 function LoginForm() {
@@ -15,6 +16,16 @@ function LoginForm() {
     email: "",
     password: "",
   });
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [totpCode, setTotpCode] = useState("");
+  const [useBackupCode, setUseBackupCode] = useState(false);
+
+  // If we reached the login view with a stale/malformed session cookie lurking
+  // in the browser, purge it now so the auth form is shown cleanly and no old
+  // token can resurrect a broken session later.
+  useEffect(() => {
+    clearSessionStateClientSide();
+  }, []);
 
   useEffect(() => {
     if (searchParams.get("registered") === "true") {
@@ -35,18 +46,36 @@ function LoginForm() {
         body: JSON.stringify({
           email: formData.email,
           password: formData.password,
+          ...(requires2FA ? { totpCode: totpCode.trim() } : {}),
         }),
       });
 
       const data = await res.json();
 
+      // Two-factor challenge: the backend verified credentials but requires a
+      // TOTP/backup code before issuing a session token.
+      if (res.status === 428 || data.code === "TOTP_REQUIRED") {
+        setRequires2FA(true);
+        return;
+      }
+
       if (!res.ok) {
         throw new Error(data.error || "Invalid login credentials.");
       }
 
+      // If the user arrived from a report collection link (e.g. via the
+      // portal's logged-out redirect), continue to that destination after login.
+      const redirectParam = searchParams.get("redirect");
+      if (redirectParam) {
+        window.location.href = redirectParam;
+        return;
+      }
+
       // Role-based routing with immediate session sync
       const targetPath =
-        data.user?.role === "NEUROSCIENTIST" || data.user?.role === "ADMIN"
+        data.user?.role === "ADMIN"
+          ? "/admin"
+          : data.user?.role === "NEUROSCIENTIST"
           ? "/portal/review"
           : "/portal";
 
@@ -140,6 +169,46 @@ function LoginForm() {
             />
           </div>
 
+          {requires2FA && (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700 font-sans">
+                  {useBackupCode ? "Backup Code" : "Two-Factor Authentication Code"}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUseBackupCode((prev) => !prev);
+                    setTotpCode("");
+                  }}
+                  className="text-xs font-medium text-slate-500 hover:text-[#16233B] transition-colors"
+                >
+                  {useBackupCode
+                    ? "Use authenticator code instead"
+                    : "Use a backup code instead"}
+                </button>
+              </div>
+              <input
+                type="text"
+                required
+                autoFocus
+                inputMode={useBackupCode ? "text" : "numeric"}
+                maxLength={useBackupCode ? 11 : undefined}
+                autoCapitalize={useBackupCode ? "characters" : undefined}
+                autoComplete={useBackupCode ? "off" : undefined}
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value)}
+                placeholder={useBackupCode ? "e.g. F699A-53903" : "6-digit code"}
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] focus:ring-1 focus:ring-[#16233B] outline-none transition-all placeholder:text-slate-400 font-sans tracking-widest"
+              />
+              <p className="mt-1.5 text-[11px] text-slate-500 font-normal">
+                {useBackupCode
+                  ? "Enter one of the single-use backup codes you saved when you enabled two-factor authentication."
+                  : "Enter the 6-digit code from your authenticator app."}
+              </p>
+            </div>
+          )}
+
           <div className="pt-2">
             <button
               type="submit"
@@ -147,10 +216,10 @@ function LoginForm() {
               className="w-full py-3.5 px-6 text-sm font-semibold text-white bg-[#182638] hover:bg-[#111A27] disabled:opacity-60 rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
             >
               {loading ? (
-                <span>Logging in...</span>
+                <span>{requires2FA ? "Verifying..." : "Logging in..."}</span>
               ) : (
                 <>
-                  <span>Log in</span>
+                  <span>{requires2FA ? "Verify code" : "Log in"}</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}

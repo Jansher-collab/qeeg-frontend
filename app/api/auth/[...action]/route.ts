@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { SESSION_COOKIE_NAME, sessionCookieClearOptions } from '@/lib/session';
 
 const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
@@ -29,8 +30,14 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ a
 async function handleRequest(req: NextRequest, action: string, method: string) {
   const url = `${BACKEND_URL}/api/auth/${action}`;
   try {
-    const headers = new Headers(req.headers);
-    headers.set('host', new URL(BACKEND_URL).host);
+    // Forward only the headers the backend needs. Cloning the full request
+    // header set (Content-Length, Expect, Transfer-Encoding, etc.) makes
+    // Node's fetch reject the proxied body with `fetch failed`.
+    const headers = new Headers();
+    const cookie = req.headers.get('cookie');
+    if (cookie) headers.set('cookie', cookie);
+    const contentType = req.headers.get('content-type') || req.headers.get('accept');
+    if (contentType) headers.set('content-type', contentType);
 
     const fetchOptions: RequestInit = {
       method,
@@ -49,9 +56,22 @@ async function handleRequest(req: NextRequest, action: string, method: string) {
       statusText: backendRes.statusText,
     });
 
-    backendRes.headers.forEach((value, key) => {
-      response.headers.set(key, value);
-    });
+    const setCookies =
+      typeof backendRes.headers.getSetCookie === 'function'
+        ? backendRes.headers.getSetCookie()
+        : backendRes.headers.get('set-cookie')
+        ? [backendRes.headers.get('set-cookie') as string]
+        : [];
+    for (const c of setCookies) {
+      response.headers.append('set-cookie', c);
+    }
+
+    // If the backend rejected the session (invalid, expired, or revoked token),
+    // aggressively delete the session cookie on the client so the user is not
+    // trapped in a broken dashboard/auth loop.
+    if (backendRes.status === 401) {
+      response.cookies.set(SESSION_COOKIE_NAME, '', sessionCookieClearOptions());
+    }
 
     return response;
   } catch (error: any) {

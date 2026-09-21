@@ -1,14 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ArrowRight, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { clearSessionStateClientSide } from "@/lib/clearSession";
+import QRCode from "qrcode";
+import {
+  AlertCircle,
+  ArrowRight,
+  ShieldCheck,
+  CheckCircle2,
+  Smartphone,
+  KeyRound,
+  Download,
+} from "lucide-react";
 
 export default function SignupPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [step, setStep] = useState<"form" | "2fa">("form");
+  const [legalChecked, setLegalChecked] = useState({ dpa: false, eula: false });
+  const [qrSvg, setQrSvg] = useState<string | null>(null);
+  const [totpCode, setTotpCode] = useState("");
+  const [enrollError, setEnrollError] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
+  const [backupCodesConfirmed, setBackupCodesConfirmed] = useState(false);
+
+  // Current published legal document versions (loaded live so signup always
+  // shows and records the latest DPA / EULA revision, per the admin panel).
+  const FALLBACK_LEGAL_VERSION = "2026-09-01";
+  const [legalVersions, setLegalVersions] = useState<Record<string, string>>({
+    DPA: FALLBACK_LEGAL_VERSION,
+    EULA: FALLBACK_LEGAL_VERSION,
+  });
+  const [legalDocsError, setLegalDocsError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -22,12 +49,47 @@ export default function SignupPage() {
     password: "",
   });
 
+  // Landing on the registration view: purge any stale/malformed session cookie
+  // so a previously broken token cannot hijack the form or dashboard later.
+  useEffect(() => {
+    clearSessionStateClientSide();
+  }, []);
+
+  // Load the currently published DPA / EULA versions. Falls back to the last
+  // known static versions if the backend is unreachable so the form still works.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/legal/current");
+        if (!res.ok) throw new Error("Failed to load legal documents.");
+        const data = await res.json();
+        if (cancelled) return;
+        const next: Record<string, string> = {};
+        for (const doc of data.documents || []) {
+          next[doc.documentType] = doc.version;
+        }
+        setLegalVersions((prev) => ({ ...prev, ...next }));
+        setLegalDocsError(null);
+      } catch (err: any) {
+        if (!cancelled) setLegalDocsError(err.message || "Could not load latest agreement versions.");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     if (formData.password.length < 8) {
       setError("Password must be at least 8 characters long.");
+      return;
+    }
+    if (!legalChecked.dpa || !legalChecked.eula) {
+      setError("You must accept both the Data Processing Agreement and the End User Licence Agreement to continue.");
       return;
     }
 
@@ -50,6 +112,10 @@ export default function SignupPage() {
           email: formData.email,
           password: formData.password,
           role: "PRACTITIONER",
+          legalAcceptances: [
+            { type: "DPA", version: legalVersions.DPA || FALLBACK_LEGAL_VERSION },
+            { type: "EULA", version: legalVersions.EULA || FALLBACK_LEGAL_VERSION },
+          ],
         }),
       });
 
@@ -59,12 +125,84 @@ export default function SignupPage() {
         throw new Error(data.error || "Failed to create account.");
       }
 
-      window.location.href = "/login?registered=true";
+      // Account created — proceed in-place to the mandatory 2FA enrollment
+      // step (Spec 3.1e: two-factor authentication enforced at signup).
+      setStep("2fa");
+      await begin2FAEnrollment();
     } catch (err: any) {
       setError(err.message || "Failed to create account.");
+      setStep("form");
     } finally {
       setLoading(false);
     }
+  };
+
+  // Two-factor enrollment needs an authenticated session. After registration
+  // the user has no session yet, so log in once (2FA is not yet enabled), then
+  // start the TOTP enrollment and render the QR code for their authenticator app.
+  const begin2FAEnrollment = async () => {
+    setEnrollError(null);
+    try {
+      const loginRes = await fetch("/api/auth/login", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: formData.email, password: formData.password }),
+      });
+      const loginData = await loginRes.json();
+      if (!loginRes.ok) {
+        throw new Error(loginData.error || "Failed to establish session for 2FA enrollment.");
+      }
+
+      const setupRes = await fetch("/api/auth/2fa/setup", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const setupData = await setupRes.json();
+      if (!setupRes.ok) {
+        throw new Error(setupData.error || "Failed to start two-factor setup.");
+      }
+
+      const svg = await QRCode.toString(setupData.otpauthUrl, {
+        type: "svg",
+        margin: 1,
+        width: 200,
+        errorCorrectionLevel: "M",
+      });
+      setQrSvg(svg);
+    } catch (err: any) {
+      setEnrollError(err.message || "Failed to start two-factor setup.");
+      setStep("form");
+    }
+  };
+
+  const handleConfirmTotp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEnrollError(null);
+    setVerifying(true);
+    try {
+      const res = await fetch("/api/auth/2fa/confirm", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ totpCode: totpCode.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Invalid verification code.");
+      }
+      setBackupCodes(data.backupCodes || []);
+    } catch (err: any) {
+      setEnrollError(err.message || "Failed to confirm verification code.");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleFinish = () => {
+    router.push("/portal");
   };
 
   return (
@@ -88,22 +226,25 @@ export default function SignupPage() {
               <span>Australian Practitioner Registration</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-serif text-[#16233B] font-normal tracking-tight">
-              Create your referring account
+              {step === "form" ? "Create your referring account" : "Secure your account with 2FA"}
             </h1>
             <p className="mt-2 text-xs sm:text-sm text-slate-500 font-normal leading-relaxed">
-              {"Saved once to automatically pre-fill your client symptom checklists. No subscription fees."}
+              {step === "form"
+                ? "Saved once to automatically pre-fill your client symptom checklists. No subscription fees."
+                : "Two-factor authentication is mandatory. Scan the QR code with any TOTP authenticator app to finish enrollment."}
             </p>
           </div>
 
           {/* Error Banner */}
-          {error && (
+          {(step === "form" ? error : enrollError) && (
             <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-3 text-rose-800 text-xs animate-fadeIn">
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <span className="leading-relaxed">{error}</span>
+              <span className="leading-relaxed">{step === "form" ? error : enrollError}</span>
             </div>
           )}
 
           {/* Form */}
+          {step === "form" ? (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -236,6 +377,56 @@ export default function SignupPage() {
               </span>
             </div>
 
+            {/* Mandatory DPA / EULA acceptance (Spec 3.1c / 3.1d) */}
+            <div className="pt-2 space-y-3 border-t border-slate-100">
+              <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider">
+                Required Agreements
+              </p>
+              {legalDocsError && (
+                <p className="text-[11px] text-amber-600 leading-relaxed">
+                  Could not reach the live agreements service — showing the last published versions. Please refresh before submitting.
+                </p>
+              )}
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={legalChecked.dpa}
+                  onChange={(e) => setLegalChecked({ ...legalChecked, dpa: e.target.checked })}
+                  className="mt-0.5 w-4 h-4 rounded border-slate-300 text-[#16233B] focus:ring-[#16233B] cursor-pointer"
+                />
+                <span className="text-xs text-slate-600 leading-relaxed font-normal">
+                  I have read and agree to the{" "}
+                  <Link
+                    href="/legal/dpa"
+                    target="_blank"
+                    className="font-semibold text-[#16233B] hover:underline"
+                  >
+                    Data Processing Agreement
+                  </Link>{" "}
+                  (Version {legalVersions.DPA || FALLBACK_LEGAL_VERSION}).
+                </span>
+              </label>
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={legalChecked.eula}
+                  onChange={(e) => setLegalChecked({ ...legalChecked, eula: e.target.checked })}
+                  className="mt-0.5 w-4 h-4 rounded border-slate-300 text-[#16233B] focus:ring-[#16233B] cursor-pointer"
+                />
+                <span className="text-xs text-slate-600 leading-relaxed font-normal">
+                  I have read and agree to the{" "}
+                  <Link
+                    href="/legal/eula"
+                    target="_blank"
+                    className="font-semibold text-[#16233B] hover:underline"
+                  >
+                    End User Licence Agreement
+                  </Link>{" "}
+                  (Version {legalVersions.EULA || FALLBACK_LEGAL_VERSION}).
+                </span>
+              </label>
+            </div>
+
             <div className="pt-2">
               <button
                 type="submit"
@@ -253,6 +444,133 @@ export default function SignupPage() {
               </button>
             </div>
           </form>
+          ) : backupCodes ? (
+            <div className="space-y-5">
+              {/* Backup codes — shown exactly once */}
+              <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200">
+                <div className="flex items-start gap-3">
+                  <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <h2 className="text-sm font-semibold text-emerald-900">Two-factor authentication enabled</h2>
+                    <p className="text-xs text-emerald-700 mt-1 leading-relaxed">
+                      Your single-use backup codes are shown below. Save them somewhere
+                      secure (e.g. your password manager) — they are displayed only once
+                      and can be regenerated later from your account settings.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {backupCodes.map((code) => (
+                    <code
+                      key={code}
+                      className="px-2.5 py-2 rounded-lg bg-white border border-emerald-200 text-center text-xs font-mono tracking-widest text-emerald-900"
+                    >
+                      {code}
+                    </code>
+                  ))}
+                </div>
+              </div>
+
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={backupCodesConfirmed}
+                  onChange={(e) => setBackupCodesConfirmed(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded border-slate-300 text-[#16233B] focus:ring-[#16233B] cursor-pointer"
+                />
+                <span className="text-xs text-slate-600 leading-relaxed font-normal">
+                  I have saved my backup codes in a secure location.
+                </span>
+              </label>
+
+              <button
+                onClick={handleFinish}
+                disabled={!backupCodesConfirmed}
+                className="w-full py-3.5 px-6 text-sm font-semibold text-white bg-[#182638] hover:bg-[#111A27] disabled:opacity-60 rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>Continue to Portal</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {/* QR enrollment step */}
+              {qrSvg ? (
+                <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 text-center">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-sky-50 border border-sky-200 text-[11px] font-semibold text-sky-700 mb-4">
+                    <Smartphone className="w-3.5 h-3.5" />
+                    <span>Step 1 of 2 — Scan the QR code</span>
+                  </div>
+
+                  <div className="w-48 h-48 mx-auto rounded-2xl bg-white border border-slate-200 p-2 flex items-center justify-center shadow-sm">
+                    <img
+                      src={"data:image/svg+xml;charset=utf-8," + encodeURIComponent(qrSvg)}
+                      alt="Scan with your authenticator app"
+                      className="w-full h-full"
+                    />
+                  </div>
+
+                  <p className="mt-4 text-xs text-slate-600 leading-relaxed font-normal">
+                    Open Google Authenticator (or any compatible TOTP app) and scan
+                    this QR code with your phone. The app will start generating
+                    6-digit codes tied to your QEEG.com.au account.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200">
+                  <div className="flex items-center gap-2 text-slate-500">
+                    <KeyRound className="w-4 h-4 animate-pulse" />
+                    <span className="text-xs font-medium">Preparing your authenticator enrollment...</span>
+                  </div>
+                </div>
+              )}
+
+              <form onSubmit={handleConfirmTotp} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5 font-sans">
+                    Verification Code
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    autoFocus
+                    inputMode="numeric"
+                    value={totpCode}
+                    onChange={(e) => setTotpCode(e.target.value)}
+                    placeholder="6-digit code"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] focus:ring-1 focus:ring-[#16233B] outline-none transition-all placeholder:text-slate-400 font-sans tracking-widest"
+                  />
+                  <p className="mt-1.5 text-[11px] text-slate-500 font-normal">
+                    Enter the 6-digit code currently shown in your authenticator app.
+                  </p>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={verifying || totpCode.trim().length < 6}
+                  className="w-full py-3.5 px-6 text-sm font-semibold text-white bg-[#182638] hover:bg-[#111A27] disabled:opacity-60 rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {verifying ? (
+                    <span>Verifying...</span>
+                  ) : (
+                    <>
+                      <span>Verify &amp; enable</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <button
+                onClick={begin2FAEnrollment}
+                disabled={loading}
+                className="w-full text-xs font-semibold text-slate-500 hover:text-[#16233B] transition-colors cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5 inline mr-1 -mt-0.5" />
+                Resend enrollment code
+              </button>
+            </div>
+          )}
 
           {/* Switch Link Footer */}
           <div className="mt-8 pt-6 border-t border-slate-100 text-center">

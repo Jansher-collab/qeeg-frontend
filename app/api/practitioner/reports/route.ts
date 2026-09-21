@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { clearSessionCookiesOnResponse } from '@/lib/session';
 
 const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
@@ -16,6 +17,12 @@ export async function GET(req: NextRequest) {
       if (backendRes.ok) {
         const backendData = await backendRes.json();
         return NextResponse.json(backendData);
+      }
+
+      if (backendRes.status === 401) {
+        return clearSessionCookiesOnResponse(
+          NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+        );
       }
       return NextResponse.json({ error: 'Failed to fetch reports from backend' }, { status: backendRes.status });
     } catch (e: any) {

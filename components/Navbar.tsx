@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { clearSessionStateClientSide } from "@/lib/clearSession";
 import { Menu, X, User, ArrowRight } from "lucide-react";
 
 export default function Navbar() {
@@ -25,10 +26,16 @@ export default function Navbar() {
           const data = await res.json();
           if (data.authenticated && data.user) {
             setUser(data.user);
+            return;
           }
         }
+        // Rejected or invalid session: strip stale auth state so the UI does
+        // not linger in a logged-in state with a dead cookie.
+        clearSessionStateClientSide();
+        setUser(null);
       } catch {
-        // Not logged in
+        // Not logged in / unreachable
+        setUser(null);
       }
     }
     checkAuth();
@@ -109,7 +116,12 @@ export default function Navbar() {
                 </Link>
                 <button
                   onClick={async () => {
-                    await fetch('/api/auth/logout', { method: 'POST' });
+                    try {
+                      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+                    } catch {
+                      // Ignore network errors; still clear everything locally below.
+                    }
+                    clearSessionStateClientSide();
                     window.location.href = '/login';
                   }}
                   className="px-3.5 py-1.5 xl:px-4 xl:py-2 text-xs lg:text-sm font-medium text-slate-300 hover:text-white bg-transparent hover:bg-slate-800/80 border border-slate-700 hover:border-slate-500 rounded-lg transition-all duration-200 cursor-pointer"
@@ -197,7 +209,12 @@ export default function Navbar() {
                     </Link>
                     <button
                       onClick={async () => {
-                        await fetch('/api/auth/logout', { method: 'POST' });
+                        try {
+                          await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+                        } catch {
+                          // Ignore network errors; still clear everything locally below.
+                        }
+                        clearSessionStateClientSide();
                         window.location.href = '/login';
                       }}
                       className="w-full text-center py-2.5 text-sm font-medium text-slate-200 bg-slate-800/90 hover:bg-slate-800 border border-slate-700 rounded-xl transition-colors cursor-pointer"

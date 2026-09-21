@@ -4,41 +4,36 @@ import { useEffect, useState, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { parseQeegTdtInBrowser } from "@/lib/reliabilityParser";
+import { parseTovaReport, TovaSession } from "@/lib/tovaParser";
+import {
+  generatePreFilledChecklistPDF,
+  generateCorrelationReportPDF,
+  PractitionerChecklistDetails,
+  CompletedChecklistPdfOptions,
+  CorrelationReportFindings,
+} from "@/lib/services/pdfService";
+import { generateCaseReference } from "@/lib/caseReference";
+import { getPayPalClientId } from "@/lib/paypalConfig";
+import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import {
   PlusCircle,
-  FileText,
-  Clock,
   CheckCircle2,
   AlertCircle,
   ShieldCheck,
   Download,
-  Trash2,
-  Building2,
-  User,
-  Stethoscope,
-  RefreshCw,
   Search,
-  ExternalLink,
-  ChevronRight,
   X,
   FileCheck,
   Activity,
-  Receipt,
-  HelpCircle,
-  Phone,
   Mail,
   ArrowRight,
   Lock,
   Upload,
   AlertTriangle,
   FileUp,
-  CreditCard,
-  Calendar,
   Check,
-  Info,
-  MapPin,
-  FileCode,
-  Sparkles,
+  ClipboardList,
+  Scale,
 } from "lucide-react";
 
 interface Report {
@@ -73,23 +68,89 @@ interface Profile {
   notificationEmail: string | null;
 }
 
+interface ChecklistDomain {
+  num: number;
+  key: string;
+  page: number;
+  title: string;
+  desc: string;
+}
+
+interface ChecklistSectionField {
+  key: string;
+  label: string;
+  type: "text" | "textarea" | "checkbox" | "date" | "select";
+  required?: boolean;
+  readonly?: boolean;
+  source?: string;
+  placeholder?: string;
+  detail?: string;
+  options?: { value: string; label: string }[];
+}
+
+interface ChecklistSection {
+  key: string;
+  title: string;
+  kind?: "fields" | "domains" | "static";
+  readonly?: boolean;
+  required?: boolean;
+  insight?: string;
+  domainPage?: number;
+  lines?: string[];
+  fields?: ChecklistSectionField[];
+}
+
+interface ChecklistConfig {
+  version: number;
+  likert: Record<string, string>;
+  domains: ChecklistDomain[];
+  sections?: ChecklistSection[];
+}
+
+const defaultChecklistFieldValues = (): Record<string, string | boolean> => ({
+  recording_condition: "",
+  quality_1: false,
+  quality_2: false,
+  quality_3: false,
+  quality_4: false,
+  service_agreement_ack: false,
+  payment_auth_ack: false,
+  additional_notes: "",
+  signature: "",
+  date_signed: new Date().toISOString().slice(0, 10),
+});
+
+function useAutoDismiss(value: unknown, onClear: () => void, delayMs = 4500) {
+  const onClearRef = useRef(onClear);
+  onClearRef.current = onClear;
+  useEffect(() => {
+    if (!value) return;
+    const timer = setTimeout(() => onClearRef.current(), delayMs);
+    return () => clearTimeout(timer);
+  }, [value, delayMs]);
+}
+
 function PortalDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentView = searchParams.get("view") || "dashboard";
 
   const [reports, setReports] = useState<Report[]>([]);
+  const [billingReports, setBillingReports] = useState<Report[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
   // Modals state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedReportForDownload, setSelectedReportForDownload] = useState<Report | null>(null);
   const [showIdentityModal, setShowIdentityModal] = useState(false);
   const [patientNameInput, setPatientNameInput] = useState("");
-  const [selectedReportForView, setSelectedReportForView] = useState<Report | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [downloadConfirmed, setDownloadConfirmed] = useState(false);
+  const [collectionToken, setCollectionToken] = useState<string | null>(null);
+  const [collectionHandled, setCollectionHandled] = useState(false);
 
   // Profile Edit State
   const [profileFormData, setProfileFormData] = useState<Partial<Profile>>({});
@@ -99,7 +160,6 @@ function PortalDashboardContent() {
   // File Input References
   const qeegFileInputRef = useRef<HTMLInputElement>(null);
   const tovaFileInputRef = useRef<HTMLInputElement>(null);
-  const checklistFileInputRef = useRef<HTMLInputElement>(null);
 
   // New Case Multi-Step Form State
   const [qeegFileSelected, setQeegFileSelected] = useState(false);
@@ -111,13 +171,40 @@ function PortalDashboardContent() {
   const [reliabilityError, setReliabilityError] = useState<string | null>(null);
   const [tovaFileSelected, setTovaFileSelected] = useState(false);
   const [tovaFileName, setTovaFileName] = useState("");
-  const [checklistFileSelected, setChecklistFileSelected] = useState(false);
-  const [checklistFileName, setChecklistFileName] = useState("");
+  const [tovaData, setTovaData] = useState<TovaSession | null>(null);
+  const [tovaParseMessage, setTovaParseMessage] = useState<string | null>(null);
+  const [tovaError, setTovaError] = useState<string | null>(null);
+  const [checklistConfig, setChecklistConfig] = useState<ChecklistConfig | null>(null);
+  const [checklistScores, setChecklistScores] = useState<Record<string, number>>({});
+  const [checklistFieldValues, setChecklistFieldValues] = useState<Record<string, string | boolean>>(
+    () => defaultChecklistFieldValues()
+  );
+  const [checklistReviewed, setChecklistReviewed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState<{ caseReference: string; generatedAt: string } | null>(null);
+  const [activeNewTab, setActiveNewTab] = useState<1 | 2>(1);
+  const [checklistPdfBusy, setChecklistPdfBusy] = useState(false);
+
+  // Legal acceptance barrier (DPA / EULA)
+  const [legalPending, setLegalPending] = useState<string[]>([]);
+  const [legalLoading, setLegalLoading] = useState(true);
+  const [legalAccepting, setLegalAccepting] = useState(false);
+  const [legalError, setLegalError] = useState<string | null>(null);
+  const [legalChecked, setLegalChecked] = useState<Record<string, boolean>>({});
+  const [legalCurrent, setLegalCurrent] = useState<Record<string, string>>({});
+
+  useAutoDismiss(submitError, () => setSubmitError(null));
+  useAutoDismiss(submitSuccess, () => setSubmitSuccess(null));
+  useAutoDismiss(profileSaveSuccess, () => setProfileSaveSuccess(false));
+  useAutoDismiss(legalError, () => setLegalError(null));
+
+  // Parsed QEEG reliability details (real split-half when available)
+  const [qeegSplitHalf, setQeegSplitHalf] = useState<number>(0.96);
 
   const [newCaseData, setNewCaseData] = useState({
-    caseReference: `REF-${Math.floor(100000 + Math.random() * 900000)}`,
+    caseReference: "",
     age: "34",
     gender: "MALE",
     handedness: "RIGHT",
@@ -141,18 +228,7 @@ function PortalDashboardContent() {
         const profileData = await profileRes.json();
         const prof = profileData.profile || null;
         setProfile(prof);
-        setProfileFormData(
-          prof || {
-            fullName: "Dr. Alexander Wright",
-            profession: "Clinical Neuropsychologist",
-            professionalTitle: "Senior Clinical Specialist",
-            clinicName: "Melbourne NeuroCare Clinic",
-            practiceAddress: "Suite 4B, 120 Collins Street, Melbourne VIC 3000",
-            phone: "+61 3 9820 1144",
-            practiceEmail: "reception@melbourneneurocare.com.au",
-            notificationEmail: "a.wright@melbourneneurocare.com.au",
-          }
-        );
+        setProfileFormData(prof || {});
       }
     } catch (err) {
       console.error("Error loading dashboard data:", err);
@@ -161,30 +237,348 @@ function PortalDashboardContent() {
     }
   };
 
+  const fetchBillingHistory = async () => {
+    try {
+      const res = await fetch("/api/practitioner/billing", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setBillingReports(data.reports || []);
+      } else {
+        console.error("Failed to fetch billing history:", await res.text());
+        setBillingReports([]);
+      }
+    } catch (err) {
+      console.error("Error loading billing history:", err);
+      setBillingReports([]);
+    }
+  };
+
   useEffect(() => {
     fetchDashboardData();
   }, []);
 
-  // Download Symptom Checklist PDF generated with practitioner profile
-  const handleDownloadChecklistPdf = async () => {
-    try {
-      const res = await fetch("/api/checklist/download", {
-        credentials: "include",
-      });
-      if (!res.ok) {
-        throw new Error("Failed to generate checklist PDF.");
+  // Fetch billing history when billing view is active
+  useEffect(() => {
+    if (currentView === "billing") {
+      fetchBillingHistory();
+    }
+  }, [currentView]);
+
+  // Load the config-driven checklist definition (single source of truth shared
+  // with the printable PDF) and the DPA/EULA acceptance status.
+  useEffect(() => {
+    let active = true;
+
+    (async () => {
+      try {
+        const [configRes, legalRes, legalCurrentRes] = await Promise.all([
+          fetch("/api/checklist-config", { credentials: "include" }),
+          fetch("/api/legal/status", { credentials: "include" }),
+          fetch("/api/legal/current", { credentials: "include" }),
+        ]);
+
+        if (active && configRes.ok) {
+          const configData = await configRes.json();
+          if (configData.config) setChecklistConfig(configData.config);
+        }
+
+        if (active && legalRes.ok) {
+          const legalData = await legalRes.json();
+          setLegalPending(legalData.pending || []);
+        }
+
+        if (active && legalCurrentRes.ok) {
+          const legalCurrentData = await legalCurrentRes.json();
+          const versions: Record<string, string> = {};
+          for (const doc of legalCurrentData.documents || []) {
+            versions[doc.documentType] = doc.version;
+          }
+          setLegalCurrent(versions);
+        }
+      } catch (err) {
+        console.error("Failed to load portal resources:", err);
+      } finally {
+        if (active) setLegalLoading(false);
       }
-      const blob = await res.blob();
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Auto-refresh while any report is generating via the background worker so
+  // the GENERATING -> COMPLETED transition appears without a manual refresh.
+  useEffect(() => {
+    const isGenerating = (r: { status: string }) => r.status === "GENERATING";
+    if (reports.some(isGenerating)) {
+      const timer = setInterval(fetchDashboardData, 4000);
+      return () => clearInterval(timer);
+    }
+  }, [reports]);
+
+  // Auto-open the report collection view when arriving via an email link that
+  // carries a reportId (and optionally a collection token). Runs only once after
+  // the dashboard data has loaded so the report is already present in state.
+  const reportIdParam = searchParams.get("reportId");
+  const tokenParam = searchParams.get("token");
+  useEffect(() => {
+    if (!reportIdParam || collectionHandled || loading) return;
+
+    const target = reports.find((r) => r.id === reportIdParam);
+    // Defer the state updates so the effect stays pure (avoids synchronous
+    // setState within the effect body).
+    const timer = setTimeout(() => {
+      setCollectionHandled(true);
+      if (target) {
+        setCollectionToken(tokenParam);
+        setSelectedReportForDownload(target);
+        setDownloadConfirmed(false);
+        setShowIdentityModal(true);
+      } else {
+        // Report not found in the practitioner's list (e.g. already purged).
+        setShowIdentityModal(false);
+        alert(
+          "This report is no longer available in your portal. In accordance with our zero-retention policy, reports are permanently purged immediately after download."
+        );
+      }
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [reportIdParam, reports, loading, tokenParam, collectionHandled]);
+
+  // ------------------------------------------------------------------
+  // Completed Symptom Checklist PDF (Tab 2): generated in-browser from the
+  // exact live-form data + Case Reference. No separate PDF upload required.
+  // ------------------------------------------------------------------
+  const resolveChecklistPdfInputs = (
+    overrides?: {
+      caseReference?: string;
+      scores?: Record<string, number>;
+      config?: ChecklistConfig | null;
+      age?: string;
+      gender?: string;
+      handedness?: string;
+    }
+  ): { details: PractitionerChecklistDetails; options: CompletedChecklistPdfOptions } => {
+    const config = overrides?.config ?? checklistConfig;
+    const scoreMap = overrides?.scores ?? checklistScores;
+    const details: PractitionerChecklistDetails = {
+      fullName: profileFormData.fullName || "",
+      professionalTitle: profileFormData.professionalTitle || "",
+      profession: profileFormData.profession || "",
+      providerNumber: profileFormData.providerNumber || "",
+      clinicName: profileFormData.clinicName || "",
+      practiceAddress: profileFormData.practiceAddress || "",
+      phone: profileFormData.phone || "",
+      practiceEmail: profileFormData.practiceEmail || "",
+      email: profileFormData.notificationEmail || "",
+    };
+    const options: CompletedChecklistPdfOptions = {
+      caseReference: overrides?.caseReference ?? newCaseData.caseReference,
+      age: overrides?.age ?? newCaseData.age,
+      gender: overrides?.gender ?? newCaseData.gender,
+      handedness: overrides?.handedness ?? newCaseData.handedness,
+      reliabilityScore: newCaseData.reliabilityScore,
+      checklistScores: scoreMap,
+      domains: config?.domains ?? [],
+      likert: config?.likert,
+      recordingCondition:
+        typeof checklistFieldValues.recording_condition === "string"
+          ? checklistFieldValues.recording_condition
+          : null,
+      qualityChecks: {
+        quality_1: !!checklistFieldValues.quality_1,
+        quality_2: !!checklistFieldValues.quality_2,
+        quality_3: !!checklistFieldValues.quality_3,
+        quality_4: !!checklistFieldValues.quality_4,
+      },
+      additionalNotes:
+        typeof checklistFieldValues.additional_notes === "string"
+          ? checklistFieldValues.additional_notes
+          : "",
+      serviceAgreementAcknowledged: !!checklistFieldValues.service_agreement_ack,
+      paymentAuthorisationAcknowledged: !!checklistFieldValues.payment_auth_ack,
+      signature:
+        typeof checklistFieldValues.signature === "string" && checklistFieldValues.signature.trim()
+          ? checklistFieldValues.signature
+          : undefined,
+      dateSigned:
+        typeof checklistFieldValues.date_signed === "string" ? checklistFieldValues.date_signed : undefined,
+    };
+    return { details, options };
+  };
+
+  const setChecklistField = (key: string, value: string | boolean) => {
+    setChecklistFieldValues((prev) => ({ ...prev, [key]: value }));
+    setChecklistReviewed(false);
+  };
+
+  // Routes a config field's input to the correct store: case-bound fields
+  // (client age, gender, handedness) live in newCaseData where the QEEG/TOVA
+  // summary, PDF generator and submit payload all read them; everything else
+  // lives in checklistFieldValues. Gender/handedness are normalised to
+  // uppercase so 'Female' vs 'FEMALE' resolve to the same select option.
+  const setCaseBoundFieldValue = (field: ChecklistSectionField, value: string | boolean) => {
+    if (typeof value === "string" && field.source?.startsWith("case.")) {
+      const caseKey = field.source.slice("case.".length);
+      if (caseKey && caseKey !== "reference") {
+        const next =
+          caseKey === "gender" || caseKey === "handedness" ? value.toUpperCase() : value;
+        setNewCaseData((prev) => ({ ...prev, [caseKey]: next }));
+        setChecklistReviewed(false);
+        return;
+      }
+    }
+    setChecklistField(field.key, value);
+  };
+
+  const rateChecklistDomain = (key: string, value: number) => {
+    setChecklistScores((prev) => ({ ...prev, [key]: value }));
+    // Any questionnaire change re-locks submission until the PDF is re-reviewed.
+    setChecklistReviewed(false);
+  };
+
+  const resetChecklistInputs = () => {
+    setChecklistFieldValues(defaultChecklistFieldValues());
+    setChecklistReviewed(false);
+  };
+
+  // Resolves a config-driven field's current value: profile/case fields bind to
+  // account + upload data; everything else lives in checklistFieldValues.
+  const resolveChecklistFieldValue = (field: ChecklistSectionField): string | boolean => {
+    switch (field.source) {
+      case "profile.fullName":
+        return profileFormData.fullName || "";
+      case "profile.notificationEmail":
+        return profileFormData.notificationEmail || "";
+      case "profile.professionalTitle":
+        return profileFormData.professionalTitle || "";
+      case "profile.profession":
+        return profileFormData.profession || "";
+      case "profile.providerNumber":
+        return profileFormData.providerNumber || "";
+      case "profile.clinicName":
+        return profileFormData.clinicName || "";
+      case "profile.phone":
+        return profileFormData.phone || "";
+      case "profile.practiceAddress":
+        return profileFormData.practiceAddress || "";
+      case "case.reference":
+        return newCaseData.caseReference;
+      case "case.age":
+        return newCaseData.age;
+      case "case.gender":
+        return newCaseData.gender;
+      case "case.handedness":
+        return newCaseData.handedness;
+      default:
+        return checklistFieldValues[field.key] ?? "";
+    }
+  };
+
+  // Every required section and field, from the first to the last, must be
+  // complete before a PDF can be generated and before payment can be
+  // authorised. Returns human-readable descriptors of what is still missing.
+  const missingChecklistFields = (): string[] => {
+    if (!checklistConfig) return [];
+    const missing: string[] = [];
+    for (const section of checklistConfig.sections ?? []) {
+      const kind = section.kind ?? "fields";
+      if (kind === "domains") {
+        if (section.required === false) continue;
+        const unrated = checklistConfig.domains
+          .filter((d) => d.page === section.domainPage && checklistScores[d.key] === undefined)
+          .map((d) => d.num);
+        if (unrated.length > 0) {
+          missing.push(`${section.title}: domains ${unrated.join(", ")} not rated`);
+        }
+      } else if (kind === "fields" && Array.isArray(section.fields)) {
+        if (section.required === false) continue;
+        for (const f of section.fields) {
+          if (!f.required) continue;
+          if (f.readonly || section.readonly) {
+            if (String(resolveChecklistFieldValue(f) ?? "").trim() === "") missing.push(f.label);
+          } else if (f.type === "checkbox") {
+            if (!checklistFieldValues[f.key]) missing.push(f.label);
+          } else {
+            // Read the field's live value through its source binding so
+            // case-bound fields (client age, gender, handedness) and
+            // profile-bound fields validate against newCaseData/profile,
+            // never against a stale checklistFieldValues key.
+            const resolved = resolveChecklistFieldValue(f);
+            let filled = typeof resolved === "boolean" ? true : String(resolved ?? "").trim() !== "";
+            if (f.key === "signature" && !filled && profileFormData.fullName) filled = true;
+            if (!filled) missing.push(f.label);
+          }
+        }
+      }
+    }
+    return missing;
+  };
+
+  const checklistPdfFilename = (caseReference: string) =>
+    `QEEG_Symptom_Checklist_Completed_${caseReference}.pdf`;
+
+  const handlePreviewChecklistPdf = async () => {
+    if (!qeegReliabilityPassed || !newCaseData.caseReference) {
+      setSubmitError("Upload a passing QEEG file first — the Case Reference is generated at the reliability gate.");
+      return;
+    }
+    const missing = missingChecklistFields();
+    if (missing.length > 0) {
+      setSubmitError(
+        `Complete every required checklist section from first to last before generating the PDF. Missing: ${missing.join("; ")}.`
+      );
+      return;
+    }
+    try {
+      setChecklistPdfBusy(true);
+      const { details, options } = resolveChecklistPdfInputs();
+      const bytes = await generatePreFilledChecklistPDF(details, options);
+      const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      // Keep the object URL alive until the viewer tab has loaded.
+      setTimeout(() => window.URL.revokeObjectURL(url), 120000);
+      setChecklistReviewed(true);
+    } catch (err: any) {
+      alert(err?.message || "Failed to generate checklist PDF.");
+    } finally {
+      setChecklistPdfBusy(false);
+    }
+  };
+
+  const handleDownloadChecklistPdfCompleted = async () => {
+    if (!qeegReliabilityPassed || !newCaseData.caseReference) {
+      setSubmitError("Upload a passing QEEG file first — the Case Reference is generated at the reliability gate.");
+      return;
+    }
+    const missing = missingChecklistFields();
+    if (missing.length > 0) {
+      setSubmitError(
+        `Complete every required checklist section from first to last before generating the PDF. Missing: ${missing.join("; ")}.`
+      );
+      return;
+    }
+    try {
+      setChecklistPdfBusy(true);
+      const { details, options } = resolveChecklistPdfInputs();
+      const bytes = await generatePreFilledChecklistPDF(details, options);
+      const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `QEEG_Symptom_Checklist_${newCaseData.caseReference}.pdf`;
+      a.download = checklistPdfFilename(newCaseData.caseReference);
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       a.remove();
+      setChecklistReviewed(true);
     } catch (err: any) {
-      alert(err.message || "Failed to download checklist PDF.");
+      alert(err?.message || "Failed to generate checklist PDF.");
+    } finally {
+      setChecklistPdfBusy(false);
     }
   };
 
@@ -209,7 +603,7 @@ function PortalDashboardContent() {
         setQeegReliabilityPassed(false);
         setReliabilityError(
           parseResult.error ||
-            "Quality gate failed: Test/Retest reliability score is below the 0.80 threshold. Submission halted in browser with zero server upload and zero fee."
+          "Quality gate failed: Test/Retest reliability score is below the 0.80 threshold. Submission halted in browser with zero server upload and zero fee."
         );
         return;
       }
@@ -217,19 +611,33 @@ function PortalDashboardContent() {
       setQeegFileName(file.name || `QEEG-Record-${newCaseData.caseReference}.tdt`);
       setQeegFileSelected(true);
       setQeegReliabilityPassed(true);
+      // Tab 1: reliability >= 0.80 => automatically generate ONE unique Case
+      // Reference shared by the QEEG, the TOVA file and the Symptom Checklist.
+      const caseReference = generateCaseReference();
       setReliabilityCheckMessage(
         `✓ Quality Gate Verified: Test/Retest Reliability is ${parseResult.reliabilityScore.toFixed(2)} (≥ 0.80). De-identified in browser.`
       );
-      
+
+      // New case => fresh checklist session: all sections/fields reset to
+      // defaults and submission stays locked until the checklist PDF is reviewed.
+      resetChecklistInputs();
+
       if (parseResult.deidentifiedContent) {
         setRawTdtText(parseResult.deidentifiedContent);
       } else {
         setRawTdtText(text);
       }
 
-      // Auto-populate parsed demographics
+      // Keep the real split-half coefficient (from the de-identified QEEG)
+      // so the report's reliability block reflects the actual export.
+      if (parseResult.splitHalfScore !== undefined) {
+        setQeegSplitHalf(parseResult.splitHalfScore);
+      }
+
+      // Auto-populate parsed demographics + the fresh, unique Case Reference
       setNewCaseData((prev) => ({
         ...prev,
+        caseReference,
         age: parseResult.age ? String(parseResult.age) : prev.age,
         gender: parseResult.gender || prev.gender,
         handedness: parseResult.handedness || prev.handedness,
@@ -240,15 +648,60 @@ function PortalDashboardContent() {
     reader.readAsText(file);
   };
 
+  // Client-Side TOVA Parsing: extracts structured metrics in-browser and strips
+  // any PHI before submission. Multi-session files resolve to the most recent
+  // applicable session locally; only the selected session's metrics are sent.
+  const handleTovaFileUploaded = (file: File) => {
+    setTovaError(null);
+    setTovaParseMessage(null);
+    setSubmitError(null);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = (e.target?.result as string) || "";
+      const result = parseTovaReport(text, parseFloat(newCaseData.age) || undefined);
+
+      if (!result.passed) {
+        setTovaFileSelected(false);
+        setTovaFileName("");
+        setTovaData(null);
+        setTovaError(result.error || "TOVA file could not be parsed.");
+        return;
+      }
+
+      setTovaFileName(file.name);
+      setTovaFileSelected(true);
+      setTovaData(result.selectedSession || null);
+      setTovaParseMessage(
+        result.sessions.length > 1
+          ? `✓ Parsed ${result.sessions.length} TOVA session(s); selected the most recent applicable session${result.selectedSession?.sessionLabel ? ` (${result.selectedSession.sessionLabel})` : ""}.`
+          : "✓ TOVA metrics parsed and de-identified in the browser."
+      );
+    };
+    reader.readAsText(file);
+  };
+
   // Submit De-Identified Payload to Server
-  const handleCreateCase = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!qeegReliabilityPassed) {
+  const handleCreateCase = async (paypalOrderId?: string) => {
+    if (!qeegReliabilityPassed || !newCaseData.caseReference) {
       setSubmitError("Please upload a valid QEEG .tdt file that passes the 0.80 reliability threshold first.");
       return;
     }
-    if (!checklistFileSelected) {
-      setSubmitError("Please attach the completed Symptom Checklist PDF.");
+    if (!checklistConfig) {
+      setSubmitError("Symptom checklist definition is still loading. Please wait a moment and retry.");
+      return;
+    }
+    // Workflow order: the full checklist must be reviewed/downloaded as a PDF
+    // before the $65 AUD hold can be authorised and the payload submitted.
+    if (!checklistReviewed) {
+      setSubmitError(
+        "Complete and review the Symptom Checklist PDF first (Tab 2 → Preview/Download Checklist PDF). Payment and submission are only unlocked after the full checklist has been reviewed."
+      );
+      return;
+    }
+    const missingFields = missingChecklistFields();
+    if (missingFields.length > 0) {
+      setSubmitError(`Please complete every required checklist section and domain before submitting. Missing: ${missingFields.join("; ")}.`);
       return;
     }
 
@@ -258,66 +711,134 @@ function PortalDashboardContent() {
     try {
       const tdtPayload =
         rawTdtText ||
-        `[PATIENT_INFO]\nAge=${newCaseData.age}\nGender=${newCaseData.gender}\nHandedness=${newCaseData.handedness}\n\n[RELIABILITY_BLOCK]\nSplitHalf=0.96\nTestRetest=${newCaseData.reliabilityScore}\nChannels=19\n`;
+        `[PATIENT_INFO]\nAge=${newCaseData.age}\nGender=${newCaseData.gender}\nHandedness=${newCaseData.handedness}\n\n[RELIABILITY_BLOCK]\nSplitHalf=${qeegSplitHalf}\nTestRetest=${newCaseData.reliabilityScore}\nChannels=19\n`;
+
+      // Config-driven checklist payload built from the live definition,
+      // including every section captured in the HTML form (recording quality,
+      // recording condition, clinical notes, agreement/payment ack, sign-off).
+      const checklistData = {
+        version: checklistConfig.version,
+        domains: checklistConfig.domains.map((d) => ({
+          key: d.key,
+          num: d.num,
+          title: d.title,
+          score: checklistScores[d.key],
+        })),
+        severityScore: checklistConfig.domains.reduce((sum, d) => sum + (checklistScores[d.key] || 0), 0),
+        symptoms: checklistConfig.domains
+          .filter((d) => (checklistScores[d.key] || 0) >= 3)
+          .map((d) => d.title),
+        recordingCondition:
+          typeof checklistFieldValues.recording_condition === "string"
+            ? checklistFieldValues.recording_condition
+            : "",
+        recordingQuality: {
+          quality_1: !!checklistFieldValues.quality_1,
+          quality_2: !!checklistFieldValues.quality_2,
+          quality_3: !!checklistFieldValues.quality_3,
+          quality_4: !!checklistFieldValues.quality_4,
+        },
+        additionalNotes:
+          typeof checklistFieldValues.additional_notes === "string"
+            ? checklistFieldValues.additional_notes
+            : "",
+        serviceAgreementAcknowledged: !!checklistFieldValues.service_agreement_ack,
+        paymentAuthorisationAcknowledged: !!checklistFieldValues.payment_auth_ack,
+        signature: typeof checklistFieldValues.signature === "string" ? checklistFieldValues.signature : "",
+        dateSigned: typeof checklistFieldValues.date_signed === "string" ? checklistFieldValues.date_signed : "",
+      };
+
+      const submitPayload: Record<string, unknown> = {
+        caseReference: newCaseData.caseReference,
+        age: parseFloat(newCaseData.age),
+        gender: newCaseData.gender,
+        handedness: newCaseData.handedness,
+        reliabilityScore: parseFloat(newCaseData.reliabilityScore),
+        tdtContent: tdtPayload,
+        reliabilityBlock: {
+          testRetest: parseFloat(newCaseData.reliabilityScore),
+          splitHalf: qeegSplitHalf,
+          overallReliability: parseFloat(newCaseData.reliabilityScore),
+        },
+        checklistData,
+        paypalOrderId,
+      };
+
+      // The TOVA file is optional; when present only the de-identified,
+      // parsed metrics (never the raw file) are transmitted.
+      if (tovaData) submitPayload.tovaData = tovaData;
 
       const submitRes = await fetch("/api/reports/submit", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          caseReference: newCaseData.caseReference,
-          age: parseFloat(newCaseData.age),
-          gender: newCaseData.gender,
-          handedness: newCaseData.handedness,
-          reliabilityScore: parseFloat(newCaseData.reliabilityScore),
-          tdtContent: tdtPayload,
-          tovaData: {
-            dPrime: -1.85,
-            responseTimeMs: 412,
-            variabilityMs: 145,
-            commissionErrors: 14,
-            omissionErrors: 19,
-          },
-          checklistData: {
-            symptoms: ["Inattention", "Working Memory", "Impulsivity"],
-            severityScore: 4,
-          },
-        }),
+        body: JSON.stringify(submitPayload),
       });
 
-      const submitData = await submitRes.json();
+      const text = await submitRes.text();
+      const data = text ? JSON.parse(text) : {};
+
       if (!submitRes.ok) {
-        throw new Error(submitData.error || "Submission failed.");
+        // Payment-authorisation failure: the account/wallet could not be
+        // validated for funds, so the case is blocked. Surface a dedicated
+        // popup (with the logged-in username) instead of a generic banner.
+        if (data.errorCode === "PAYMENT_FAILED") {
+          setShowPaymentModal(false);
+          setSubmitting(false);
+          setPaymentError(
+            data.error ||
+              "Your payment could not be authorised. Please check your payment method or account funds and try again."
+          );
+          return;
+        }
+        throw new Error(data.error || "Submission failed.");
       }
 
-      if (submitData.reportId) {
-        await fetch(`/api/reports/${submitData.reportId}/generate`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            reviewerNotes: "Approved against literature correlation models.",
-          }),
-        });
-      }
+      // Tab 2: on successful submission, automatically generate the completed
+      // checklist PDF (same data + Case Reference) with zero additional upload.
+      // The server is authoritative for the Case Reference (it regenerates on
+      // a rare collision), so use the value it returns.
+      const serverCaseReference =
+        typeof data.caseReference === "string" && data.caseReference
+          ? data.caseReference
+          : newCaseData.caseReference;
+      const captured = {
+        caseReference: serverCaseReference,
+        scores: { ...checklistScores },
+        config: checklistConfig,
+        age: newCaseData.age,
+        gender: newCaseData.gender,
+        handedness: newCaseData.handedness,
+      };
+      const generatedAt = new Date().toISOString();
+      // No automatic file download: the report stays securely on the server and
+      // is only ever downloaded when the practitioner explicitly clicks the
+      // manual one-time Download action in their dashboard/history list.
+      setSubmitSuccess({ caseReference: captured.caseReference, generatedAt });
 
       // Reset new report state
+      setShowPaymentModal(false);
       setQeegFileSelected(false);
       setQeegReliabilityPassed(false);
       setTovaFileSelected(false);
       setTovaFileName("");
-      setChecklistFileSelected(false);
-      setChecklistFileName("");
+      setTovaData(null);
+      setTovaParseMessage(null);
+      setTovaError(null);
+      setChecklistScores({});
       setRawTdtText("");
       setReliabilityCheckMessage(null);
       setReliabilityError(null);
+      setQeegSplitHalf(0.96);
+      resetChecklistInputs();
       setNewCaseData({
-        caseReference: `REF-${Math.floor(100000 + Math.random() * 900000)}`,
+        caseReference: "",
         age: "34",
         gender: "MALE",
         handedness: "RIGHT",
         reliabilityScore: "0.94",
       });
+      setActiveNewTab(1);
 
       router.push("/portal");
       fetchDashboardData();
@@ -328,24 +849,59 @@ function PortalDashboardContent() {
     }
   };
 
+  // Record one-time legal acceptance (DPA / EULA). The portal is gated behind
+// these until every pending document is accepted with an explicit version.
+  const handleAcceptLegal = async () => {
+    const allChecked = legalPending.length > 0 && legalPending.every((t) => legalChecked[t]);
+    if (!allChecked) {
+      setLegalError("Please read and accept each document before continuing.");
+      return;
+    }
+    setLegalAccepting(true);
+    setLegalError(null);
+    try {
+      for (const acceptanceType of legalPending) {
+        const res = await fetch("/api/legal/accept", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ acceptanceType, version: legalCurrent[acceptanceType] || "2026-09-01" }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `Failed to record ${acceptanceType} acceptance.`);
+      }
+      setLegalPending([]);
+    } catch (err: any) {
+      setLegalError(err.message || "Failed to record acceptance.");
+    } finally {
+      setLegalAccepting(false);
+    }
+  };
+
   // Execute Local Report Download with Identity Stamping & Immediate Purge
   const handleExecuteDownload = async () => {
     if (!selectedReportForDownload) return;
     const report = selectedReportForDownload;
 
+    if (!downloadConfirmed) {
+      alert("Please confirm that you understand this is a one-time, irreversible download.");
+      return;
+    }
+
     try {
       setDownloadingId(report.id);
-      const res = await fetch(`/api/reports/${report.id}/download`, {
+      const tokenQuery = collectionToken ? `?token=${encodeURIComponent(collectionToken)}` : "";
+      const res = await fetch(`/api/reports/${report.id}/download${tokenQuery}`, {
         credentials: "include",
       });
       if (!res.ok) {
         throw new Error("Failed to download report. It may have already been purged.");
       }
 
-      const reportJson = await res.json();
+      const reportJson = (await res.json()) as CorrelationReportFindings;
 
       // Stamp patient identity locally in browser only
-      const stampedPayload = {
+      const stampedFindings: CorrelationReportFindings = {
         ...reportJson,
         clientSideIdentityStamp: {
           patientName: patientNameInput.trim() || "Confidential Patient",
@@ -354,13 +910,15 @@ function PortalDashboardContent() {
         },
       };
 
-      const blob = new Blob([JSON.stringify(stampedPayload, null, 2)], {
-        type: "application/json",
-      });
+      // Render the correlation report to PDF in-browser with every curated
+      // literature citation rendered inline; the identity stamp never leaves
+      // the practitioner's machine.
+      const pdfBytes = await generateCorrelationReportPDF(stampedFindings);
+      const blob = new Blob([pdfBytes as BlobPart], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `QEEG-Correlation-Report-${report.caseReference}.json`;
+      a.download = `QEEG-Correlation-Report-${report.caseReference}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -370,6 +928,8 @@ function PortalDashboardContent() {
       setShowIdentityModal(false);
       setSelectedReportForDownload(null);
       setPatientNameInput("");
+      setDownloadConfirmed(false);
+      setCollectionToken(null);
 
       // Refresh list to reflect purged status
       fetchDashboardData();
@@ -399,7 +959,6 @@ function PortalDashboardContent() {
 
       setProfileSaveSuccess(true);
       fetchDashboardData();
-      setTimeout(() => setProfileSaveSuccess(false), 3000);
     } catch (err: any) {
       alert(err.message || "Update failed.");
     } finally {
@@ -425,6 +984,12 @@ function PortalDashboardContent() {
           className: "bg-sky-50 text-sky-800 border-sky-200",
           dotColor: "bg-sky-500",
         };
+      case "PENDING_ADMIN_APPROVAL":
+        return {
+          label: "Awaiting Admin Review",
+          className: "bg-amber-50 text-amber-800 border-amber-200",
+          dotColor: "bg-amber-500",
+        };
       case "DOWNLOADED_AND_PURGED":
         return {
           label: "Downloaded & purged",
@@ -447,20 +1012,21 @@ function PortalDashboardContent() {
   };
 
   // Metrics
-  const reportsThisMonthCount = reports.length > 0 ? reports.length : 8;
+  const reportsThisMonthCount = reports.length;
   const awaitingDownloadCount = reports.filter((r) => r.status === "COMPLETED").length;
   const inProcessingCount = reports.filter(
     (r) =>
       r.status === "GENERATING" ||
       r.status === "PENDING_RELIABILITY" ||
       r.status === "IN_NEUROSCIENTIST_REVIEW" ||
-      r.status === "PAYMENT_AUTHORISED"
+      r.status === "PAYMENT_AUTHORISED" ||
+      r.status === "PENDING_ADMIN_APPROVAL"
   ).length;
   const successfulReportsCount = reports.filter(
     (r) => r.status === "COMPLETED" || r.status === "DOWNLOADED_AND_PURGED"
   ).length;
   const totalSpentFormatted =
-    successfulReportsCount > 0 ? `$${(successfulReportsCount * 65).toFixed(0)}` : "$455";
+    successfulReportsCount > 0 ? `$${(successfulReportsCount * 65).toFixed(0)}` : "$0";
 
   const filteredReports = reports.filter((r) => {
     const matchesSearch = r.caseReference.toLowerCase().includes(searchTerm.toLowerCase());
@@ -472,7 +1038,8 @@ function PortalDashboardContent() {
         (r.status === "GENERATING" ||
           r.status === "PENDING_RELIABILITY" ||
           r.status === "IN_NEUROSCIENTIST_REVIEW" ||
-          r.status === "PAYMENT_AUTHORISED")
+          r.status === "PAYMENT_AUTHORISED" ||
+          r.status === "PENDING_ADMIN_APPROVAL")
       );
     if (statusFilter === "PURGED") return matchesSearch && r.status === "DOWNLOADED_AND_PURGED";
     return matchesSearch;
@@ -498,7 +1065,7 @@ function PortalDashboardContent() {
             {currentView === "support" && "Clinical & Technical Support"}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1 font-normal">
-            Welcome back, {profileFormData.fullName || "Dr. Alexander Wright"} · Referring Practitioner
+            Welcome back, {profileFormData.fullName || "Referring Practitioner"} · Referring Practitioner
           </p>
         </div>
 
@@ -589,11 +1156,10 @@ function PortalDashboardContent() {
                   <button
                     key={filter}
                     onClick={() => setStatusFilter(filter)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all cursor-pointer whitespace-nowrap ${
-                      statusFilter === filter
-                        ? "bg-[#16233B] text-white"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                    }`}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all cursor-pointer whitespace-nowrap ${statusFilter === filter
+                      ? "bg-[#16233B] text-white"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
                   >
                     {filter === "ALL" && "All Cases"}
                     {filter === "READY" && "Ready"}
@@ -661,6 +1227,8 @@ function PortalDashboardContent() {
                               <button
                                 onClick={() => {
                                   setSelectedReportForDownload(report);
+                                  setDownloadConfirmed(false);
+                                  setCollectionToken(null);
                                   setShowIdentityModal(true);
                                 }}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#16233B] hover:bg-[#0F172A] text-white text-xs font-semibold shadow-2xs hover:shadow-xs transition-all cursor-pointer"
@@ -689,123 +1257,125 @@ function PortalDashboardContent() {
       )}
 
       {/* ==================================================== */}
-      {/* 2. NEW REPORT REQUEST WORKFLOW (Exact 3-Step Match) */}
+      {/* 2. NEW REPORT REQUEST WORKFLOW (2-Tab Layout: Files & Case Reference / Symptom Checklist & PDF) */}
       {/* ==================================================== */}
       {currentView === "new" && (
         <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn">
-          {/* Step Progress Bar */}
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs">
-            <div className="grid grid-cols-3 gap-4 text-center">
-              {/* Step 1 Indicator */}
-              <div className="flex flex-col items-center">
-                <div className="w-8 h-8 rounded-full bg-[#16233B] text-white font-semibold text-xs flex items-center justify-center mb-2 shadow-xs">
-                  1
-                </div>
-                <span className="text-xs font-semibold text-[#16233B]">1. Checklist</span>
-                <span className="text-[11px] text-slate-400 hidden sm:block">Pre-filled intake</span>
-              </div>
-
-              {/* Step 2 Indicator */}
-              <div className="flex flex-col items-center">
-                <div
-                  className={`w-8 h-8 rounded-full font-semibold text-xs flex items-center justify-center mb-2 shadow-xs transition-all ${
-                    qeegReliabilityPassed
-                      ? "bg-emerald-600 text-white"
-                      : "bg-sky-600 text-white"
-                  }`}
-                >
-                  {qeegReliabilityPassed ? <Check className="w-4 h-4" /> : "2"}
-                </div>
-                <span className="text-xs font-semibold text-[#16233B]">2. Upload &amp; De-identify</span>
-                <span className="text-[11px] text-slate-400 hidden sm:block">In-browser quality gate</span>
-              </div>
-
-              {/* Step 3 Indicator */}
-              <div className="flex flex-col items-center">
-                <div
-                  className={`w-8 h-8 rounded-full font-semibold text-xs flex items-center justify-center mb-2 transition-all ${
-                    qeegReliabilityPassed
-                      ? "bg-[#16233B] text-white shadow-xs"
-                      : "bg-slate-100 text-slate-400 border border-slate-200"
-                  }`}
-                >
-                  3
-                </div>
-                <span className={`text-xs font-semibold ${qeegReliabilityPassed ? "text-[#16233B]" : "text-slate-400"}`}>
-                  3. Submit
-                </span>
-                <span className="text-[11px] text-slate-400 hidden sm:block">$65 AUD Hold</span>
-              </div>
-            </div>
-
-            {/* Connecting Bar */}
-            <div className="relative mt-4">
-              <div className="h-1 bg-slate-100 rounded-full w-full overflow-hidden">
-                <div
-                  className="h-full bg-[#16233B] transition-all duration-500"
-                  style={{ width: qeegReliabilityPassed ? "100%" : "50%" }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* STEP 1: Download the symptom checklist */}
-          <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-[11px] font-semibold text-[#16233B] uppercase tracking-wider mb-2">
-                  <FileText className="w-3.5 h-3.5 text-sky-600" />
-                  <span>Step 1 · Pre-Filled Clinical Document</span>
-                </div>
-                <h2 className="text-xl sm:text-2xl font-serif text-[#16233B] font-normal tracking-tight">
-                  Download the symptom checklist
-                </h2>
-                <p className="mt-1 text-xs sm:text-sm text-slate-500 font-normal leading-relaxed">
-                  The PDF is dynamically personalized with your registered credentials (
-                  <span className="font-semibold text-slate-700">
-                    {profileFormData.fullName || "Dr. Alexander Wright"}
-                  </span>
-                  ), clinic address, and Australian provider number. Give this to the client or complete during intake.
-                </p>
-              </div>
-
-              <div className="hidden sm:flex flex-col items-end text-right text-[11px] text-slate-400">
-                <span className="font-mono font-semibold text-slate-600">A4 PDF Standard</span>
-                <span>11 Clinical Domains</span>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3 pt-2">
+          {/* Workflow Tabs: Tab 1 = Files & Case Reference, Tab 2 = Live Symptom Checklist & PDF */}
+          <div className="bg-white rounded-2xl p-3 border border-slate-200 shadow-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {/* Tab 1 */}
               <button
                 type="button"
-                onClick={handleDownloadChecklistPdf}
-                className="px-6 py-3.5 bg-[#16233B] hover:bg-[#0F172A] text-white text-xs sm:text-sm font-semibold rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-2.5 cursor-pointer"
+                onClick={() => setActiveNewTab(1)}
+                className={`px-4 py-3 rounded-xl text-left transition-all border cursor-pointer ${activeNewTab === 1
+                  ? "bg-[#16233B] border-[#16233B] text-white shadow-sm"
+                  : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-100"
+                  }`}
               >
-                <Download className="w-4 h-4" />
-                <span>Download Symptom Checklist PDF</span>
+                <span
+                  className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-wider ${activeNewTab === 1 ? "text-sky-400" : "text-slate-500"
+                    }`}
+                >
+                  <span
+                    className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${activeNewTab === 1 ? "bg-sky-500 text-white" : "bg-slate-200 text-slate-600"
+                      }`}
+                  >
+                    1
+                  </span>
+                  Tab 1 · Files &amp; Case Reference
+                </span>
+                <span className={`text-[11px] block mt-1 ${activeNewTab === 1 ? "text-slate-300" : "text-slate-400"}`}>
+                  QEEG reliability ≥ 0.80 · unique CASE-XXXXX · browser de-identification
+                </span>
               </button>
 
-              <div className="flex items-center gap-2 text-xs text-slate-500 font-normal">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Includes de-identification instructions (No patient full names)</span>
-              </div>
+              {/* Tab 2 */}
+              <button
+                type="button"
+                onClick={() => setActiveNewTab(2)}
+                disabled={!qeegReliabilityPassed}
+                className={`px-4 py-3 rounded-xl text-left transition-all border cursor-pointer ${activeNewTab === 2
+                  ? "bg-[#16233B] border-[#16233B] text-white shadow-sm"
+                  : qeegReliabilityPassed
+                    ? "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-100"
+                    : "bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed opacity-70"
+                  }`}
+              >
+                <span
+                  className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-wider ${activeNewTab === 2
+                    ? "text-sky-400"
+                    : qeegReliabilityPassed
+                      ? "text-slate-500"
+                      : "text-slate-400"
+                    }`}
+                >
+                  <span
+                    className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${activeNewTab === 2
+                      ? "bg-sky-500 text-white"
+                      : "bg-slate-200 text-slate-600"
+                      }`}
+                  >
+                    2
+                  </span>
+                  Tab 2 · Symptom Checklist &amp; PDF
+                </span>
+                <span className={`text-[11px] block mt-1 ${activeNewTab === 2 ? "text-slate-300" : "text-slate-400"}`}>
+                  Live config-driven form · auto PDF with Case Reference
+                </span>
+              </button>
+            </div>
+
+            {/* Case Reference status strip shared across both tabs */}
+            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
+                Report Case Reference
+              </span>
+              <span className="font-mono font-semibold text-sm text-[#16233B]">
+                {newCaseData.caseReference || "Generated when QEEG reliability passes (≥ 0.80)"}
+              </span>
+              <span className="text-[11px] text-slate-500">
+                Shared across QEEG · TOVA · Symptom Checklist
+              </span>
             </div>
           </div>
 
-          {/* STEP 2: Upload QEEG file (Client-Side Reliability Gate) */}
-          <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
-            <div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-[11px] font-semibold text-[#16233B] uppercase tracking-wider mb-2">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Step 2 · Browser-Side De-Identification &amp; Quality Gate</span>
+          {/* Post-submission success banner */}
+          {submitSuccess && (
+            <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex flex-wrap items-center justify-between gap-3 animate-fadeIn">
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-semibold block">
+                    Report submitted for case <span className="font-mono">{submitSuccess.caseReference}</span>.
+                  </span>
+                  <span className="text-emerald-700 block leading-relaxed mt-0.5">
+                    Your payment has been authorised and the correlation analysis is now running. The completed report will be available for secure, one-time download from your dashboard once ready.
+                  </span>
+                </div>
               </div>
-              <h2 className="text-xl sm:text-2xl font-serif text-[#16233B] font-normal tracking-tight">
-                Upload QEEG file (.tdt)
-              </h2>
-              <p className="mt-1 text-xs sm:text-sm text-slate-500 font-normal leading-relaxed">
-                NeuroGuide tabular `.tdt` export. Our in-browser parser checks Test/Retest reliability score (≥ 0.80) and strips all personal identifiers before any network transmission.
-              </p>
+              <span className="font-mono text-[10px] text-emerald-600">
+                {new Date(submitSuccess.generatedAt).toLocaleTimeString("en-AU")} AEST
+              </span>
             </div>
+          )}
+
+          {/* ===================== TAB 1 · FILES & CASE REFERENCE ===================== */}
+          <div className={activeNewTab === 1 ? "space-y-6 animate-fadeIn" : "hidden"}>
+            {/* QEEG upload card (Tab 1) */}
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-[11px] font-semibold text-[#16233B] uppercase tracking-wider mb-2">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Tab 1 · Browser-Side De-Identification &amp; Quality Gate</span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-serif text-[#16233B] font-normal tracking-tight">
+                  Upload QEEG file (.tdt)
+                </h2>
+                <p className="mt-1 text-xs sm:text-sm text-slate-500 font-normal leading-relaxed">
+                  NeuroGuide tabular `.tdt` export. Our in-browser parser checks Test/Retest reliability score (≥ 0.80) and strips all personal identifiers before any network transmission. Passing files automatically generate one unique Case Reference shared by the QEEG, the TOVA and the Symptom Checklist.
+                </p>
+              </div>
 
             {/* Hidden File Input */}
             <input
@@ -822,20 +1392,18 @@ function PortalDashboardContent() {
             {/* Dropzone Area */}
             <div
               onClick={() => qeegFileInputRef.current?.click()}
-              className={`p-8 border-2 border-dashed rounded-2xl text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-3 ${
-                qeegReliabilityPassed
-                  ? "border-emerald-300 bg-emerald-50/40 hover:bg-emerald-50/70"
-                  : reliabilityError
+              className={`p-8 border-2 border-dashed rounded-2xl text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-3 ${qeegReliabilityPassed
+                ? "border-emerald-300 bg-emerald-50/40 hover:bg-emerald-50/70"
+                : reliabilityError
                   ? "border-rose-300 bg-rose-50/40 hover:bg-rose-50/70"
                   : "border-slate-300 bg-slate-50/60 hover:bg-slate-100/80 hover:border-slate-400"
-              }`}
+                }`}
             >
               <div
-                className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-                  qeegReliabilityPassed
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "bg-slate-200/80 text-slate-600"
-                }`}
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center ${qeegReliabilityPassed
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-slate-200/80 text-slate-600"
+                  }`}
               >
                 {qeegReliabilityPassed ? <FileCheck className="w-6 h-6" /> : <Upload className="w-6 h-6" />}
               </div>
@@ -856,12 +1424,23 @@ function PortalDashboardContent() {
             {reliabilityCheckMessage && (
               <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-3 animate-fadeIn">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <div className="space-y-1">
+                <div className="space-y-1 flex-1">
                   <span className="font-semibold block">{reliabilityCheckMessage}</span>
                   <span className="text-emerald-700 block">
-                    Age: {newCaseData.age} · Gender: {newCaseData.gender} · Handedness: {newCaseData.handedness} · Reliability Coefficient: {newCaseData.reliabilityScore}
+                    Case Reference: <span className="font-mono font-semibold">{newCaseData.caseReference}</span> · Age: {newCaseData.age} · Gender: {newCaseData.gender} · Handedness: {newCaseData.handedness} · Reliability: {newCaseData.reliabilityScore}
+                  </span>
+                  <span className="text-emerald-600 block">
+                    De-identified in browser — patient-identifying lines stripped before any server transmission.
                   </span>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveNewTab(2)}
+                  className="shrink-0 px-4 py-2 bg-[#16233B] hover:bg-[#0F172A] text-white text-xs font-semibold rounded-lg shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  Continue to Checklist
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
               </div>
             )}
 
@@ -877,23 +1456,37 @@ function PortalDashboardContent() {
             )}
           </div>
 
-          {/* STEP 2b: Upload TOVA results & completed checklist */}
+          {/* TOVA upload card (Tab 1) */}
           <div
-            className={`bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6 transition-all ${
-              qeegReliabilityPassed ? "opacity-100" : "opacity-60 pointer-events-none"
-            }`}
+            className={`bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6 transition-all ${qeegReliabilityPassed ? "opacity-100" : "opacity-60 pointer-events-none"
+              }`}
           >
             <div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-[11px] font-semibold text-[#16233B] uppercase tracking-wider mb-2">
                 <FileUp className="w-3.5 h-3.5 text-sky-600" />
-                <span>Step 2b · Supporting Test Data</span>
+                <span>Tab 1 · Supporting Test Data (TOVA)</span>
               </div>
               <h2 className="text-xl sm:text-2xl font-serif text-[#16233B] font-normal tracking-tight">
-                Upload TOVA results &amp; completed checklist
+                Upload TOVA results
               </h2>
               <p className="mt-1 text-xs sm:text-sm text-slate-500 font-normal leading-relaxed">
-                Attach the continuous visual attention performance file and the completed 11-domain checklist.
+                Attach the continuous visual attention performance file (optional). Metrics are parsed and de-identified in the browser and linked to the report's Case Reference.
               </p>
+            </div>
+
+            {/* Case Reference banner shared by QEEG / TOVA / checklist */}
+            <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <span className="text-[10px] font-semibold text-sky-700 uppercase tracking-widest block">
+                  Linked to this Case Reference
+                </span>
+                <span className="font-mono font-semibold text-base text-[#16233B]">
+                  {newCaseData.caseReference || "Waiting for QEEG reliability ≥ 0.80…"}
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-500 text-right">
+                One reference shared across<br />QEEG · TOVA · Symptom Checklist
+              </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -905,10 +1498,8 @@ function PortalDashboardContent() {
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
-                  if (file) {
-                    setTovaFileSelected(true);
-                    setTovaFileName(file.name);
-                  }
+                  if (file) handleTovaFileUploaded(file);
+                  e.target.value = "";
                 }}
               />
 
@@ -922,10 +1513,12 @@ function PortalDashboardContent() {
                   </div>
                   <div className="min-w-0">
                     <span className="text-xs font-semibold text-slate-800 block truncate">
-                      {tovaFileSelected ? tovaFileName : "Attach TOVA Report"}
+                      {tovaFileSelected ? tovaFileName : "Attach TOVA Report (optional)"}
                     </span>
                     <span className="text-[11px] text-slate-400 block truncate">
-                      {tovaFileSelected ? "File attached" : "PDF, TXT or CSV"}
+                      {tovaFileSelected
+                        ? `Metrics parsed in browser · linked to ${newCaseData.caseReference}`
+                        : "TXT or CSV · parsed locally"}
                     </span>
                   </div>
                 </div>
@@ -937,49 +1530,422 @@ function PortalDashboardContent() {
                 )}
               </div>
 
-              {/* Checklist File Input Card */}
-              <input
-                type="file"
-                ref={checklistFileInputRef}
-                accept=".pdf,.jpg,.jpeg,.png"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    setChecklistFileSelected(true);
-                    setChecklistFileName(file.name);
-                  }
-                }}
-              />
-
-              <div
-                onClick={() => checklistFileInputRef.current?.click()}
-                className="p-5 border border-slate-200 rounded-xl bg-slate-50 hover:bg-slate-100/80 cursor-pointer transition-all flex items-center justify-between gap-3"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-slate-200 text-slate-700 flex items-center justify-center shrink-0">
-                    <FileCheck className="w-5 h-5" />
+              {/* TOVA parse feedback */}
+              <div className="space-y-2">
+                {tovaParseMessage && (
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-3 animate-fadeIn">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span className="leading-relaxed">{tovaParseMessage}</span>
                   </div>
-                  <div className="min-w-0">
-                    <span className="text-xs font-semibold text-slate-800 block truncate">
-                      {checklistFileSelected ? checklistFileName : "Attach Completed Checklist"}
-                    </span>
-                    <span className="text-[11px] text-slate-400 block truncate">
-                      {checklistFileSelected ? "File attached" : "PDF or scan"}
-                    </span>
+                )}
+                {tovaError && (
+                  <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-3 animate-fadeIn">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <span className="leading-relaxed">{tovaError}</span>
                   </div>
-                </div>
-
-                {checklistFileSelected ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                ) : (
-                  <Upload className="w-4 h-4 text-slate-400 shrink-0" />
                 )}
               </div>
             </div>
           </div>
+          </div>
 
-          {/* STEP 3 & SUBMIT BAR */}
+          {/* ===================== TAB 2 · LIVE SYMPTOM CHECKLIST & PDF ===================== */}
+          <div className={activeNewTab === 2 ? "space-y-6 animate-fadeIn" : "hidden"}>
+
+            {/* Live HTML Symptom Checklist card (config-driven, no PDF upload) */}
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-5">
+              <div className="rounded-xl border border-[#16233B]/20 bg-[#F8FAFC] px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest block">
+                    Current Report Case Reference
+                  </span>
+                  <span className="font-mono font-semibold text-lg text-[#16233B]">
+                    {newCaseData.caseReference || "Waiting for QEEG reliability ≥ 0.80…"}
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-500 text-right">
+                  <span className="block">This signature is automatically carried into the completed</span>
+                  <span className="block">Symptom Checklist PDF at generation time.</span>
+                </div>
+              </div>
+
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-[11px] font-semibold text-[#16233B] uppercase tracking-wider mb-2">
+                  <ClipboardList className="w-3.5 h-3.5 text-sky-600" />
+                  <span>Tab 2 · Live Config-Driven Checklist (checklist-definition.json)</span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-serif text-[#16233B] font-normal tracking-tight">
+                  Live symptom checklist
+                </h2>
+                <p className="mt-1 text-xs sm:text-sm text-slate-500 font-normal leading-relaxed">
+                  Fields load dynamically from the checklist definition. Completing this form replaces any PDF checklist upload — the same data is submitted to the server and used to generate your downloadable PDF automatically.
+                </p>
+              </div>
+
+              <div className="border border-slate-200 rounded-xl bg-slate-50 p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <ClipboardList className="w-5 h-5 text-sky-600" />
+                    <span className="text-xs font-semibold text-slate-800">
+                      Symptom Checklist{" "}
+                      <span className="text-slate-400 font-normal">(config v{checklistConfig?.version ?? "—"})</span>
+                    </span>
+                  </div>
+                  {checklistConfig && missingChecklistFields().length === 0 && (
+                    <div className="flex items-center gap-1.5 text-emerald-700 text-[11px] font-semibold">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>All sections complete</span>
+                    </div>
+                  )}
+                </div>
+
+                {!checklistConfig ? (
+                  <p className="text-xs text-slate-500">Loading checklist definition...</p>
+                ) : checklistConfig.sections && checklistConfig.sections.length > 0 ? (
+                  <div className="space-y-3 max-h-[820px] overflow-y-auto pr-1">
+                    {checklistConfig.sections.map((section) => {
+                      const kind = section.kind ?? "fields";
+
+                      if (kind === "static") {
+                        return (
+                          <div
+                            key={section.key}
+                            className="bg-white border border-amber-200 rounded-lg p-3"
+                          >
+                            <span className="text-[11px] font-semibold text-[#16233B] uppercase tracking-wider block mb-2">
+                              {section.title}
+                            </span>
+                            <ul className="space-y-1">
+                              {(section.lines || []).map((line, i) => (
+                                <li key={i} className="text-[10px] text-slate-500 leading-relaxed">
+                                  {line}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        );
+                      }
+
+                      if (kind === "domains") {
+                        const pageDomains = checklistConfig.domains
+                          .filter((d) => d.page === section.domainPage)
+                          .sort((a, b) => a.num - b.num);
+                        const pageRated = pageDomains.filter(
+                          (d) => checklistScores[d.key] !== undefined
+                        ).length;
+                        return (
+                          <div key={section.key} className="bg-white border border-slate-200 rounded-lg p-3 space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[11px] font-semibold text-[#16233B]">
+                                {section.title}
+                              </span>
+                              <span
+                                className={`text-[10px] font-semibold ${
+                                  pageRated === pageDomains.length
+                                    ? "text-emerald-600"
+                                    : "text-slate-400"
+                                }`}
+                              >
+                                {pageRated}/{pageDomains.length} rated
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                              {pageDomains.map((d) => (
+                                <div key={d.key} className="bg-slate-50 border border-slate-200 rounded-lg p-2.5">
+                                  <span className="text-[11px] font-semibold text-slate-700 leading-tight block mb-1">
+                                    {d.num}. {d.title}
+                                  </span>
+                                  <p className="text-[10px] text-slate-400 leading-relaxed mb-2">
+                                    {d.desc}
+                                  </p>
+                                  <div className="flex items-center justify-between gap-1">
+                                    {["0", "1", "2", "3", "4"].map((value) => {
+                                      const selected = checklistScores[d.key] === Number(value);
+                                      return (
+                                        <button
+                                          key={value}
+                                          type="button"
+                                          onClick={() =>
+                                            rateChecklistDomain(d.key, Number(value))
+                                          }
+                                          className={`flex-1 py-1.5 text-[10px] font-semibold rounded-lg border transition-all cursor-pointer ${
+                                            selected
+                                              ? "bg-[#16233B] border-[#16233B] text-white"
+                                              : "bg-white border-slate-200 text-slate-500 hover:border-[#16233B]"
+                                          }`}
+                                        >
+                                          {value}
+                                          <span className="block text-[9px] font-normal opacity-80">
+                                            {checklistConfig.likert[value]}
+                                          </span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div key={section.key} className="bg-white border border-slate-200 rounded-lg p-3 space-y-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-semibold text-[#16233B]">
+                              {section.title}
+                            </span>
+                            {section.required !== false && (
+                              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                                Required
+                              </span>
+                            )}
+                          </div>
+                          {section.insight && (
+                            <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2 leading-relaxed">
+                              {section.insight}
+                            </p>
+                          )}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {(section.fields || []).map((field) => {
+                              const value = resolveChecklistFieldValue(field);
+                              const isLocked = field.readonly || section.readonly;
+                              const isMissingText =
+                                field.required && String(value ?? "").trim() === "" && !isLocked;
+                              const isMissingCheck =
+                                field.required && field.type === "checkbox" && !value;
+                              const isMissingSelect =
+                                field.required && field.type === "select" && String(value ?? "").trim() === "";
+                              const baseInput =
+                                "w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs text-slate-900 focus:bg-white focus:border-[#16233B] outline-none transition-all";
+
+                              if (field.type === "checkbox") {
+                                return (
+                                  <label
+                                    key={field.key}
+                                    className="flex items-start gap-2.5 cursor-pointer select-none sm:col-span-2"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={!!value}
+                                      onChange={(e) => setCaseBoundFieldValue(field, e.target.checked)}
+                                      className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#16233B] focus:ring-[#16233B]"
+                                    />
+                                    <span className="text-[11px] leading-snug">
+                                      <span
+                                        className={`font-semibold ${
+                                          isMissingCheck ? "text-rose-600" : "text-slate-800"
+                                        }`}
+                                      >
+                                        {field.label}
+                                      </span>
+                                      {field.detail && (
+                                        <span className="block text-[10px] text-slate-500 mt-0.5">
+                                          {field.detail}
+                                        </span>
+                                      )}
+                                    </span>
+                                  </label>
+                                );
+                              }
+
+                              if (field.type === "select") {
+                                // Case-normalised selection so values like
+                                // 'Female' or 'FEMALE' map to the same option.
+                                const selectValue = String(value ?? "").toUpperCase();
+                                const selectMatched = (field.options || []).some(
+                                  (o) => o.value.toUpperCase() === selectValue
+                                );
+                                return (
+                                  <div key={field.key}>
+                                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">
+                                      {field.label}
+                                    </label>
+                                    {isLocked ? (
+                                      <div className={`${baseInput} bg-slate-100 text-slate-600`}>
+                                        {String(value ?? "")}
+                                      </div>
+                                    ) : (
+                                      <select
+                                        value={selectMatched ? selectValue : ""}
+                                        onChange={(e) => setCaseBoundFieldValue(field, e.target.value)}
+                                        className={`${baseInput} ${
+                                          isMissingSelect ? "border-rose-300" : "border-slate-200"
+                                        }`}
+                                      >
+                                        <option value="">Select…</option>
+                                        {(field.options || []).map((o) => (
+                                          <option key={o.value} value={o.value}>
+                                            {o.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    )}
+                                  </div>
+                                );
+                              }
+
+                              if (field.type === "textarea") {
+                                return (
+                                  <div key={field.key} className="sm:col-span-2">
+                                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">
+                                      {field.label}
+                                    </label>
+                                    <textarea
+                                      value={String(value ?? "")}
+                                      onChange={(e) => setCaseBoundFieldValue(field, e.target.value)}
+                                      rows={3}
+                                      placeholder={field.placeholder}
+                                      className={`${baseInput} resize-y ${
+                                        isMissingText ? "border-rose-300" : "border-slate-200"
+                                      }`}
+                                    />
+                                  </div>
+                                );
+                              }
+
+                              if (field.type === "date") {
+                                return (
+                                  <div key={field.key}>
+                                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">
+                                      {field.label}
+                                    </label>
+                                    <input
+                                      type="date"
+                                      value={String(value ?? "")}
+                                      onChange={(e) => setCaseBoundFieldValue(field, e.target.value)}
+                                      className={`${baseInput} ${
+                                        isMissingText ? "border-rose-300" : "border-slate-200"
+                                      }`}
+                                    />
+                                  </div>
+                                );
+                              }
+
+                              return (
+                                <div key={field.key}>
+                                  <label className="block text-[10px] font-semibold text-slate-600 mb-1">
+                                    {field.label}
+                                  </label>
+                                  {isLocked ? (
+                                    <div className={`${baseInput} bg-slate-100 cursor-not-allowed`}>
+                                      {field.key === "case_reference" ? (
+                                        <span className="font-mono">
+                                          {String(value ?? "") ||
+                                            "Generated when QEEG reliability passes (≥ 0.80)"}
+                                        </span>
+                                      ) : (
+                                        String(value ?? "")
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <input
+                                      type="text"
+                                      value={String(value ?? "")}
+                                      onChange={(e) => setCaseBoundFieldValue(field, e.target.value)}
+                                      placeholder={field.placeholder}
+                                      className={`${baseInput} ${
+                                        isMissingText ? "border-rose-300" : "border-slate-200"
+                                      }`}
+                                    />
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="space-y-2.5 max-h-[520px] overflow-y-auto pr-1">
+                    {checklistConfig.domains.map((d) => (
+                      <div key={d.key} className="bg-white border border-slate-200 rounded-lg p-2.5">
+                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                          <span className="text-[11px] font-semibold text-slate-700 leading-tight">
+                            {d.num}. {d.title}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 leading-relaxed mb-2">{d.desc}</p>
+                        <div className="flex items-center justify-between gap-1">
+                          {["0", "1", "2", "3", "4"].map((value) => {
+                            const selected = checklistScores[d.key] === Number(value);
+                            return (
+                              <button
+                                key={value}
+                                type="button"
+                                onClick={() => rateChecklistDomain(d.key, Number(value))}
+                                className={`flex-1 py-1.5 text-[10px] font-semibold rounded-lg border transition-all cursor-pointer ${
+                                  selected
+                                    ? "bg-[#16233B] border-[#16233B] text-white"
+                                    : "bg-white border-slate-200 text-slate-500 hover:border-[#16233B]"
+                                }`}
+                              >
+                                {value}
+                                <span className="block text-[9px] font-normal opacity-80">
+                                  {checklistConfig.likert[value]}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* PDF generation without a separate upload */}
+              <div className="flex flex-wrap items-center gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={handlePreviewChecklistPdf}
+                  disabled={!qeegReliabilityPassed || checklistPdfBusy}
+                  className="px-5 py-3 bg-white border border-slate-300 hover:border-[#16233B] hover:bg-slate-50 disabled:opacity-50 text-[#16233B] text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <FileCheck className="w-4 h-4" />
+                  <span>
+                    {checklistPdfBusy ? "Generating…" : "Preview Completed Checklist PDF"}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDownloadChecklistPdfCompleted}
+                  disabled={!qeegReliabilityPassed || checklistPdfBusy}
+                  className="px-5 py-3 bg-[#16233B] hover:bg-[#0F172A] disabled:opacity-50 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download Checklist PDF</span>
+                </button>
+
+                <div className="flex items-center gap-2 text-xs text-slate-500 font-normal">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>
+                    Generated in-browser from the exact form data + Case Reference{" "}
+                    <span className="font-mono">{newCaseData.caseReference}</span> — no separate PDF upload.
+                  </span>
+                </div>
+              </div>
+
+              {checklistReviewed ? (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>
+                    Checklist PDF reviewed — you can now Authorize $65 AUD &amp; Submit (Step 3).
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-semibold">
+                  <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>
+                    Review/download the completed checklist PDF above to unlock payment &amp; submission.
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* STEP 3 & SUBMIT BAR */}
           <div className="bg-[#16233B] text-white rounded-2xl p-6 sm:p-8 border border-slate-800 shadow-md flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-6">
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -991,14 +1957,22 @@ function PortalDashboardContent() {
                 Submit de-identified payload
               </div>
               <p className="text-xs text-slate-300 mt-1 font-normal max-w-lg leading-relaxed">
-                $65 AUD payment hold placed on submission. Funds captured strictly when the report is successfully generated and verified.
+                $65 AUD payment hold placed on submission. Funds captured strictly when the report is successfully generated and verified. Unlocked once the completed Symptom Checklist PDF has been reviewed/downloaded (Tab 2).
               </p>
             </div>
 
             <div className="flex flex-col sm:items-end gap-2 shrink-0">
               <button
                 type="button"
-                onClick={handleCreateCase}
+                onClick={() => {
+                  if (!checklistReviewed) {
+                    setSubmitError(
+                      "Complete, preview and download the Symptom Checklist PDF first (Tab 2 → Preview/Download Checklist PDF). The full checklist must be reviewed before payment can be authorised and the payload submitted."
+                    );
+                    return;
+                  }
+                  setShowPaymentModal(true);
+                }}
                 disabled={!qeegReliabilityPassed || submitting}
                 className="w-full sm:w-auto px-8 py-3.5 bg-white hover:bg-slate-100 disabled:opacity-50 text-[#16233B] text-sm font-semibold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
@@ -1006,7 +1980,16 @@ function PortalDashboardContent() {
                   <span>Processing correlation...</span>
                 ) : (
                   <>
-                    <span>Authorize $65 AUD &amp; Submit</span>
+                    {checklistReviewed ? (
+                      <Lock className="w-4 h-4 text-emerald-600" />
+                    ) : (
+                      <Lock className="w-4 h-4 text-slate-400" />
+                    )}
+                    <span>
+                      {checklistReviewed
+                        ? "Authorize $65 AUD & Submit"
+                        : "Locked until checklist PDF reviewed"}
+                    </span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -1016,6 +1999,7 @@ function PortalDashboardContent() {
                 Sydney Sovereign VPS · Purged on download
               </span>
             </div>
+          </div>
           </div>
 
           {submitError && (
@@ -1055,13 +2039,23 @@ function PortalDashboardContent() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
-                  {reports && reports.length > 0 ? (
-                    reports.map((r, index) => {
-                      const isPending =
-                        r.status === "GENERATING" ||
-                        r.status === "PENDING_RELIABILITY" ||
-                        r.status === "IN_NEUROSCIENTIST_REVIEW" ||
-                        r.status === "PAYMENT_AUTHORISED";
+                  {/* billingReports already filtered by paymentStatus !== NOT_STARTED on backend */}
+                  {billingReports && billingReports.length > 0 ? (
+                    billingReports.map((r, index) => {
+                      const getPaymentStatusLabel = (status: string) => {
+                        switch (status) {
+                          case "CAPTURED":
+                            return "Charged";
+                          case "AUTHORISED":
+                            return "Authorised (Pending Capture)";
+                          case "VOIDED":
+                            return "Voided";
+                          case "FAILED":
+                            return "Failed";
+                          default:
+                            return "Pending";
+                        }
+                      };
 
                       return (
                         <tr key={r.id || index} className="hover:bg-slate-50/60 transition-colors">
@@ -1081,84 +2075,17 @@ function PortalDashboardContent() {
                             ${(r.feeAmount || 65).toFixed(2)}
                           </td>
                           <td className="py-4.5 px-6 sm:px-8 text-slate-900 font-normal">
-                            {isPending ? "Pending" : "Charged"}
+                            {getPaymentStatusLabel(r.paymentStatus)}
                           </td>
                         </tr>
                       );
                     })
                   ) : (
-                    <>
-                      <tr className="hover:bg-slate-50/60 transition-colors">
-                        <td className="py-4.5 px-6 sm:px-8 text-slate-900 font-normal">11 Aug 2026</td>
-                        <td className="py-4.5 px-6">
-                          <span className="text-[#2563EB] hover:text-[#1D4ED8] hover:underline font-mono text-sm cursor-pointer">
-                            8f14e45f-ceea-4a1d
-                          </span>
-                        </td>
-                        <td className="py-4.5 px-6 text-slate-900 font-normal">$65.00</td>
-                        <td className="py-4.5 px-6 sm:px-8 text-slate-900 font-normal">Charged</td>
-                      </tr>
-                      <tr className="hover:bg-slate-50/60 transition-colors">
-                        <td className="py-4.5 px-6 sm:px-8 text-slate-900 font-normal">10 Aug 2026</td>
-                        <td className="py-4.5 px-6">
-                          <span className="text-[#2563EB] hover:text-[#1D4ED8] hover:underline font-mono text-sm cursor-pointer">
-                            c9e1074f-b6a9-42c1
-                          </span>
-                        </td>
-                        <td className="py-4.5 px-6 text-slate-900 font-normal">$65.00</td>
-                        <td className="py-4.5 px-6 sm:px-8 text-slate-900 font-normal">Pending</td>
-                      </tr>
-                      <tr className="hover:bg-slate-50/60 transition-colors">
-                        <td className="py-4.5 px-6 sm:px-8 text-slate-900 font-normal">9 Aug 2026</td>
-                        <td className="py-4.5 px-6">
-                          <span className="text-[#2563EB] hover:text-[#1D4ED8] hover:underline font-mono text-sm cursor-pointer">
-                            1ff1de77-4ea1-4c4a
-                          </span>
-                        </td>
-                        <td className="py-4.5 px-6 text-slate-900 font-normal">$65.00</td>
-                        <td className="py-4.5 px-6 sm:px-8 text-slate-900 font-normal">Charged</td>
-                      </tr>
-                      <tr className="hover:bg-slate-50/60 transition-colors">
-                        <td className="py-4.5 px-6 sm:px-8 text-slate-900 font-normal">7 Aug 2026</td>
-                        <td className="py-4.5 px-6">
-                          <span className="text-[#2563EB] hover:text-[#1D4ED8] hover:underline font-mono text-sm cursor-pointer">
-                            5b384ce3-2b7d-4a1c
-                          </span>
-                        </td>
-                        <td className="py-4.5 px-6 text-slate-900 font-normal">$65.00</td>
-                        <td className="py-4.5 px-6 sm:px-8 text-slate-900 font-normal">Charged</td>
-                      </tr>
-                      <tr className="hover:bg-slate-50/60 transition-colors">
-                        <td className="py-4.5 px-6 sm:px-8 text-slate-900 font-normal">3 Aug 2026</td>
-                        <td className="py-4.5 px-6">
-                          <span className="text-[#2563EB] hover:text-[#1D4ED8] hover:underline font-mono text-sm cursor-pointer">
-                            a3f397a5-2f11-4bfa
-                          </span>
-                        </td>
-                        <td className="py-4.5 px-6 text-slate-900 font-normal">$65.00</td>
-                        <td className="py-4.5 px-6 sm:px-8 text-slate-900 font-normal">Charged</td>
-                      </tr>
-                      <tr className="hover:bg-slate-50/60 transition-colors">
-                        <td className="py-4.5 px-6 sm:px-8 text-slate-900 font-normal">29 Jul 2026</td>
-                        <td className="py-4.5 px-6">
-                          <span className="text-[#2563EB] hover:text-[#1D4ED8] hover:underline font-mono text-sm cursor-pointer">
-                            1478d425-bc4c-4c48
-                          </span>
-                        </td>
-                        <td className="py-4.5 px-6 text-slate-900 font-normal">$65.00</td>
-                        <td className="py-4.5 px-6 sm:px-8 text-slate-900 font-normal">Charged</td>
-                      </tr>
-                      <tr className="hover:bg-slate-50/60 transition-colors">
-                        <td className="py-4.5 px-6 sm:px-8 text-slate-900 font-normal">26 Jul 2026</td>
-                        <td className="py-4.5 px-6">
-                          <span className="text-[#2563EB] hover:text-[#1D4ED8] hover:underline font-mono text-sm cursor-pointer">
-                            3fdba35f-04dc-486f
-                          </span>
-                        </td>
-                        <td className="py-4.5 px-6 text-slate-900 font-normal">$65.00</td>
-                        <td className="py-4.5 px-6 sm:px-8 text-slate-900 font-normal">Charged</td>
-                      </tr>
-                    </>
+                    <tr>
+                      <td colSpan={4} className="py-10 text-center text-sm text-slate-500">
+                        No billing history yet.
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </table>
@@ -1380,7 +2307,10 @@ function PortalDashboardContent() {
                 </span>
               </div>
               <button
-                onClick={() => setShowIdentityModal(false)}
+                onClick={() => {
+                  setShowIdentityModal(false);
+                  setDownloadConfirmed(false);
+                }}
                 className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               >
                 <X className="w-4 h-4" />
@@ -1396,6 +2326,20 @@ function PortalDashboardContent() {
               </p>
             </div>
 
+            <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-semibold text-amber-800">
+                    One-time, irreversible download
+                  </p>
+                  <p className="text-[11px] text-amber-700 mt-1 leading-relaxed">
+                    This is a strictly <strong>one-time</strong> action. The moment your download completes, all source files (QEEG, TOVA, checklist) and the compiled report are <strong>permanently destroyed on our Sydney servers</strong>. The report <strong>cannot be re-downloaded</strong>. Save it securely to your practice records.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                 Client Name / Identifier (Browser Local Only)
@@ -1409,10 +2353,26 @@ function PortalDashboardContent() {
               />
             </div>
 
+            <label className="flex items-start gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={downloadConfirmed}
+                onChange={(e) => setDownloadConfirmed(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#16233B] focus:ring-[#16233B]"
+              />
+              <span className="text-xs text-slate-600 leading-relaxed">
+                I understand this is a <strong>one-time, irreversible download</strong> and that all
+                data is <strong>permanently purged</strong> upon completion and cannot be retrieved again.
+              </span>
+            </label>
+
             <div className="pt-2 flex items-center justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setShowIdentityModal(false)}
+                onClick={() => {
+                  setShowIdentityModal(false);
+                  setDownloadConfirmed(false);
+                }}
                 className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
               >
                 Cancel
@@ -1421,8 +2381,12 @@ function PortalDashboardContent() {
               <button
                 type="button"
                 onClick={handleExecuteDownload}
-                disabled={downloadingId !== null}
-                className="px-5 py-2.5 text-xs font-semibold text-white bg-[#16233B] hover:bg-[#0F172A] rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+                disabled={downloadingId !== null || !downloadConfirmed}
+                className={`px-5 py-2.5 text-xs font-semibold text-white rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer ${
+                  downloadConfirmed && downloadingId === null
+                    ? "bg-[#16233B] hover:bg-[#0F172A]"
+                    : "bg-slate-300 cursor-not-allowed"
+                }`}
               >
                 {downloadingId ? (
                   <span>Purging &amp; downloading...</span>
@@ -1437,20 +2401,304 @@ function PortalDashboardContent() {
           </div>
         </div>
       )}
+
+      {/* ==================================================== */}
+      {/* INTERACTIVE MOCK PAYPAL MODAL */}
+      {/* ==================================================== */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-6 animate-fadeIn relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#003087]" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-[#003087] rounded flex items-center justify-center text-white font-serif font-bold italic">
+                  P
+                </div>
+                <span className="text-sm font-semibold text-[#003087] font-sans">
+                  PayPal Checkout
+                </span>
+              </div>
+              <button
+                onClick={() => setShowPaymentModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                disabled={submitting}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="text-center py-4">
+              <span className="text-sm text-slate-500 block mb-1">Authorization Hold</span>
+              <span className="text-4xl font-light text-slate-800 block">$65.00 <span className="text-lg text-slate-400">AUD</span></span>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-600">
+              <div className="flex justify-between mb-2 pb-2 border-b border-slate-200">
+                <span>Merchant</span>
+                <span className="font-semibold">QEEG.com.au</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Case Reference</span>
+                <span className="font-mono">{newCaseData.caseReference}</span>
+              </div>
+              <p className="mt-4 text-slate-500 text-[11px] leading-relaxed">
+                <Lock className="w-3 h-3 inline-block mr-1 -mt-0.5" />
+                This is a secure authorization hold. Funds are only captured once the report has been successfully generated by the automated correlation pipeline.
+              </p>
+            </div>
+
+            <div className="pt-2 flex flex-col gap-3 min-h-[150px]">
+              <PayPalButtons
+                style={{ layout: "vertical", shape: "pill", color: "gold" }}
+                createOrder={(data, actions) => {
+                  return actions.order.create({
+                    intent: "AUTHORIZE",
+                    purchase_units: [
+                      {
+                        description: `QEEG Report Processing Fee - ${newCaseData.caseReference}`,
+                        amount: {
+                          currency_code: "AUD",
+                          value: "65.00",
+                        },
+                      },
+                    ],
+                    application_context: {
+                      brand_name: "QEEG.com.au",
+                      shipping_preference: "NO_SHIPPING",
+                      user_action: "CONTINUE",
+                    },
+                  });
+                }}
+                onApprove={async (data) => {
+                  // CRITICAL: do NOT call actions.order.authorize()/capture()
+                  // here. For intent AUTHORIZE that call drives PayPal's
+                  // address-verification step over a postrobot message bridge,
+                  // and the SDK popup closes the bridge prematurely when the
+                  // order is finalised — yielding "Window closed for
+                  // postrobot_method before response". Instead, hand the
+                  // approved order id to the backend, which authorises it
+                  // server-side, and only close the modal after that returns.
+                  setSubmitting(true);
+                  try {
+                    const orderId = data.orderID;
+                    if (!orderId) {
+                      throw new Error(
+                        "PayPal order ID not found in the approval response. The payment could not be authorised."
+                      );
+                    }
+                    await handleCreateCase(orderId);
+                  } catch (err: any) {
+                    setShowPaymentModal(false);
+                    setPaymentError(
+                      err?.message ||
+                        "Failed to process PayPal payment. Your payment could not be authorised — please try again later."
+                    );
+                    setSubmitting(false);
+                  }
+                }}
+                onError={(err) => {
+                  setShowPaymentModal(false);
+                  setPaymentError(
+                    `PayPal Checkout error: ${
+                      (err as any)?.message ||
+                      (err as any)?.name ||
+                      "Payment could not be processed. Please try again."
+                    }`
+                  );
+                  setSubmitting(false);
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPaymentModal(false)}
+                disabled={submitting}
+                className="w-full py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 transition-colors"
+              >
+                Cancel and return to QEEG.com.au
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================== */}
+      {/* PAYMENT AUTHORISATION FAILURE POPUP */}
+      {/* ==================================================== */}
+      {paymentError && (
+        <div className="fixed inset-0 z-[60] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 animate-fadeIn relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-red-500" />
+            <div className="flex items-start gap-4">
+              <div className="w-11 h-11 shrink-0 bg-red-50 border border-red-200 rounded-2xl flex items-center justify-center text-red-600">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-serif text-[#16233B] font-normal leading-tight">
+                  Payment could not be authorised
+                </h3>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Hi {profileFormData.fullName || "Referring Practitioner"}, we could not validate a valid
+                  payment or available funds on your account for this submission.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-600 leading-relaxed">
+              <p className="font-semibold text-slate-700 mb-1">What this means</p>
+              <ul className="list-disc pl-4 space-y-1">
+                <li>
+                  Your case <span className="font-mono">{newCaseData.caseReference || "—"}</span> has{" "}
+                  <strong>not</strong> been sent for processing.
+                </li>
+                <li>
+                  <strong>No funds</strong> were captured from your account, card, or wallet.
+                </li>
+                <li>
+                  You can retry payment at any time once the payment issue is resolved.
+                </li>
+              </ul>
+              {paymentError && <p className="mt-3 text-xs text-red-700 bg-red-50 border border-red-100 rounded-lg p-2.5">{paymentError}</p>}
+            </div>
+
+            <div className="flex flex-col gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentError(null);
+                  setShowPaymentModal(true);
+                }}
+                className="w-full py-3 text-sm font-semibold text-white bg-[#16233B] hover:bg-[#0F172A] rounded-xl shadow-sm transition-all cursor-pointer"
+              >
+                Try payment again
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentError(null)}
+                className="w-full py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================== */}
+      {/* LEGAL ACCEPTANCE BARRIER (DPA / EULA) */}
+      {/* ==================================================== */}
+      {!legalLoading && legalPending.length > 0 && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 animate-fadeIn">
+            <div className="flex items-center gap-2">
+              <Scale className="w-5 h-5 text-[#16233B]" />
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Compliance · Privacy &amp; Data Agreement
+              </span>
+            </div>
+
+            <div>
+              <h3 className="text-xl font-serif text-[#16233B] font-normal">
+                Accept documents to continue
+              </h3>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Australia-wide legal compliance requires you to acknowledge the following documents.
+                Each acceptance is versioned and recorded permanently against your practitioner account.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {legalPending.map((type) => (
+                <label
+                  key={type}
+                  className="flex items-start gap-3 p-4 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer select-none hover:border-slate-300 transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!legalChecked[type]}
+                    onChange={(e) =>
+                      setLegalChecked((prev) => ({ ...prev, [type]: e.target.checked }))
+                    }
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#16233B] focus:ring-[#16233B]"
+                  />
+                  <div>
+                    <span className="text-xs font-semibold text-slate-800 block">
+                      {type === "DPA"
+                        ? "Data Processing Agreement (DPA)"
+                        : type === "EULA"
+                        ? "End User Licence Agreement (EULA)"
+                        : type}
+                    </span>
+                    <span className="text-[11px] text-slate-500 block mt-0.5">
+                      Version {legalCurrent[type] || "2026-09-01"} ·{" "}
+                      <Link
+                        href={type === "DPA" ? "/legal/dpa" : "/legal/eula"}
+                        target="_blank"
+                        className="text-sky-700 underline hover:text-sky-900"
+                      >
+                        Open document (PDF)
+                      </Link>
+                    </span>
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            {legalError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2 text-rose-800 text-xs">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <span>{legalError}</span>
+              </div>
+            )}
+
+            <div className="pt-1 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => router.push("/")}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+              >
+                Sign out
+              </button>
+              <button
+                type="button"
+                onClick={handleAcceptLegal}
+                disabled={legalAccepting}
+                className="px-5 py-2.5 text-xs font-semibold text-white bg-[#16233B] hover:bg-[#0F172A] disabled:opacity-60 rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+              >
+                {legalAccepting ? (
+                  <span>Recording...</span>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Accept &amp; Continue</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 export default function PortalPage() {
+  const initialOptions = {
+    clientId: getPayPalClientId(),
+    currency: "AUD",
+    intent: "authorize",
+  };
+
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-[#F3F6F8] flex items-center justify-center">
-          <div className="w-8 h-8 rounded-full border-2 border-slate-300 border-t-[#16233B] animate-spin" />
-        </div>
-      }
-    >
-      <PortalDashboardContent />
-    </Suspense>
+    <PayPalScriptProvider options={initialOptions}>
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-[#F3F6F8] flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full border-2 border-slate-300 border-t-[#16233B] animate-spin" />
+          </div>
+        }
+      >
+        <PortalDashboardContent />
+      </Suspense>
+    </PayPalScriptProvider>
   );
 }

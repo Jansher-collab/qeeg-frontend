@@ -14,40 +14,24 @@ export interface ClientReliabilityResult {
 
 const MINIMUM_THRESHOLD = 0.80;
 
-const PII_REGEX_PATTERNS = [
-  /patient\s*name/i,
-  /first\s*name/i,
-  /last\s*name/i,
-  /date\s*of\s*birth/i,
-  /\bdob\s*[:=]/i,
-  /street\s*address/i,
-  /medicare\s*no/i,
-  /\bmrn\s*[:=]/i,
-  /social\s*security/i,
-];
+// Only Patient Name and Date of Birth (DOB) are treated as identifiers and
+// stripped before transmission. Every other field — including the EEG ID —
+// is allowed to pass through untouched.
+const NAME_LINE_PATTERN =
+  /^\s*(?:patient\s*name|full\s*name|first\s*name|last\s*name|name)\b\s*[:=\t|]?\s*\S/i;
+const DOB_LINE_PATTERN =
+  /^\s*(?:date\s*of\s*birth|birth\s*date|dob|d\.o\.b\.?)\b\s*[:=\t|]?\s*\S/i;
+
+function isIdentifyingLine(line: string): boolean {
+  return NAME_LINE_PATTERN.test(line) || DOB_LINE_PATTERN.test(line);
+}
 
 /**
  * Parses NeuroGuide .tdt files client-side directly in the browser.
  * Extracts reliability scores and verifies quality before any byte touches a server.
  */
 export function parseQeegTdtInBrowser(fileContent: string): ClientReliabilityResult {
-  // 1. Client-Side PII Check
-  let rawPiiDetected = false;
-  for (const pattern of PII_REGEX_PATTERNS) {
-    if (pattern.test(fileContent)) {
-      rawPiiDetected = true;
-      return {
-        passed: false,
-        reliabilityScore: 0,
-        threshold: MINIMUM_THRESHOLD,
-        deidentified: false,
-        rawPiiDetected: true,
-        error: `Personal Identifiable Information (${pattern.source}) detected in raw QEEG export. Please de-identify your file before submission.`,
-      };
-    }
-  }
-
-  // 2. Parse Reliability and Demographics
+  // 1. Parse Reliability and Demographics
   let testRetestScore = 0;
   let splitHalfScore: number | undefined;
   let age: number | undefined;
@@ -89,10 +73,13 @@ export function parseQeegTdtInBrowser(fileContent: string): ClientReliabilityRes
       if (match) splitHalfScore = parseFloat(match[1]);
     }
 
-    // Demographics Parsing (Age, Gender, Handedness)
+    // Demographics Parsing (Age, Gender, Handedness).
+    // Ages are rounded to the nearest whole year before transmission so a
+    // fractional age (which combined with other fields narrows identity) is
+    // never sent to the server in precision form.
     if (/^Age\s*[:=\t,]\s*([0-9.]+)/i.test(line)) {
       const match = line.match(/([0-9.]+)/);
-      if (match) age = parseFloat(match[1]);
+      if (match) age = Math.round(parseFloat(match[1]));
     }
 
     if (/^Gender\s*[:=\t,]\s*([A-Za-z]+)/i.test(line)) {
@@ -122,24 +109,10 @@ export function parseQeegTdtInBrowser(fileContent: string): ClientReliabilityRes
 
   const passed = testRetestScore >= MINIMUM_THRESHOLD;
 
-  // 3. Strip Identifying Lines if Passed
+  // 3. Strip only Patient Name and Date of Birth if Passed
   let deidentifiedContent = "";
   if (passed) {
-    const strippedLines = lines.filter((line) => {
-      const lowerLine = line.toLowerCase();
-      // Identifying lines to strip:
-      if (lowerLine.startsWith("name") ||
-          lowerLine.startsWith("subject id") ||
-          lowerLine.startsWith("dob") ||
-          lowerLine.startsWith("date of test") ||
-          lowerLine.startsWith("time of test") ||
-          lowerLine.startsWith("patient name") ||
-          lowerLine.startsWith("first name") ||
-          lowerLine.startsWith("last name")) {
-        return false;
-      }
-      return true;
-    });
+    const strippedLines = lines.filter((line) => !isIdentifyingLine(line));
     deidentifiedContent = strippedLines.join("\n");
   }
 

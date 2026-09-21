@@ -1,26 +1,39 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { clearSessionCookiesOnResponse } from '@/lib/session';
 
-export async function GET() {
-  const queue = [
-    {
-      id: 'rep_002',
-      caseReference: 'CASE-94102-NSW',
-      status: 'IN_NEUROSCIENTIST_REVIEW',
-      reliabilityScore: 0.88,
-      confidenceScore: 0.84,
-      createdAt: new Date(Date.now() - 24 * 3600000).toISOString(),
-      age: 44,
-      gender: 'Male',
-      reportSummary: 'Posterior Alpha slowing with generalized slowing across parietal leads.',
-      submittingPractitioner: {
-        email: 'dr.smith@sydneyneuro.com.au',
-        practitionerProfile: {
-          fullName: 'Dr. Michael Smith',
-          clinicName: 'Sydney Neurological Assessment Centre',
-        },
-      },
-    },
-  ];
+const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
-  return NextResponse.json({ queue });
+export async function GET(req: NextRequest) {
+  const sessionCookie = req.cookies.get('qeeg_session_token')?.value;
+
+  if (!sessionCookie) {
+    return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 });
+  }
+
+  try {
+    const backendRes = await fetch(`${BACKEND_URL}/api/neuroscientist/queue`, {
+      headers: { Cookie: `qeeg_session_token=${sessionCookie}` },
+    });
+
+    if (backendRes.ok) {
+      const data = await backendRes.json();
+      return NextResponse.json(data);
+    }
+
+    if (backendRes.status === 401) {
+      return clearSessionCookiesOnResponse(
+        NextResponse.json({ error: 'Not authenticated.' }, { status: 401 })
+      );
+    }
+
+    return NextResponse.json(
+      { error: 'Failed to load review queue.' },
+      { status: backendRes.status }
+    );
+  } catch {
+    return NextResponse.json(
+      { error: 'Review queue service is unavailable.' },
+      { status: 503 }
+    );
+  }
 }
