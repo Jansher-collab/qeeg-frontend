@@ -144,6 +144,10 @@ function PortalDashboardContent() {
 
   // Modals state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  // Guards against PayPal firing onApprove twice for the SAME approved order
+  // (postrobot/iframe edge cases). Re-authorising a used order id returns
+  // PayPal INVALID_RESOURCE_ID, so each order may be submitted exactly once.
+  const handledPayPalOrderIds = useRef<Set<string>>(new Set());
   const [selectedReportForDownload, setSelectedReportForDownload] = useState<Report | null>(null);
   const [showIdentityModal, setShowIdentityModal] = useState(false);
   const [patientNameInput, setPatientNameInput] = useState("");
@@ -1972,6 +1976,7 @@ function PortalDashboardContent() {
                     return;
                   }
                   setShowPaymentModal(true);
+                  handledPayPalOrderIds.current.clear();
                 }}
                 disabled={!qeegReliabilityPassed || submitting}
                 className="w-full sm:w-auto px-8 py-3.5 bg-white hover:bg-slate-100 disabled:opacity-50 text-[#16233B] text-sm font-semibold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
@@ -2450,24 +2455,27 @@ function PortalDashboardContent() {
             <div className="pt-2 flex flex-col gap-3 min-h-[150px]">
               <PayPalButtons
                 style={{ layout: "vertical", shape: "pill", color: "gold" }}
-                createOrder={(data, actions) => {
-                  return actions.order.create({
-                    intent: "AUTHORIZE",
-                    purchase_units: [
-                      {
-                        description: `QEEG Report Processing Fee - ${newCaseData.caseReference}`,
-                        amount: {
-                          currency_code: "AUD",
-                          value: "65.00",
-                        },
-                      },
-                    ],
-                    application_context: {
-                      brand_name: "QEEG.com.au",
-                      shipping_preference: "NO_SHIPPING",
-                      user_action: "CONTINUE",
-                    },
+                createOrder={async () => {
+                  // Every attempt — including every retry — fetches a BRAND-NEW
+                  // order from the backend (/api/payments/orders). Never reuse a
+                  // previous order id: approving/re-authorising a stale or used
+                  // order returns PayPal INVALID_RESOURCE_ID.
+                  const res = await fetch("/api/payments/orders", {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ caseReference: newCaseData.caseReference }),
                   });
+                  const data = await res.json().catch(() => ({}));
+                  if (!res.ok) {
+                    throw new Error(
+                      data?.error || "Unable to create a fresh payment order. Please try again."
+                    );
+                  }
+                  if (!data?.orderId) {
+                    throw new Error("Payment order was created without a valid order id.");
+                  }
+                  return data.orderId as string;
                 }}
                 onApprove={async (data) => {
                   // CRITICAL: do NOT call actions.order.authorize()/capture()
@@ -2478,14 +2486,25 @@ function PortalDashboardContent() {
                   // postrobot_method before response". Instead, hand the
                   // approved order id to the backend, which authorises it
                   // server-side, and only close the modal after that returns.
+                  const orderId = data.orderID;
+                  if (!orderId) {
+                    setShowPaymentModal(false);
+                    setPaymentError(
+                      "PayPal order ID not found in the approval response. The payment could not be authorised."
+                    );
+                    setSubmitting(false);
+                    return;
+                  }
+                  // Re-entry guard: PayPal may fire onApprove more than once
+                  // for the same approved order. Submitting the same order id
+                  // twice re-authorises a used order and yields
+                  // INVALID_RESOURCE_ID, so process each order exactly once.
+                  if (submitting || handledPayPalOrderIds.current.has(orderId)) {
+                    return;
+                  }
+                  handledPayPalOrderIds.current.add(orderId);
                   setSubmitting(true);
                   try {
-                    const orderId = data.orderID;
-                    if (!orderId) {
-                      throw new Error(
-                        "PayPal order ID not found in the approval response. The payment could not be authorised."
-                      );
-                    }
                     await handleCreateCase(orderId);
                   } catch (err: any) {
                     setShowPaymentModal(false);
@@ -2495,6 +2514,10 @@ function PortalDashboardContent() {
                     );
                     setSubmitting(false);
                   }
+                }}
+                onCancel={() => {
+                  setShowPaymentModal(false);
+                  setSubmitting(false);
                 }}
                 onError={(err) => {
                   setShowPaymentModal(false);
@@ -2566,6 +2589,7 @@ function PortalDashboardContent() {
                 onClick={() => {
                   setPaymentError(null);
                   setShowPaymentModal(true);
+                  handledPayPalOrderIds.current.clear();
                 }}
                 className="w-full py-3 text-sm font-semibold text-white bg-[#16233B] hover:bg-[#0F172A] rounded-xl shadow-sm transition-all cursor-pointer"
               >
