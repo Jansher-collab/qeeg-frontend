@@ -712,6 +712,8 @@ function PortalDashboardContent() {
     setSubmitError(null);
     setSubmitting(true);
 
+    console.info("[PAYPAL] handleCreateCase called with paypalOrderId:", paypalOrderId ?? "(none)");
+
     try {
       const tdtPayload =
         rawTdtText ||
@@ -2460,6 +2462,15 @@ function PortalDashboardContent() {
                   // order from the backend (/api/payments/orders). Never reuse a
                   // previous order id: approving/re-authorising a stale or used
                   // order returns PayPal INVALID_RESOURCE_ID.
+                  if (!newCaseData.caseReference) {
+                    throw new Error(
+                      "Case reference is missing — payment cannot be started. Please re-upload the QEEG file."
+                    );
+                  }
+                  console.info(
+                    "[PAYPAL] Requesting a fresh order from /api/payments/orders for case",
+                    newCaseData.caseReference
+                  );
                   const res = await fetch("/api/payments/orders", {
                     method: "POST",
                     credentials: "include",
@@ -2475,6 +2486,7 @@ function PortalDashboardContent() {
                   if (!data?.orderId) {
                     throw new Error("Payment order was created without a valid order id.");
                   }
+                  console.info("[PAYPAL] Fresh order issued by backend:", data.orderId);
                   return data.orderId as string;
                 }}
                 onApprove={async (data) => {
@@ -2487,6 +2499,7 @@ function PortalDashboardContent() {
                   // approved order id to the backend, which authorises it
                   // server-side, and only close the modal after that returns.
                   const orderId = data.orderID;
+                  console.info("[PAYPAL] onApprove fired with order id:", orderId);
                   if (!orderId) {
                     setShowPaymentModal(false);
                     setPaymentError(
@@ -2500,11 +2513,19 @@ function PortalDashboardContent() {
                   // twice re-authorises a used order and yields
                   // INVALID_RESOURCE_ID, so process each order exactly once.
                   if (submitting || handledPayPalOrderIds.current.has(orderId)) {
+                    console.info(
+                      "[PAYPAL] Ignoring duplicate approval for order",
+                      orderId,
+                      "(submitting =",
+                      submitting,
+                      ")"
+                    );
                     return;
                   }
                   handledPayPalOrderIds.current.add(orderId);
                   setSubmitting(true);
                   try {
+                    console.info("[PAYPAL] Submitting approved order", orderId, "to /api/reports/submit");
                     await handleCreateCase(orderId);
                   } catch (err: any) {
                     setShowPaymentModal(false);
