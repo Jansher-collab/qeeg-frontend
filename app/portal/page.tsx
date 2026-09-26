@@ -107,6 +107,16 @@ interface ChecklistConfig {
   sections?: ChecklistSection[];
 }
 
+// Today's calendar date in the practitioner's local timezone as YYYY-MM-DD.
+// Deliberately avoids toISOString(), which is UTC and therefore yields
+// *yesterday's* date for users east of Greenwich during their morning.
+const todayLocalDateString = (): string => {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+};
+
 const defaultChecklistFieldValues = (): Record<string, string | boolean> => ({
   recording_condition: "",
   quality_1: false,
@@ -117,7 +127,7 @@ const defaultChecklistFieldValues = (): Record<string, string | boolean> => ({
   payment_auth_ack: false,
   additional_notes: "",
   signature: "",
-  date_signed: new Date().toISOString().slice(0, 10),
+  date_signed: todayLocalDateString(),
 });
 
 function useAutoDismiss(value: unknown, onClear: () => void, delayMs = 4500) {
@@ -1811,6 +1821,14 @@ function PortalDashboardContent() {
                               }
 
                               if (field.type === "date") {
+                                // "Date Signed" is legally binding: it must be the exact day the
+                                // practitioner completes the form, so pin it to today by setting
+                                // min === max (which disables every other day in the native
+                                // picker) and refuse any other value from manual entry.
+                                const isDateSigned = field.key === "date_signed";
+                                const today = isDateSigned ? todayLocalDateString() : null;
+                                const rawValue = String(value ?? "");
+                                const lockedValue = today !== null && rawValue !== today ? today : rawValue;
                                 return (
                                   <div key={field.key}>
                                     <label className="block text-[10px] font-semibold text-slate-600 mb-1">
@@ -1818,8 +1836,13 @@ function PortalDashboardContent() {
                                     </label>
                                     <input
                                       type="date"
-                                      value={String(value ?? "")}
-                                      onChange={(e) => setCaseBoundFieldValue(field, e.target.value)}
+                                      value={lockedValue}
+                                      min={today ?? undefined}
+                                      max={today ?? undefined}
+                                      onChange={(e) => {
+                                        const next = e.target.value;
+                                        setCaseBoundFieldValue(field, today !== null && next !== today ? today : next);
+                                      }}
                                       className={`${baseInput} ${
                                         isMissingText ? "border-rose-300" : "border-slate-200"
                                       }`}
