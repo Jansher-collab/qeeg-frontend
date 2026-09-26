@@ -2471,17 +2471,58 @@ function PortalDashboardContent() {
                     "[PAYPAL] Requesting a fresh order from /api/payments/orders for case",
                     newCaseData.caseReference
                   );
-                  const res = await fetch("/api/payments/orders", {
-                    method: "POST",
-                    credentials: "include",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ caseReference: newCaseData.caseReference }),
-                  });
-                  const data = await res.json().catch(() => ({}));
-                  if (!res.ok) {
+                  // Same-origin by design: app/api/payments/orders proxies to the
+                  // backend so the httpOnly session cookie is forwarded. Calling
+                  // the backend host directly would 404/drop the session.
+                  let res: Response;
+                  try {
+                    res = await fetch("/api/payments/orders", {
+                      method: "POST",
+                      credentials: "include",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ caseReference: newCaseData.caseReference }),
+                    });
+                  } catch (networkError: unknown) {
+                    // fetch() only rejects on a transport failure (backend down,
+                    // DNS, offline). Surface it instead of the generic message.
+                    console.error("[PAYPAL] Payment order request failed to reach the server:", networkError);
                     throw new Error(
-                      data?.error || "Unable to create a fresh payment order. Please try again."
+                      `Could not reach the payment service (${
+                        networkError instanceof Error ? networkError.message : "network error"
+                      }). Please check your connection and try again.`
                     );
+                  }
+
+                  // Parse defensively: a proxy/HTML error page would make
+                  // res.json() throw and hide the real status from the user.
+                  const rawBody = await res.text();
+                  let data: { orderId?: string; error?: string; errorCode?: string } = {};
+                  if (rawBody) {
+                    try {
+                      data = JSON.parse(rawBody);
+                    } catch {
+                      console.error(
+                        "[PAYPAL] Payment order response was not JSON:",
+                        res.status,
+                        rawBody.slice(0, 200)
+                      );
+                    }
+                  }
+
+                  if (!res.ok) {
+                    const reason =
+                      typeof data?.error === "string" && data.error.trim()
+                        ? data.error.trim()
+                        : `The payment service could not create an order (HTTP ${res.status}${
+                            res.statusText ? ` ${res.statusText}` : ""
+                          }). Please try again.`;
+                    console.error(
+                      "[PAYPAL] Payment order creation rejected:",
+                      res.status,
+                      data?.errorCode || "(no errorCode)",
+                      reason
+                    );
+                    throw new Error(reason);
                   }
                   if (!data?.orderId) {
                     throw new Error("Payment order was created without a valid order id.");
