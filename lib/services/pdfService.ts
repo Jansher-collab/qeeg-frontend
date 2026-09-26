@@ -186,8 +186,11 @@ export async function generatePreFilledChecklistPDF(
       color: rgb(1, 1, 1),
     });
 
+    // Position the section title from the measured brand width so it can never
+    // overlap "QEEG.COM.AU" (which rendered to x=141.25 at 13pt bold).
+    const brandRight = 48 + fontBold.widthOfTextAtSize('QEEG.COM.AU', 13);
     page.drawText(`  |  ${title.toUpperCase()}`, {
-      x: 140,
+      x: brandRight + 14,
       y: height - 56,
       size: 10,
       font: fontBold,
@@ -934,8 +937,25 @@ export async function generateCorrelationReportPDF(
   const pageSize: [number, number] = [595.28, 841.89];
   const margin = 48;
   const contentWidth = pageSize[0] - margin * 2;
-  const headerHeight = 74;
   const floorY = 52;
+
+  // Header geometry. `headerHeight` is derived from what the banner actually
+  // occupies so the body cursor can never land inside the navy band: the banner
+  // spans from HEADER_TOP_OFFSET below the page top down through
+  // HEADER_BOX_HEIGHT, and the body then gets HEADER_BODY_GAP of clear space.
+  const HEADER_MARGIN_X = 36;
+  const HEADER_TOP_OFFSET = 33;
+  const HEADER_BOX_HEIGHT = 52;
+  const HEADER_BODY_GAP = 14;
+  const headerHeight = HEADER_TOP_OFFSET + HEADER_BOX_HEIGHT + HEADER_BODY_GAP; // 99
+
+  // The title x is measured from the rendered brand text rather than hardcoded,
+  // so a brand/typography change can never make the title overlap the brand.
+  const HEADER_BRAND = 'QEEG.COM.AU';
+  const HEADER_BRAND_X = 48;
+  const HEADER_BRAND_SIZE = 13;
+  const HEADER_TITLE_SIZE = 10;
+  const HEADER_TITLE_GUTTER = 14;
 
   const darkNavy = rgb(0.086, 0.137, 0.231);
   const slateText = rgb(0.1, 0.15, 0.25);
@@ -954,12 +974,26 @@ export async function generateCorrelationReportPDF(
 
   const drawHeader = () => {
     const { width, height } = page.getSize();
-    page.drawRectangle({ x: 36, y: height - 85, width: width - 72, height: 52, color: darkNavy });
-    page.drawText('QEEG.COM.AU', { x: 48, y: height - 56, size: 13, font: fontBold, color: rgb(1, 1, 1) });
-    page.drawText('|  CORRELATION REPORT', {
-      x: 138,
+    const boxY = height - HEADER_TOP_OFFSET - HEADER_BOX_HEIGHT;
+    page.drawRectangle({
+      x: HEADER_MARGIN_X,
+      y: boxY,
+      width: width - HEADER_MARGIN_X * 2,
+      height: HEADER_BOX_HEIGHT,
+      color: darkNavy,
+    });
+    page.drawText(HEADER_BRAND, {
+      x: HEADER_BRAND_X,
       y: height - 56,
-      size: 10,
+      size: HEADER_BRAND_SIZE,
+      font: fontBold,
+      color: rgb(1, 1, 1),
+    });
+    const brandRight = HEADER_BRAND_X + fontBold.widthOfTextAtSize(HEADER_BRAND, HEADER_BRAND_SIZE);
+    page.drawText('|  CORRELATION REPORT', {
+      x: brandRight + HEADER_TITLE_GUTTER,
+      y: height - 56,
+      size: HEADER_TITLE_SIZE,
       font: fontBold,
       color: rgb(0.9, 0.94, 0.98),
     });
@@ -967,7 +1001,7 @@ export async function generateCorrelationReportPDF(
       `Case ${findings.caseReference || 'N/A'}  •  Compiled ${
         findings.compiledAt ? new Date(findings.compiledAt).toLocaleString('en-AU') : new Date().toLocaleString('en-AU')
       }`,
-      { x: 48, y: height - 72, size: 7.5, font: fontRegular, color: rgb(0.75, 0.85, 0.95) }
+      { x: HEADER_BRAND_X, y: height - 72, size: 7.5, font: fontRegular, color: rgb(0.75, 0.85, 0.95) }
     );
     page.drawText(`Page ${pageNum}`, {
       x: width - 82,
