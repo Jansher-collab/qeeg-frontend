@@ -905,9 +905,9 @@ function AdminDashboardContent() {
       )}
 
       {/* Main Content Shell */}
-      <div className="flex-1 lg:pl-64 flex flex-col min-h-screen">
-        <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-          <div className="space-y-8 animate-fadeIn">
+      <div className="flex-1 min-w-0 lg:pl-64 flex flex-col min-h-screen">
+        <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-8">
+          <div className="max-w-6xl mx-auto space-y-8 animate-fadeIn">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
               <div>
                 <div className="flex items-center gap-2 mb-1">
@@ -962,7 +962,7 @@ function AdminDashboardContent() {
                   </button>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
+                  <table className="w-full min-w-[880px] text-left text-sm">
                     <thead>
                       <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                         <th className="py-3.5 px-5">Case Reference</th>
@@ -1092,7 +1092,7 @@ function AdminDashboardContent() {
                 )}
 
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
+                  <table className="w-full min-w-[1100px] text-left text-sm">
                     <thead>
                       <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                         <th className="py-3.5 px-5">Case Reference</th>
@@ -1161,10 +1161,10 @@ function AdminDashboardContent() {
                               <td className="py-4 px-4 text-slate-800 font-medium">
                                 {report.feeAmount != null ? `$${report.feeAmount.toFixed(2)}` : "—"}
                               </td>
-                              <td className="py-4 px-4 font-mono text-xs text-slate-600">
+                              <td className="py-4 px-4 font-mono text-xs text-slate-600 break-all">
                                 {report.paypalAuthorizationId || "—"}
                               </td>
-                              <td className="py-4 px-4 font-mono text-xs text-slate-600">
+                              <td className="py-4 px-4 font-mono text-xs text-slate-600 break-all">
                                 {report.paypalCaptureId || "—"}
                               </td>
                               <td className="py-4 px-4">
@@ -1351,9 +1351,9 @@ function AdminDashboardContent() {
                       Refresh
                     </button>
                   </div>
-                  {legalDocs.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left">
+                    {legalDocs.length > 0 ? (
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[720px] text-left">
                         <thead>
                           <tr className="bg-slate-50 border-b border-slate-100">
                             <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Type</th>
@@ -1495,9 +1495,9 @@ function AdminDashboardContent() {
                       Refresh
                     </button>
                   </div>
-                  {knowledgeSourcePdfs.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left">
+                    {knowledgeSourcePdfs.length > 0 ? (
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[640px] text-left">
                         <thead>
                           <tr className="bg-slate-50 border-b border-slate-100">
                             <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Document</th>
@@ -1583,9 +1583,9 @@ function AdminDashboardContent() {
                       Structured research entries made available to the report-generation and correlation engine for search and matching.
                     </p>
                   </div>
-                  {knowledgeEntries.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left">
+                    {knowledgeEntries.length > 0 ? (
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[880px] text-left">
                         <thead>
                           <tr className="bg-slate-50 border-b border-slate-100">
                             <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Title</th>
@@ -1816,7 +1816,7 @@ function AdminDashboardContent() {
         </main>
 
         <footer className="bg-white border-t border-slate-200 py-4 text-xs text-slate-500">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 flex flex-col sm:flex-row items-center justify-between gap-2">
             <span>QEEG.com.au Admin Control Panel · Sydney VPS Hosted</span>
             <span>Australian Infrastructure</span>
           </div>

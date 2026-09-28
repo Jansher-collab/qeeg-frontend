@@ -240,14 +240,14 @@ function PortalShell({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Main Content Shell */}
-      <div className="flex-1 lg:pl-64 flex flex-col min-h-screen">
-        <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+      <div className="flex-1 min-w-0 lg:pl-64 flex flex-col min-h-screen">
+        <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-8">
           {children}
         </main>
 
         {/* Minimal Footer */}
         <footer className="bg-white border-t border-slate-200 py-4 text-xs text-slate-500">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 flex flex-col sm:flex-row items-center justify-between gap-2">
             <span>QEEG.com.au Referring Practitioner Portal · Sydney VPS Hosted</span>
             <span>Australian Infrastructure · Purged Upon Download</span>
           </div>

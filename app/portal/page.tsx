@@ -225,6 +225,19 @@ function PortalDashboardContent() {
     reliabilityScore: "0.94",
   });
 
+  // TOVA is considered "uploaded and verified" only when a file was accepted
+  // AND the last parse attempt produced no error. `tovaData` alone is not a
+  // reliable signal: handleTovaFileUploaded stores `result.selectedSession ||
+  // null`, so a successful parse can legitimately yield a null session while
+  // the file itself is still valid.
+  const tovaVerified = tovaFileSelected && !tovaError;
+
+  // Both Tab 1 uploads must be complete and verified before the practitioner
+  // can advance to the Symptom Checklist. Drives the trailing "Continue to
+  // Checklist" action and the Tab 2 tab gate alike, so the step cannot be
+  // bypassed by clicking the tab directly.
+  const filesReadyToContinue = qeegReliabilityPassed && tovaVerified;
+
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
@@ -701,6 +714,13 @@ function PortalDashboardContent() {
       setSubmitError("Please upload a valid QEEG .tdt file that passes the 0.80 reliability threshold first.");
       return;
     }
+    // TOVA supporting-test data is mandatory and is re-validated server-side.
+    if (!filesReadyToContinue) {
+      setSubmitError(
+        "Please upload and verify both the QEEG .tdt file and the TOVA report before submitting."
+      );
+      return;
+    }
     if (!checklistConfig) {
       setSubmitError("Symptom checklist definition is still loading. Please wait a moment and retry.");
       return;
@@ -777,12 +797,11 @@ function PortalDashboardContent() {
           overallReliability: parseFloat(newCaseData.reliabilityScore),
         },
         checklistData,
+        // TOVA is mandatory: only the de-identified, parsed metrics are ever
+        // transmitted (never the raw file), and the server re-validates them.
+        tovaData,
         paypalOrderId,
       };
-
-      // The TOVA file is optional; when present only the de-identified,
-      // parsed metrics (never the raw file) are transmitted.
-      if (tovaData) submitPayload.tovaData = tovaData;
 
       const submitRes = await fetch("/api/reports/submit", {
         method: "POST",
@@ -1062,7 +1081,7 @@ function PortalDashboardContent() {
   });
 
   return (
-    <div className="space-y-8 animate-fadeIn">
+    <div className="max-w-6xl mx-auto space-y-8 animate-fadeIn">
       {/* Top Header Banner */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
         <div>
@@ -1186,9 +1205,9 @@ function PortalDashboardContent() {
               </div>
             </div>
 
-            {/* Table Content */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs sm:text-sm">
+              {/* Table Content */}
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[820px] text-left text-xs sm:text-sm">
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                     <th className="py-3.5 px-5">Case Reference</th>
@@ -1310,10 +1329,10 @@ function PortalDashboardContent() {
               <button
                 type="button"
                 onClick={() => setActiveNewTab(2)}
-                disabled={!qeegReliabilityPassed}
+                disabled={!filesReadyToContinue}
                 className={`px-4 py-3 rounded-xl text-left transition-all border cursor-pointer ${activeNewTab === 2
                   ? "bg-[#16233B] border-[#16233B] text-white shadow-sm"
-                  : qeegReliabilityPassed
+                  : filesReadyToContinue
                     ? "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-100"
                     : "bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed opacity-70"
                   }`}
@@ -1321,7 +1340,7 @@ function PortalDashboardContent() {
                 <span
                   className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-wider ${activeNewTab === 2
                     ? "text-sky-400"
-                    : qeegReliabilityPassed
+                    : filesReadyToContinue
                       ? "text-slate-500"
                       : "text-slate-400"
                     }`}
@@ -1337,7 +1356,9 @@ function PortalDashboardContent() {
                   Tab 2 · Symptom Checklist &amp; PDF
                 </span>
                 <span className={`text-[11px] block mt-1 ${activeNewTab === 2 ? "text-slate-300" : "text-slate-400"}`}>
-                  Live config-driven form · auto PDF with Case Reference
+                  {filesReadyToContinue
+                    ? "Live config-driven form · auto PDF with Case Reference"
+                    : "Locked · upload both the QEEG .tdt and TOVA report to unlock"}
                 </span>
               </button>
             </div>
@@ -1449,14 +1470,6 @@ function PortalDashboardContent() {
                     De-identified in browser — patient-identifying lines stripped before any server transmission.
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setActiveNewTab(2)}
-                  className="shrink-0 px-4 py-2 bg-[#16233B] hover:bg-[#0F172A] text-white text-xs font-semibold rounded-lg shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
-                >
-                  Continue to Checklist
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
               </div>
             )}
 
@@ -1485,9 +1498,9 @@ function PortalDashboardContent() {
               <h2 className="text-xl sm:text-2xl font-serif text-[#16233B] font-normal tracking-tight">
                 Upload TOVA results
               </h2>
-              <p className="mt-1 text-xs sm:text-sm text-slate-500 font-normal leading-relaxed">
-                Attach the continuous visual attention performance file (optional). Metrics are parsed and de-identified in the browser and linked to the report's Case Reference.
-              </p>
+                <p className="mt-1 text-xs sm:text-sm text-slate-500 font-normal leading-relaxed">
+                  Attach the continuous visual attention performance file. Metrics are parsed and de-identified in the browser and linked to the report&apos;s Case Reference. Both this file and the QEEG `.tdt` export must be uploaded and verified before you can continue to the Symptom Checklist.
+                </p>
             </div>
 
             {/* Case Reference banner shared by QEEG / TOVA / checklist */}
@@ -1529,7 +1542,7 @@ function PortalDashboardContent() {
                   </div>
                   <div className="min-w-0">
                     <span className="text-xs font-semibold text-slate-800 block truncate">
-                      {tovaFileSelected ? tovaFileName : "Attach TOVA Report (optional)"}
+                      {tovaFileSelected ? tovaFileName : "Attach TOVA Report (required)"}
                     </span>
                     <span className="text-[11px] text-slate-400 block truncate">
                       {tovaFileSelected
@@ -1563,6 +1576,39 @@ function PortalDashboardContent() {
               </div>
             </div>
           </div>
+
+            {/* Trailing "Continue to Checklist" action. Hidden by default and
+                rendered only once BOTH the QEEG .tdt file and the TOVA report
+                have been uploaded and verified, so it always appears below both
+                upload blocks rather than attached to the .tdt card. */}
+            {filesReadyToContinue && (
+              <div className="rounded-2xl border border-slate-200 bg-white shadow-xs p-6 sm:p-8 animate-fadeIn">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                      <CheckCircle2 className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-sm sm:text-base font-serif text-[#16233B] font-normal tracking-tight">
+                        Both files uploaded and verified
+                      </h3>
+                      <p className="text-xs text-slate-500 leading-relaxed mt-0.5 break-words">
+                        Case Reference <span className="font-mono font-semibold">{newCaseData.caseReference}</span> · QEEG reliability {newCaseData.reliabilityScore} · TOVA <span className="font-mono">{tovaFileName}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveNewTab(2)}
+                    className="shrink-0 w-full sm:w-auto px-5 py-3 bg-[#16233B] hover:bg-[#0F172A] text-white text-sm font-semibold rounded-xl shadow-xs transition-all cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    Continue to Checklist
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ===================== TAB 2 · LIVE SYMPTOM CHECKLIST & PDF ===================== */}
@@ -2057,9 +2103,9 @@ function PortalDashboardContent() {
               </p>
             </div>
 
-            {/* Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
+              {/* Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[560px] text-left">
                 <thead>
                   <tr className="border-y border-slate-100 bg-[#F8FAFC]/80 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                     <th className="py-3 px-6 sm:px-8 font-sans font-semibold">DATE</th>

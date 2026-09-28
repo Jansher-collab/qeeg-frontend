@@ -111,7 +111,7 @@ export default function NeuroscientistReviewPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="max-w-6xl mx-auto space-y-8">
       {/* Top Banner */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
