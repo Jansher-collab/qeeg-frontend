@@ -1,4 +1,5 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { Encodings } from '@pdf-lib/standard-fonts';
 
 export interface PractitionerChecklistDetails {
   fullName: string;
@@ -147,6 +148,11 @@ export async function generatePreFilledChecklistPDF(
   details: PractitionerChecklistDetails,
   options?: CompletedChecklistPdfOptions
 ): Promise<Uint8Array> {
+  // Sanitise every dynamic string up front so the WinAnsi StandardFonts below
+  // can never encounter an unencodable glyph while pre-filling the form.
+  details = sanitizePdfStrings(details) as PractitionerChecklistDetails;
+  if (options) options = sanitizePdfStrings(options) as CompletedChecklistPdfOptions;
+
   const pdfDoc = await PDFDocument.create();
   const form = pdfDoc.getForm();
 
@@ -907,6 +913,65 @@ const CITATION_SOURCE_LABELS: Record<string, string> = {
   SemanticScholar: 'Semantic Scholar',
 };
 
+// ---------------------------------------------------------------------------
+// WinAnsi text sanitisation.
+//
+// pdf-lib's StandardFonts use WinAnsi (Windows-1252) encoding and its
+// StandardFontEmbedder encodes code points with @pdf-lib/standard-fonts'
+// Encodings.WinAnsi.encodeUnicodeCodePoint — which THROWS on any glyph it
+// cannot encode (e.g. U+2192 "→" in a curated excerpt or author string). The
+// correlation report draws dozens of dynamic strings, so instead of wrapping
+// every drawText/setText call site, every string that enters either PDF
+// generator is sanitised once at the generator entry point. The predicate used
+// below (canEncodeUnicodeCodePoint) is exactly pdf-lib's own encodability
+// check, so no glyph that pdf-lib could not render can reach the PDF.
+// ---------------------------------------------------------------------------
+
+const winAnsiEncoding = Encodings.WinAnsi;
+
+const WIN_ANSI_SAFE_REPLACEMENTS: Record<string, string> = {
+  '\u2190': '<-', // ←
+  '\u2191': '^', // ↑
+  '\u2192': '->', // →
+  '\u2193': 'v', // ↓
+  '\u2194': '<->', // ↔
+  '\u2195': '<->', // ↕
+  '\u21A6': '->', // ↦
+  '\u21D0': '<=', // ⇐
+  '\u21D2': '=>', // ⇒
+  '\u21D4': '<=>', // ⇔
+  '\u2713': 'v', // ✓
+  '\u2714': 'v', // ✔
+  '\u2717': 'x', // ✗
+  '\u2718': 'x', // ✘
+};
+
+function winAnsiSafe(text: unknown): string {
+  let out = '';
+  for (const ch of String(text ?? '')) {
+    const codePoint = ch.codePointAt(0);
+    if (codePoint !== undefined && winAnsiEncoding.canEncodeUnicodeCodePoint(codePoint)) {
+      out += ch;
+    } else {
+      out += WIN_ANSI_SAFE_REPLACEMENTS[ch] ?? '?';
+    }
+  }
+  return out;
+}
+
+function sanitizePdfStrings(value: unknown): unknown {
+  if (typeof value === 'string') return winAnsiSafe(value);
+  if (Array.isArray(value)) return value.map((item) => sanitizePdfStrings(item));
+  if (value !== null && typeof value === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value)) {
+      result[key] = sanitizePdfStrings(item);
+    }
+    return result;
+  }
+  return value;
+}
+
 function formatCitationAuthors(authors?: string[]): string {
   if (!authors || authors.length === 0) return 'Authors not specified';
   if (authors.length <= 4) return authors.join(', ');
@@ -928,6 +993,11 @@ function citationSourceLabel(source?: string | null): string {
 export async function generateCorrelationReportPDF(
   findings: CorrelationReportFindings
 ): Promise<Uint8Array> {
+  // Sanitise every dynamic string (findings, citations, identity stamp, KB
+  // answers) before drawing so the WinAnsi StandardFonts never hit an
+  // unencodable glyph such as U+2192 "→".
+  findings = sanitizePdfStrings(findings) as CorrelationReportFindings;
+
   const pdfDoc = await PDFDocument.create();
 
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);

@@ -209,10 +209,25 @@ function PortalDashboardContent() {
   const [legalChecked, setLegalChecked] = useState<Record<string, boolean>>({});
   const [legalCurrent, setLegalCurrent] = useState<Record<string, string>>({});
 
-  useAutoDismiss(submitError, () => setSubmitError(null));
   useAutoDismiss(submitSuccess, () => setSubmitSuccess(null));
   useAutoDismiss(profileSaveSuccess, () => setProfileSaveSuccess(false));
   useAutoDismiss(legalError, () => setLegalError(null));
+
+  // The validation banner is fully persistent: it must NEVER auto-dismiss on a
+  // timer, because the submission gates it reports (missing QEEG/TOVA file,
+  // incomplete checklist sections/domains, unreviewed checklist PDF) can take
+  // the practitioner well past 4.5s to resolve. It disappears automatically
+  // only when 100% of the required fields and sections are complete.
+  useEffect(() => {
+    const allRequiredComplete =
+      qeegReliabilityPassed &&
+      !!newCaseData.caseReference &&
+      filesReadyToContinue &&
+      !!checklistConfig &&
+      checklistReviewed &&
+      missingChecklistFields().length === 0;
+    if (allRequiredComplete) setSubmitError(null);
+  });
 
   // Parsed QEEG reliability details (real split-half when available)
   const [qeegSplitHalf, setQeegSplitHalf] = useState<number>(0.96);
@@ -926,11 +941,23 @@ function PortalDashboardContent() {
     try {
       setDownloadingId(report.id);
       const tokenQuery = collectionToken ? `?token=${encodeURIComponent(collectionToken)}` : "";
+
+      // Phase 1: fetch the report findings WITHOUT purging. The server holds a
+      // short-lived claim for this caller, so a retry after a render failure is
+      // served instantly, while a second concurrent downloader is rejected 409
+      // and an already-purged report returns 410 with its real message.
       const res = await fetch(`/api/reports/${report.id}/download${tokenQuery}`, {
         credentials: "include",
       });
       if (!res.ok) {
-        throw new Error("Failed to download report. It may have already been purged.");
+        let message = "Failed to download report.";
+        try {
+          const errData = await res.json();
+          if (errData?.error) message = errData.error;
+        } catch {
+          // keep the default message
+        }
+        throw new Error(message);
       }
 
       const reportJson = (await res.json()) as CorrelationReportFindings;
@@ -958,6 +985,36 @@ function PortalDashboardContent() {
       a.click();
       window.URL.revokeObjectURL(url);
       a.remove();
+
+      // Phase 2: the PDF has been rendered and saved locally, so finalise the
+      // zero-retention purge NOW that the full report content has left the
+      // server. The endpoint is idempotent; a transient network failure is
+      // retried once so a lost response cannot strand the report as COMPLETED.
+      const finalise = (): Promise<Response> =>
+        fetch(`/api/reports/${report.id}/download/complete${tokenQuery}`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        });
+      let completeRes = await finalise();
+      if (!completeRes.ok) {
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        completeRes = await finalise();
+      }
+      if (!completeRes.ok) {
+        let message = "";
+        try {
+          const errData = await completeRes.json();
+          if (errData?.error) message = errData.error;
+        } catch {
+          // keep the default message
+        }
+        alert(
+          message
+            ? `Your PDF downloaded but the server could not confirm the final purge: ${message}`
+            : "Your PDF downloaded but the server could not confirm the final purge. The report will be finalised on your next download or automatically."
+        );
+      }
 
       // Close modals
       setShowIdentityModal(false);
@@ -2465,7 +2522,7 @@ function PortalDashboardContent() {
                 }`}
               >
                 {downloadingId ? (
-                  <span>Purging &amp; downloading...</span>
+                  <span>Downloading &amp; finalizing...</span>
                 ) : (
                   <>
                     <Download className="w-3.5 h-3.5" />
