@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { clearSessionStateClientSide } from "@/lib/clearSession";
+import PasswordInput from "@/components/PasswordInput";
 import QRCode from "qrcode";
 import {
   AlertCircle,
@@ -12,7 +13,6 @@ import {
   CheckCircle2,
   Smartphone,
   KeyRound,
-  Download,
 } from "lucide-react";
 
 export default function SignupPage() {
@@ -21,6 +21,9 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<"form" | "2fa">("form");
   const [legalChecked, setLegalChecked] = useState({ dpa: false, eula: false });
+  // Opaque server-side handle for the staged (not yet persisted) registration.
+  // No account exists in the database until this is exchanged for a valid OTP.
+  const [pendingId, setPendingId] = useState<string | null>(null);
   const [qrSvg, setQrSvg] = useState<string | null>(null);
   const [totpCode, setTotpCode] = useState("");
   const [enrollError, setEnrollError] = useState<string | null>(null);
@@ -96,7 +99,10 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/register", {
+      // Stage 1: validate + hold the details server-side. No account is
+      // created here — the backend only mints a TOTP secret and returns an
+      // otpauth URL plus an opaque pendingId.
+      const res = await fetch("/api/auth/signup/pending", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -125,10 +131,16 @@ export default function SignupPage() {
         throw new Error(data.error || "Failed to create account.");
       }
 
-      // Account created — proceed in-place to the mandatory 2FA enrollment
-      // step (Spec 3.1e: two-factor authentication enforced at signup).
+      setPendingId(data.pendingId);
+
+      const svg = await QRCode.toString(data.otpauthUrl, {
+        type: "svg",
+        margin: 1,
+        width: 200,
+        errorCorrectionLevel: "M",
+      });
+      setQrSvg(svg);
       setStep("2fa");
-      await begin2FAEnrollment();
     } catch (err: any) {
       setError(err.message || "Failed to create account.");
       setStep("form");
@@ -137,60 +149,27 @@ export default function SignupPage() {
     }
   };
 
-  // Two-factor enrollment needs an authenticated session. After registration
-  // the user has no session yet, so log in once (2FA is not yet enabled), then
-  // start the TOTP enrollment and render the QR code for their authenticator app.
-  const begin2FAEnrollment = async () => {
-    setEnrollError(null);
-    try {
-      const loginRes = await fetch("/api/auth/login", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: formData.email, password: formData.password }),
-      });
-      const loginData = await loginRes.json();
-      if (!loginRes.ok) {
-        throw new Error(loginData.error || "Failed to establish session for 2FA enrollment.");
-      }
-
-      const setupRes = await fetch("/api/auth/2fa/setup", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      const setupData = await setupRes.json();
-      if (!setupRes.ok) {
-        throw new Error(setupData.error || "Failed to start two-factor setup.");
-      }
-
-      const svg = await QRCode.toString(setupData.otpauthUrl, {
-        type: "svg",
-        margin: 1,
-        width: 200,
-        errorCorrectionLevel: "M",
-      });
-      setQrSvg(svg);
-    } catch (err: any) {
-      setEnrollError(err.message || "Failed to start two-factor setup.");
-      setStep("form");
-    }
-  };
-
   const handleConfirmTotp = async (e: React.FormEvent) => {
     e.preventDefault();
     setEnrollError(null);
     setVerifying(true);
     try {
-      const res = await fetch("/api/auth/2fa/confirm", {
+      // Stage 2: the account (and the 2FA secret + 10 backup codes) is only
+      // created now, atomically, once the code is verified.
+      const res = await fetch("/api/auth/signup/complete", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ totpCode: totpCode.trim() }),
+        body: JSON.stringify({ pendingId, totpCode: totpCode.trim() }),
       });
       const data = await res.json();
       if (!res.ok) {
+        // The staged registration is gone (expired / too many bad codes), so the
+        // user must re-enter their details and start cleanly.
+        if (data.restartRequired) {
+          resetToForm(data.error || "Your registration session expired. Please start again.");
+          return;
+        }
         throw new Error(data.error || "Invalid verification code.");
       }
       setBackupCodes(data.backupCodes || []);
@@ -199,6 +178,18 @@ export default function SignupPage() {
     } finally {
       setVerifying(false);
     }
+  };
+
+  // Abandon the staged registration and return to a clean, empty form.
+  const resetToForm = (message?: string) => {
+    setStep("form");
+    setPendingId(null);
+    setQrSvg(null);
+    setTotpCode("");
+    setEnrollError(null);
+    setBackupCodes(null);
+    setBackupCodesConfirmed(false);
+    setError(message ?? null);
   };
 
   const handleFinish = () => {
@@ -364,13 +355,14 @@ export default function SignupPage() {
               <label className="block text-xs font-semibold text-slate-700 mb-1.5 font-sans">
                 Password *
               </label>
-              <input
-                type="password"
-                required
+              <PasswordInput
                 value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                onChange={(password) => setFormData({ ...formData, password })}
+                required
+                autoComplete="new-password"
+                aria-label="Password"
                 placeholder="••••••••"
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] focus:ring-1 focus:ring-[#16233B] outline-none transition-all placeholder:text-slate-400 font-sans"
+                className="px-4 py-2.5"
               />
               <span className="text-[11px] text-slate-400 mt-1 block">
                 Must be at least 8 characters long.
@@ -515,6 +507,13 @@ export default function SignupPage() {
                     this QR code with your phone. The app will start generating
                     6-digit codes tied to your QEEG.com.au account.
                   </p>
+
+                  <p className="mt-3 text-[11px] text-slate-500 leading-relaxed font-normal border-t border-slate-200 pt-3">
+                    <strong className="font-semibold text-slate-700">No account has been created yet.</strong>{" "}
+                    Your details are held temporarily and are only saved to our
+                    database once you successfully enter a valid code. If you close
+                    this page, nothing is stored and you simply start again.
+                  </p>
                 </div>
               ) : (
                 <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200">
@@ -562,12 +561,14 @@ export default function SignupPage() {
               </form>
 
               <button
-                onClick={begin2FAEnrollment}
-                disabled={loading}
-                className="w-full text-xs font-semibold text-slate-500 hover:text-[#16233B] transition-colors cursor-pointer"
+                type="button"
+                onClick={() =>
+                  resetToForm("Registration cancelled. No account was created — please enter your details to start again.")
+                }
+                disabled={verifying}
+                className="w-full text-xs font-semibold text-slate-500 hover:text-[#16233B] transition-colors cursor-pointer disabled:opacity-50"
               >
-                <Download className="w-3.5 h-3.5 inline mr-1 -mt-0.5" />
-                Resend enrollment code
+                Cancel and start over
               </button>
             </div>
           )}

@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { clearSessionStateClientSide } from "@/lib/clearSession";
+import PasswordInput from "@/components/PasswordInput";
 import { AlertCircle, ArrowRight, ShieldCheck, CheckCircle2, Check } from "lucide-react";
 
 function LoginForm() {
@@ -159,13 +160,14 @@ function LoginForm() {
                 Forgot password?
               </Link>
             </div>
-            <input
-              type="password"
-              required
+            <PasswordInput
               value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              onChange={(password) => setFormData({ ...formData, password })}
+              required
+              autoComplete="current-password"
+              aria-label="Password"
               placeholder="••••••••"
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] focus:ring-1 focus:ring-[#16233B] outline-none transition-all placeholder:text-slate-400 font-sans"
+              className="px-4 py-2.5"
             />
           </div>
 
