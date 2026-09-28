@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { clearSessionStateClientSide } from "@/lib/clearSession";
+import { getBrowserTimeZone } from "@/lib/getBrowserTimeZone";
 import PasswordInput from "@/components/PasswordInput";
 import QRCode from "qrcode";
 import {
@@ -118,6 +119,7 @@ export default function SignupPage() {
           email: formData.email,
           password: formData.password,
           role: "PRACTITIONER",
+          timeZone: getBrowserTimeZone(),
           legalAcceptances: [
             { type: "DPA", version: legalVersions.DPA || FALLBACK_LEGAL_VERSION },
             { type: "EULA", version: legalVersions.EULA || FALLBACK_LEGAL_VERSION },
@@ -160,7 +162,7 @@ export default function SignupPage() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pendingId, totpCode: totpCode.trim() }),
+        body: JSON.stringify({ pendingId, totpCode: totpCode.trim(), timeZone: getBrowserTimeZone() }),
       });
       const data = await res.json();
       if (!res.ok) {

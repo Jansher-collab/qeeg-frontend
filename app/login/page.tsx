@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { clearSessionStateClientSide } from "@/lib/clearSession";
+import { getBrowserTimeZone } from "@/lib/getBrowserTimeZone";
 import PasswordInput from "@/components/PasswordInput";
 import { AlertCircle, ArrowRight, ShieldCheck, CheckCircle2, Check } from "lucide-react";
 
@@ -47,6 +48,7 @@ function LoginForm() {
         body: JSON.stringify({
           email: formData.email,
           password: formData.password,
+          timeZone: getBrowserTimeZone(),
           ...(requires2FA ? { totpCode: totpCode.trim() } : {}),
         }),
       });

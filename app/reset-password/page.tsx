@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import PasswordInput from "@/components/PasswordInput";
 import { ArrowRight, AlertCircle, CheckCircle2, ShieldCheck } from "lucide-react";
+import { getBrowserTimeZone } from "@/lib/getBrowserTimeZone";
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -42,10 +43,11 @@ function ResetPasswordForm() {
       const res = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token,
-          newPassword: password,
-        }),
+body: JSON.stringify({
+      token,
+      newPassword: password,
+      timeZone: getBrowserTimeZone(),
+    }),
       });
 
       const data = await res.json();

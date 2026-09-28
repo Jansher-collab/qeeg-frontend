@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, AlertCircle, CheckCircle2, ShieldCheck, Mail, ArrowLeft } from "lucide-react";
+import { getBrowserTimeZone } from "@/lib/getBrowserTimeZone";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -20,7 +21,7 @@ export default function ForgotPasswordPage() {
       const res = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, timeZone: getBrowserTimeZone() }),
       });
 
       const data = await res.json();
