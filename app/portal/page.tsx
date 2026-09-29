@@ -14,6 +14,7 @@ import {
 } from "@/lib/services/pdfService";
 import { generateCaseReference } from "@/lib/caseReference";
 import { getPayPalClientId } from "@/lib/paypalConfig";
+import { useModalScrollLock } from "@/lib/hooks/useModalScrollLock";
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import {
   PlusCircle,
@@ -48,6 +49,7 @@ interface Report {
   reportSummary: string | null;
   reviewerNotes: string | null;
   feeAmount: number;
+  paidAmount: number;
   paymentStatus: string;
   createdAt: string;
   updatedAt: string;
@@ -154,6 +156,11 @@ function PortalDashboardContent() {
 
   // Modals state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  // When set, the payment modal operates on an EXISTING report (a subsequent
+  // installment payment against its remaining balance); null = new-case flow.
+  const [payingReport, setPayingReport] = useState<Report | null>(null);
+  // Amount for THIS payment round (0 = pay the full remaining balance).
+  const [installmentAmount, setInstallmentAmount] = useState(0);
   // Guards against PayPal firing onApprove twice for the SAME approved order
   // (postrobot/iframe edge cases). Re-authorising a used order id returns
   // PayPal INVALID_RESOURCE_ID, so each order may be submitted exactly once.
@@ -197,7 +204,11 @@ function PortalDashboardContent() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
-  const [submitSuccess, setSubmitSuccess] = useState<{ caseReference: string; generatedAt: string } | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState<{
+    caseReference: string;
+    generatedAt: string;
+    message?: string;
+  } | null>(null);
   const [activeNewTab, setActiveNewTab] = useState<1 | 2>(1);
   const [checklistPdfBusy, setChecklistPdfBusy] = useState(false);
 
@@ -208,6 +219,16 @@ function PortalDashboardContent() {
   const [legalError, setLegalError] = useState<string | null>(null);
   const [legalChecked, setLegalChecked] = useState<Record<string, boolean>>({});
   const [legalCurrent, setLegalCurrent] = useState<Record<string, string>>({});
+
+  // While ANY portal modal is open, lock the background scroll and stabilise
+  // the layout (no reflow/jitter when the scrollbar hides). See the hook.
+  const isAnyModalOpen = Boolean(
+    paymentError ||
+      showPaymentModal ||
+      (showIdentityModal && selectedReportForDownload) ||
+      (!legalLoading && legalPending.length > 0)
+  );
+  useModalScrollLock(isAnyModalOpen);
 
   useAutoDismiss(submitSuccess, () => setSubmitSuccess(null));
   useAutoDismiss(profileSaveSuccess, () => setProfileSaveSuccess(false));
@@ -910,6 +931,68 @@ function PortalDashboardContent() {
     }
   };
 
+  // Subsequent installment payment for an EXISTING report that is still on HOLD
+  // (status PAYMENT_AUTHORISED, cumulative paidAmount < feeAmount). The backend
+  // authorises + captures per-installment and auto-starts generation the moment
+  // paidAmount reaches the full fee.
+  const handleReportPayment = async (paypalOrderId: string) => {
+    if (!payingReport) return;
+    setSubmitError(null);
+    setSubmitting(true);
+    console.info("[PAYPAL] Submitting installment payment for report", payingReport.id, "order", paypalOrderId);
+    try {
+      const res = await fetch(`/api/reports/${payingReport.id}/pay`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paypalOrderId,
+          amount: installmentAmount > 0 ? installmentAmount : undefined,
+        }),
+      });
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : {};
+      if (!res.ok) {
+        const PAYMENT_ERROR_CODES = [
+          "PAYMENT_FAILED",
+          "INSUFFICIENT_FUNDS",
+          "INSTRUMENT_DECLINED",
+          "FUNDING_SOURCE_LIMIT",
+          "PAYER_ACCOUNT_LOCKED",
+          "REPORT_ALREADY_PAID",
+        ];
+        if (data.errorCode && PAYMENT_ERROR_CODES.includes(data.errorCode)) {
+          setShowPaymentModal(false);
+          setPayingReport(null);
+          setInstallmentAmount(0);
+          setSubmitting(false);
+          setPaymentError(
+            data.error ||
+              "Your payment could not be authorised. Please check your payment method or account funds and try again."
+          );
+          return;
+        }
+        throw new Error(data.error || "Payment failed.");
+      }
+      const reportRef = payingReport.caseReference;
+      const paidMessage =
+        typeof data.message === "string" && data.message
+          ? data.message
+          : "Payment received.";
+      setShowPaymentModal(false);
+      setPayingReport(null);
+      setInstallmentAmount(0);
+      setSubmitSuccess({ caseReference: reportRef, generatedAt: new Date().toISOString(), message: paidMessage });
+      fetchDashboardData();
+      fetchBillingHistory();
+      router.push("/portal?view=billing");
+    } catch (err: any) {
+      setSubmitError(err.message || "Failed to process payment.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   // Record one-time legal acceptance (DPA / EULA). The portal is gated behind
 // these until every pending document is accepted with an explicit version.
   const handleAcceptLegal = async () => {
@@ -1455,7 +1538,8 @@ function PortalDashboardContent() {
                     Report submitted for case <span className="font-mono">{submitSuccess.caseReference}</span>.
                   </span>
                   <span className="text-emerald-700 block leading-relaxed mt-0.5">
-                    Your payment has been authorised and the correlation analysis is now running. The completed report will be available for secure, one-time download from your dashboard once ready.
+                    {submitSuccess.message ||
+                      "Your payment has been authorised and the correlation analysis is now running. The completed report will be available for secure, one-time download from your dashboard once ready."}
                   </span>
                 </div>
               </div>
@@ -2115,6 +2199,8 @@ function PortalDashboardContent() {
                     return;
                   }
                   setShowPaymentModal(true);
+                  setPayingReport(null);
+                  setInstallmentAmount(0);
                   handledPayPalOrderIds.current.clear();
                 }}
                 disabled={!qeegReliabilityPassed || submitting}
@@ -2200,6 +2286,11 @@ function PortalDashboardContent() {
                             return "Pending";
                         }
                       };
+                      const billingFee = r.feeAmount || 65;
+                      const billingPaid = Math.max(0, Math.round((r.paidAmount || 0) * 100) / 100);
+                      const billingRemaining = Math.max(0, Math.round((billingFee - billingPaid) * 100) / 100);
+                      const canPayMore =
+                        r.status === "PAYMENT_AUTHORISED" && billingPaid < billingFee - 0.005;
 
                       return (
                         <tr key={r.id || index} className="hover:bg-slate-50/60 transition-colors">
@@ -2216,10 +2307,34 @@ function PortalDashboardContent() {
                             </span>
                           </td>
                           <td className="py-4.5 px-6 text-slate-900 font-normal">
-                            ${(r.feeAmount || 65).toFixed(2)}
+                            <span className="font-semibold">${billingFee.toFixed(2)}</span>
+                            {billingPaid > 0 && (
+                              <>
+                                <span className="text-slate-400 mx-1">·</span>
+                                <span className="text-slate-600">{billingPaid.toFixed(2)} paid</span>
+                              </>
+                            )}
                           </td>
-                          <td className="py-4.5 px-6 sm:px-8 text-slate-900 font-normal">
-                            {getPaymentStatusLabel(r.paymentStatus)}
+                          <td className="py-4.5 px-6 sm:px-8">
+                            <div className="flex flex-col items-start gap-1.5">
+                              <span className="text-slate-900 font-normal">
+                                {getPaymentStatusLabel(r.paymentStatus)}
+                              </span>
+                              {canPayMore && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPayingReport(r);
+                                    setInstallmentAmount(0);
+                                    handledPayPalOrderIds.current.clear();
+                                    setShowPaymentModal(true);
+                                  }}
+                                  className="text-[11px] font-semibold text-[#2563EB] hover:text-[#1D4ED8] hover:underline"
+                                >
+                                  Pay remaining ${billingRemaining.toFixed(2)}
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -2441,8 +2556,8 @@ function PortalDashboardContent() {
       {/* IDENTITY STAMPING DOWNLOAD MODAL */}
       {/* ==================================================== */}
       {showIdentityModal && selectedReportForDownload && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-start justify-center overflow-y-auto p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full my-auto p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 animate-fadeIn">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto overscroll-contain p-4 sm:p-6">
+          <div className="bg-white rounded-3xl max-w-md w-full my-auto p-6 sm:p-8 shadow-2xl ring-1 ring-slate-900/5 border border-slate-200 space-y-5 animate-fadeIn">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-emerald-600" />
@@ -2549,9 +2664,18 @@ function PortalDashboardContent() {
       {/* ==================================================== */}
       {/* INTERACTIVE MOCK PAYPAL MODAL */}
       {/* ==================================================== */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-start justify-center overflow-y-auto p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full my-auto p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-6 animate-fadeIn relative overflow-hidden">
+      {showPaymentModal &&
+        (() => {
+          // Amount context for THIS payment round. New-case flow: full $65 fee,
+          // nothing paid yet. Existing-report flow: the report's remaining
+          // balance after its already-captured installments.
+          const feeAmt = payingReport ? payingReport.feeAmount || 65 : 65;
+          const paidAmt = payingReport ? Math.max(0, payingReport.paidAmount || 0) : 0;
+          const remainingAmt = Math.max(0, Math.round((feeAmt - paidAmt) * 100) / 100);
+          const selectedAmt = installmentAmount > 0 ? Math.min(installmentAmount, remainingAmt) : remainingAmt;
+          return (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto overscroll-contain p-4 sm:p-6">
+          <div className="bg-white rounded-3xl max-w-md w-full my-auto p-6 sm:p-8 shadow-2xl ring-1 ring-slate-900/5 border border-slate-200 space-y-6 animate-fadeIn relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#003087]" />
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -2572,8 +2696,17 @@ function PortalDashboardContent() {
             </div>
 
             <div className="text-center py-4">
-              <span className="text-sm text-slate-500 block mb-1">Authorization Hold</span>
-              <span className="text-4xl font-light text-slate-800 block">$65.00 <span className="text-lg text-slate-400">AUD</span></span>
+              <span className="text-sm text-slate-500 block mb-1">
+                {payingReport ? `Report fee ${feeAmt.toFixed(2)} AUD` : "Authorization Hold"}
+              </span>
+              <span className="text-4xl font-light text-slate-800 block">
+                {selectedAmt.toFixed(2)} <span className="text-lg text-slate-400">AUD</span>
+              </span>
+              {paidAmt > 0 && (
+                <span className="block text-xs text-slate-500 mt-1.5">
+                  {paidAmt.toFixed(2)} already paid · {remainingAmt.toFixed(2)} remaining
+                </span>
+              )}
             </div>
 
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-600">
@@ -2583,13 +2716,62 @@ function PortalDashboardContent() {
               </div>
               <div className="flex justify-between">
                 <span>Case Reference</span>
-                <span className="font-mono">{newCaseData.caseReference}</span>
+                <span className="font-mono">
+                  {payingReport ? payingReport.caseReference : newCaseData.caseReference}
+                </span>
               </div>
               <p className="mt-4 text-slate-500 text-[11px] leading-relaxed">
                 <Lock className="w-3 h-3 inline-block mr-1 -mt-0.5" />
-                This is a secure authorization hold. Funds are only captured once the report has been successfully generated by the automated correlation pipeline.
+                {payingReport
+                  ? "This is a secure payment towards your outstanding report fee. This installment is captured immediately; once the full fee is paid, the report is generated automatically."
+                  : "This is a secure authorization hold. Funds are only captured once the report has been paid for in full."}
               </p>
             </div>
+
+            {payingReport && (
+              <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
+                <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Installment amount
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    ...new Set(
+                      [20, 45, remainingAmt].filter(
+                        (v) => v > 0 && v <= remainingAmt + 0.005
+                      )
+                    ),
+                  ].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setInstallmentAmount(preset)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                        installmentAmount === preset
+                          ? "bg-[#003087] text-white border-[#003087]"
+                          : "border-slate-200 text-slate-600 hover:border-[#003087] hover:text-[#003087]"
+                      }`}
+                    >
+                      ${preset.toFixed(2)}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setInstallmentAmount(0)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                      installmentAmount === 0
+                        ? "bg-[#003087] text-white border-[#003087]"
+                        : "border-slate-200 text-slate-600 hover:border-[#003087] hover:text-[#003087]"
+                    }`}
+                  >
+                    Pay full balance (${remainingAmt.toFixed(2)})
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-400 leading-relaxed">
+                  Pay now towards your {feeAmt.toFixed(2)} AUD report fee. Generation begins automatically once the
+                  total reaches {feeAmt.toFixed(2)} AUD.
+                </p>
+              </div>
+            )}
 
             <div className="pt-2 flex flex-col gap-3 min-h-[150px]">
               <PayPalButtons
@@ -2599,14 +2781,18 @@ function PortalDashboardContent() {
                   // order from the backend (/api/payments/orders). Never reuse a
                   // previous order id: approving/re-authorising a stale or used
                   // order returns PayPal INVALID_RESOURCE_ID.
-                  if (!newCaseData.caseReference) {
+                  const activeCaseRef = payingReport
+                    ? payingReport.caseReference
+                    : newCaseData.caseReference;
+                  if (!activeCaseRef) {
                     throw new Error(
                       "Case reference is missing — payment cannot be started. Please re-upload the QEEG file."
                     );
                   }
                   console.info(
                     "[PAYPAL] Requesting a fresh order from /api/payments/orders for case",
-                    newCaseData.caseReference
+                    activeCaseRef,
+                    payingReport ? "(installment for existing report)" : "(new case)"
                   );
                   // Same-origin by design: app/api/payments/orders proxies to the
                   // backend so the httpOnly session cookie is forwarded. Calling
@@ -2617,7 +2803,14 @@ function PortalDashboardContent() {
                       method: "POST",
                       credentials: "include",
                       headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ caseReference: newCaseData.caseReference }),
+                      body: JSON.stringify(
+                        payingReport
+                          ? {
+                              reportId: payingReport.id,
+                              amount: installmentAmount > 0 ? installmentAmount : undefined,
+                            }
+                          : { caseReference: newCaseData.caseReference }
+                      ),
                     });
                   } catch (networkError: unknown) {
                     // fetch() only rejects on a transport failure (backend down,
@@ -2703,8 +2896,16 @@ function PortalDashboardContent() {
                   handledPayPalOrderIds.current.add(orderId);
                   setSubmitting(true);
                   try {
-                    console.info("[PAYPAL] Submitting approved order", orderId, "to /api/reports/submit");
-                    await handleCreateCase(orderId);
+                    console.info(
+                      "[PAYPAL] Submitting approved order",
+                      orderId,
+                      payingReport ? "via /api/reports/:id/pay (installment)" : "to /api/reports/submit"
+                    );
+                    if (payingReport) {
+                      await handleReportPayment(orderId);
+                    } else {
+                      await handleCreateCase(orderId);
+                    }
                   } catch (err: any) {
                     setShowPaymentModal(false);
                     setPaymentError(
@@ -2741,14 +2942,15 @@ function PortalDashboardContent() {
             </div>
           </div>
         </div>
-      )}
+        );
+        })()}
 
       {/* ==================================================== */}
       {/* PAYMENT AUTHORISATION FAILURE POPUP */}
       {/* ==================================================== */}
       {paymentError && (
-        <div className="fixed inset-0 z-[60] bg-slate-900/70 backdrop-blur-sm flex items-start justify-center overflow-y-auto p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full my-auto p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 animate-fadeIn relative overflow-hidden">
+        <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto overscroll-contain p-4 sm:p-6">
+          <div className="bg-white rounded-3xl max-w-md w-full my-auto p-6 sm:p-8 shadow-2xl ring-1 ring-slate-900/5 border border-slate-200 space-y-5 animate-fadeIn relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-red-500" />
             <div className="flex items-start gap-4">
               <div className="w-11 h-11 shrink-0 bg-red-50 border border-red-200 rounded-2xl flex items-center justify-center text-red-600">
@@ -2810,8 +3012,8 @@ function PortalDashboardContent() {
       {/* LEGAL ACCEPTANCE BARRIER (DPA / EULA) */}
       {/* ==================================================== */}
       {!legalLoading && legalPending.length > 0 && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-start justify-center overflow-y-auto p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full my-auto p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 animate-fadeIn">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto overscroll-contain p-4 sm:p-6">
+          <div className="bg-white rounded-3xl max-w-lg w-full my-auto p-6 sm:p-8 shadow-2xl ring-1 ring-slate-900/5 border border-slate-200 space-y-5 animate-fadeIn">
             <div className="flex items-center gap-2">
               <Scale className="w-5 h-5 text-[#16233B]" />
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">

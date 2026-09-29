@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useModalScrollLock } from "@/lib/hooks/useModalScrollLock";
 import {
   UserCheck,
   CheckCircle2,
@@ -50,6 +51,8 @@ export default function NeuroscientistReviewPage() {
   const [editedSummary, setEditedSummary] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+
+  useModalScrollLock(!!selectedReport);
 
   const fetchQueue = async () => {
     try {
@@ -201,8 +204,8 @@ export default function NeuroscientistReviewPage() {
 
       {/* Review Modal */}
       {selectedReport && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-start justify-center overflow-y-auto p-4">
-          <div className="bg-white rounded-3xl max-w-2xl w-full my-auto p-6 sm:p-8 border border-slate-200 shadow-xl relative animate-fadeIn">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto overscroll-contain p-4 sm:p-6">
+          <div className="bg-white rounded-3xl max-w-2xl w-full my-auto p-6 sm:p-8 border border-slate-200 shadow-xl ring-1 ring-slate-900/5 relative animate-fadeIn">
             <button
               onClick={() => setSelectedReport(null)}
               className="absolute top-6 right-6 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
