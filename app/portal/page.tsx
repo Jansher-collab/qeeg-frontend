@@ -213,22 +213,6 @@ function PortalDashboardContent() {
   useAutoDismiss(profileSaveSuccess, () => setProfileSaveSuccess(false));
   useAutoDismiss(legalError, () => setLegalError(null));
 
-  // The validation banner is fully persistent: it must NEVER auto-dismiss on a
-  // timer, because the submission gates it reports (missing QEEG/TOVA file,
-  // incomplete checklist sections/domains, unreviewed checklist PDF) can take
-  // the practitioner well past 4.5s to resolve. It disappears automatically
-  // only when 100% of the required fields and sections are complete.
-  useEffect(() => {
-    const allRequiredComplete =
-      qeegReliabilityPassed &&
-      !!newCaseData.caseReference &&
-      filesReadyToContinue &&
-      !!checklistConfig &&
-      checklistReviewed &&
-      missingChecklistFields().length === 0;
-    if (allRequiredComplete) setSubmitError(null);
-  });
-
   // Parsed QEEG reliability details (real split-half when available)
   const [qeegSplitHalf, setQeegSplitHalf] = useState<number>(0.96);
 
@@ -559,6 +543,23 @@ function PortalDashboardContent() {
     return missing;
   };
 
+  // The validation banner is fully persistent: it must NEVER auto-dismiss on a
+  // timer, because the submission gates it reports (missing QEEG/TOVA file,
+  // incomplete checklist sections/domains, unreviewed checklist PDF) can take
+  // the practitioner well past 4.5s to resolve. It disappears automatically
+  // only when 100% of the required fields and sections are complete.
+  const allRequiredComplete =
+    qeegReliabilityPassed &&
+    !!newCaseData.caseReference &&
+    filesReadyToContinue &&
+    !!checklistConfig &&
+    checklistReviewed &&
+    missingChecklistFields().length === 0;
+
+  useEffect(() => {
+    if (allRequiredComplete) setSubmitError(null);
+  }, [allRequiredComplete]);
+
   const checklistPdfFilename = (caseReference: string) =>
     `QEEG_Symptom_Checklist_Completed_${caseReference}.pdf`;
 
@@ -832,7 +833,17 @@ function PortalDashboardContent() {
         // Payment-authorisation failure: the account/wallet could not be
         // validated for funds, so the case is blocked. Surface a dedicated
         // popup (with the logged-in username) instead of a generic banner.
-        if (data.errorCode === "PAYMENT_FAILED") {
+        // Any payment refusal (insufficient funds, instrument declined, etc.)
+        // is surfaced via the dedicated payment-error popup. The backend maps
+        // the raw PayPal failure to a stable errorCode + friendly message.
+        const PAYMENT_ERROR_CODES = [
+          "PAYMENT_FAILED",
+          "INSUFFICIENT_FUNDS",
+          "INSTRUMENT_DECLINED",
+          "FUNDING_SOURCE_LIMIT",
+          "PAYER_ACCOUNT_LOCKED",
+        ];
+        if (data.errorCode && PAYMENT_ERROR_CODES.includes(data.errorCode)) {
           setShowPaymentModal(false);
           setSubmitting(false);
           setPaymentError(
@@ -1138,7 +1149,7 @@ function PortalDashboardContent() {
   });
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-fadeIn">
+    <div className="w-full space-y-8 animate-fadeIn">
       {/* Top Header Banner */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
         <div>
@@ -1352,7 +1363,7 @@ function PortalDashboardContent() {
       {/* 2. NEW REPORT REQUEST WORKFLOW (2-Tab Layout: Files & Case Reference / Symptom Checklist & PDF) */}
       {/* ==================================================== */}
       {currentView === "new" && (
-        <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn">
+        <div className="w-full space-y-8 animate-fadeIn">
           {/* Workflow Tabs: Tab 1 = Files & Case Reference, Tab 2 = Live Symptom Checklist & PDF */}
           <div className="bg-white rounded-2xl p-3 border border-slate-200 shadow-xs">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -2148,7 +2159,7 @@ function PortalDashboardContent() {
       {/* 3. BILLING HISTORY VIEW (Matching exact design) */}
       {/* ==================================================== */}
       {currentView === "billing" && (
-        <div className="max-w-5xl mx-auto space-y-6 animate-fadeIn">
+        <div className="w-full space-y-6 animate-fadeIn">
           <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
             {/* Header */}
             <div className="p-6 sm:p-8 pb-5">
@@ -2231,7 +2242,7 @@ function PortalDashboardContent() {
       {/* 4. ACCOUNT SETTINGS VIEW */}
       {/* ==================================================== */}
       {currentView === "account" && (
-        <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn">
+        <div className="w-full space-y-6 animate-fadeIn">
           <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
             <div>
               <h2 className="text-xl sm:text-2xl font-serif text-[#16233B] font-normal tracking-tight">
@@ -2372,7 +2383,7 @@ function PortalDashboardContent() {
       {/* 5. SUPPORT VIEW */}
       {/* ==================================================== */}
       {currentView === "support" && (
-        <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn">
+        <div className="w-full space-y-6 animate-fadeIn">
           <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
             <div>
               <h2 className="text-xl sm:text-2xl font-serif text-[#16233B] font-normal tracking-tight">
@@ -2430,8 +2441,8 @@ function PortalDashboardContent() {
       {/* IDENTITY STAMPING DOWNLOAD MODAL */}
       {/* ==================================================== */}
       {showIdentityModal && selectedReportForDownload && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 animate-fadeIn">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-start justify-center overflow-y-auto p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full my-auto p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 animate-fadeIn">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-emerald-600" />
@@ -2539,8 +2550,8 @@ function PortalDashboardContent() {
       {/* INTERACTIVE MOCK PAYPAL MODAL */}
       {/* ==================================================== */}
       {showPaymentModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-6 animate-fadeIn relative overflow-hidden">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-start justify-center overflow-y-auto p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full my-auto p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-6 animate-fadeIn relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#003087]" />
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -2736,8 +2747,8 @@ function PortalDashboardContent() {
       {/* PAYMENT AUTHORISATION FAILURE POPUP */}
       {/* ==================================================== */}
       {paymentError && (
-        <div className="fixed inset-0 z-[60] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 animate-fadeIn relative overflow-hidden">
+        <div className="fixed inset-0 z-[60] bg-slate-900/70 backdrop-blur-sm flex items-start justify-center overflow-y-auto p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full my-auto p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 animate-fadeIn relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-red-500" />
             <div className="flex items-start gap-4">
               <div className="w-11 h-11 shrink-0 bg-red-50 border border-red-200 rounded-2xl flex items-center justify-center text-red-600">
@@ -2799,8 +2810,8 @@ function PortalDashboardContent() {
       {/* LEGAL ACCEPTANCE BARRIER (DPA / EULA) */}
       {/* ==================================================== */}
       {!legalLoading && legalPending.length > 0 && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 animate-fadeIn">
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-start justify-center overflow-y-auto p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full my-auto p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 animate-fadeIn">
             <div className="flex items-center gap-2">
               <Scale className="w-5 h-5 text-[#16233B]" />
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -2898,6 +2909,10 @@ export default function PortalPage() {
     clientId: getPayPalClientId(),
     currency: "AUD",
     intent: "authorize",
+    // Structural disallow of Pay Later / Pay in 4 / PayPal Credit: only full
+    // upfront payment is accepted. The backend also rejects any CAPTURE-intent
+    // order from the SDK, so this is enforced on both sides.
+    "disable-funding": "paylater,credit",
   };
 
   return (

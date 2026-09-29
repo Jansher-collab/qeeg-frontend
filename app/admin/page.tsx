@@ -906,8 +906,8 @@ function AdminDashboardContent() {
 
       {/* Main Content Shell */}
       <div className="flex-1 min-w-0 lg:pl-64 flex flex-col min-h-screen">
-        <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-8">
-          <div className="max-w-6xl mx-auto space-y-8 animate-fadeIn">
+        <main className="flex-1 max-w-[1440px] mx-auto w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-16 py-8">
+          <div className="w-full space-y-8 animate-fadeIn">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
               <div>
                 <div className="flex items-center gap-2 mb-1">
@@ -951,7 +951,7 @@ function AdminDashboardContent() {
 
             {currentView === "pending" ? (
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between">
+                <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
                   <h2 className="text-lg font-serif text-[#16233B]">Active Pipeline ({reports.length})</h2>
                   <button
                     onClick={fetchReports}
@@ -1329,7 +1329,7 @@ function AdminDashboardContent() {
                 )}
 
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between gap-3">
+                  <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-[#16233B]/5 border border-[#16233B]/10 text-[#16233B] flex items-center justify-center">
                         <History className="w-5 h-5" />
@@ -1478,7 +1478,7 @@ function AdminDashboardContent() {
                 </div>
 
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between gap-3">
+                  <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
                     <div>
                       <h2 className="text-lg font-serif text-[#16233B]">Source PDFs ({knowledgeSourcePdfs.length})</h2>
                       <p className="text-xs text-slate-500 mt-1">
@@ -1759,7 +1759,7 @@ function AdminDashboardContent() {
                 </div>
 
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between gap-3">
+                  <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-[#16233B]/5 border border-[#16233B]/10 text-[#16233B] flex items-center justify-center">
                         <Settings className="w-5 h-5" />
@@ -1816,7 +1816,7 @@ function AdminDashboardContent() {
         </main>
 
         <footer className="bg-white border-t border-slate-200 py-4 text-xs text-slate-500">
-          <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <div className="max-w-[1440px] mx-auto w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-16 flex flex-col sm:flex-row items-center justify-between gap-2">
             <span>QEEG.com.au Admin Control Panel · Sydney VPS Hosted</span>
             <span>Australian Infrastructure</span>
           </div>
