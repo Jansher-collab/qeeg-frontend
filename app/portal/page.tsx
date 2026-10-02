@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, Suspense } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { parseQeegTdtInBrowser } from "@/lib/reliabilityParser";
@@ -233,7 +234,7 @@ function PortalDashboardContent() {
   // Bring the payment modal into view the instant it opens, even if the user
   // clicked "Pay" while scrolled deep into the dashboard or billing table.
   useEffect(() => {
-    if (showPaymentModal) window.scrollTo({ top: 0, behavior: "smooth" });
+    if (showPaymentModal) window.scrollTo({ top: 0, behavior: "instant" });
   }, [showPaymentModal]);
 
   useAutoDismiss(submitSuccess, () => setSubmitSuccess(null));
@@ -2561,8 +2562,11 @@ function PortalDashboardContent() {
       {/* ==================================================== */}
       {/* IDENTITY STAMPING DOWNLOAD MODAL */}
       {/* ==================================================== */}
-      {showIdentityModal && selectedReportForDownload && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto overscroll-contain p-4 sm:p-6">
+      {typeof document !== "undefined" &&
+        showIdentityModal &&
+        selectedReportForDownload &&
+        createPortal(
+          <div className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto overscroll-contain p-4 sm:p-6">
           <div className="bg-white rounded-3xl max-w-md w-full my-auto p-6 sm:p-8 shadow-2xl ring-1 ring-slate-900/5 border border-slate-200 space-y-5 animate-fadeIn">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -2664,14 +2668,17 @@ function PortalDashboardContent() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ==================================================== */}
       {/* INTERACTIVE MOCK PAYPAL MODAL */}
       {/* ==================================================== */}
-      {showPaymentModal &&
-        (() => {
+      {typeof document !== "undefined" &&
+        showPaymentModal &&
+        createPortal(
+          (() => {
           // Amount context for THIS payment round. New-case flow: full $65 fee,
           // nothing paid yet. Existing-report flow: the report's remaining
           // balance after its already-captured installments.
@@ -2680,8 +2687,8 @@ function PortalDashboardContent() {
           const remainingAmt = Math.max(0, Math.round((feeAmt - paidAmt) * 100) / 100);
           const selectedAmt = installmentAmount > 0 ? Math.min(installmentAmount, remainingAmt) : remainingAmt;
           return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 sm:p-6 overflow-y-auto overscroll-contain">
-          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl ring-1 ring-slate-900/5 border border-slate-200 p-6 sm:p-8 space-y-6 animate-fadeIn overflow-hidden max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto overscroll-contain">
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl ring-1 ring-slate-900/5 border border-slate-200 p-6 sm:p-8 space-y-6 animate-fadeIn overflow-hidden max-h-[85vh] overflow-y-auto">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#003087]" />
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -2948,14 +2955,18 @@ function PortalDashboardContent() {
             </div>
           </div>
         </div>
-        );
-        })()}
+      );
+        })(),
+        document.body
+      )}
 
       {/* ==================================================== */}
       {/* PAYMENT AUTHORISATION FAILURE POPUP */}
       {/* ==================================================== */}
-      {paymentError && (
-        <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto overscroll-contain p-4 sm:p-6">
+      {typeof document !== "undefined" &&
+        paymentError &&
+        createPortal(
+          <div className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto overscroll-contain p-4 sm:p-6">
           <div className="bg-white rounded-3xl max-w-md w-full my-auto p-6 sm:p-8 shadow-2xl ring-1 ring-slate-900/5 border border-slate-200 space-y-5 animate-fadeIn relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-red-500" />
             <div className="flex items-start gap-4">
@@ -3011,14 +3022,18 @@ function PortalDashboardContent() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ==================================================== */}
       {/* LEGAL ACCEPTANCE BARRIER (DPA / EULA) */}
       {/* ==================================================== */}
-      {!legalLoading && legalPending.length > 0 && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto overscroll-contain p-4 sm:p-6">
+      {typeof document !== "undefined" &&
+        !legalLoading &&
+        legalPending.length > 0 &&
+        createPortal(
+          <div className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto overscroll-contain p-4 sm:p-6">
           <div className="bg-white rounded-3xl max-w-lg w-full my-auto p-6 sm:p-8 shadow-2xl ring-1 ring-slate-900/5 border border-slate-200 space-y-5 animate-fadeIn">
             <div className="flex items-center gap-2">
               <Scale className="w-5 h-5 text-[#16233B]" />
@@ -3106,7 +3121,8 @@ function PortalDashboardContent() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
