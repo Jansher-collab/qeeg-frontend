@@ -230,6 +230,12 @@ function PortalDashboardContent() {
   );
   useModalScrollLock(isAnyModalOpen);
 
+  // Bring the payment modal into view the instant it opens, even if the user
+  // clicked "Pay" while scrolled deep into the dashboard or billing table.
+  useEffect(() => {
+    if (showPaymentModal) window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [showPaymentModal]);
+
   useAutoDismiss(submitSuccess, () => setSubmitSuccess(null));
   useAutoDismiss(profileSaveSuccess, () => setProfileSaveSuccess(false));
   useAutoDismiss(legalError, () => setLegalError(null));
@@ -2674,8 +2680,8 @@ function PortalDashboardContent() {
           const remainingAmt = Math.max(0, Math.round((feeAmt - paidAmt) * 100) / 100);
           const selectedAmt = installmentAmount > 0 ? Math.min(installmentAmount, remainingAmt) : remainingAmt;
           return (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto overscroll-contain p-4 sm:p-6">
-          <div className="bg-white rounded-3xl max-w-md w-full my-auto p-6 sm:p-8 shadow-2xl ring-1 ring-slate-900/5 border border-slate-200 space-y-6 animate-fadeIn relative overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 sm:p-6 overflow-y-auto overscroll-contain">
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl ring-1 ring-slate-900/5 border border-slate-200 p-6 sm:p-8 space-y-6 animate-fadeIn overflow-hidden max-h-[90vh] overflow-y-auto">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#003087]" />
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
