@@ -16,10 +16,53 @@ import {
   KeyRound,
 } from "lucide-react";
 
+/**
+ * Per-field validation messages, keyed by field name. Populated client-side
+ * before submit and merged with the server's 422 `fieldErrors` so both layers
+ * speak the same shape and the UI has a single place to read from.
+ */
+type FieldErrors = Record<string, string>;
+
+/**
+ * Mandatory practitioner fields. Each is rendered into the generated report
+ * header, and `professionalTitle` is additionally required by
+ * `checklist-definition.json` — so a blank here permanently blocks case
+ * submission rather than merely looking untidy.
+ */
+const REQUIRED_FIELD_LABELS: Record<string, string> = {
+  fullName: "Full Name & Post-Nominals",
+  professionalTitle: "Professional Title / Credentials",
+  profession: "Profession / Registration Type",
+  providerNumber: "Registration / Provider Number",
+  clinicName: "Practice / Clinic Name",
+  practiceAddress: "Practice Address",
+  phone: "Practice Contact Phone",
+  email: "Login & Notification Email",
+  password: "Password",
+};
+
+/** Shared input styling, with an invalid state driven by fieldErrors. */
+function fieldClass(invalid: boolean) {
+  return `w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] focus:ring-1 focus:ring-[#16233B] outline-none transition-all placeholder:text-slate-400 font-sans ${
+    invalid ? "border-rose-400 bg-rose-50/40" : "border-slate-200"
+  }`;
+}
+
+/** Inline, field-level error text. Rendered directly beneath its input. */
+function FieldErrorText({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <span className="block text-[11px] text-rose-600 mt-1 leading-snug" role="alert">
+      {message}
+    </span>
+  );
+}
+
 export default function SignupPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [step, setStep] = useState<"form" | "2fa">("form");
   const [legalChecked, setLegalChecked] = useState({ dpa: false, eula: false });
   // Opaque server-side handle for the staged (not yet persisted) registration.
@@ -88,12 +131,42 @@ export default function SignupPage() {
     e.preventDefault();
     setError(null);
 
-    if (formData.password.length < 8) {
-      setError("Password must be at least 8 characters long.");
-      return;
+    // Client-side mandatory-field pass. Every field is checked BEFORE any
+    // network call so the practitioner sees all gaps at once, rather than
+    // discovering them one round-trip at a time.
+    const nextErrors: FieldErrors = {};
+    for (const [key, label] of Object.entries(REQUIRED_FIELD_LABELS)) {
+      const value = (formData as Record<string, string>)[key];
+      if (typeof value !== "string" || value.trim() === "") {
+        nextErrors[key] = `${label} is required.`;
+      }
     }
-    if (!legalChecked.dpa || !legalChecked.eula) {
-      setError("You must accept both the Data Processing Agreement and the End User Licence Agreement to continue.");
+    if (!nextErrors.phone && formData.phone.replace(/\D/g, "").length < 7) {
+      nextErrors.phone = "Practice Contact Phone must contain at least 7 digits.";
+    }
+    if (formData.email.trim() !== "" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      nextErrors.email = "Enter a valid email address.";
+    }
+    if (!nextErrors.password && formData.password.length < 8) {
+      nextErrors.password = "Password must be at least 8 characters long.";
+    }
+
+    // The two statutory agreements are mandatory and must be affirmatively
+    // ticked, so they are enforced as fields in their own right.
+    if (!legalChecked.dpa) {
+      nextErrors.dpa = "You must accept the Data Processing Agreement to continue.";
+    }
+    if (!legalChecked.eula) {
+      nextErrors.eula = "You must accept the End User Licence Agreement to continue.";
+    }
+
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      setError(
+        `Please complete ${Object.keys(nextErrors).length} required field${
+          Object.keys(nextErrors).length === 1 ? "" : "s"
+        } before continuing. The missing fields are highlighted below.`
+      );
       return;
     }
 
@@ -130,8 +203,22 @@ export default function SignupPage() {
       const data = await res.json();
 
       if (!res.ok) {
+        // The server re-validates independently. Surface its per-field
+        // breakdown so the UI can point at the exact offending inputs instead
+        // of showing one opaque message.
+        const serverFieldErrors: FieldErrors = {};
+        for (const fe of data.fieldErrors || []) {
+          if (fe && typeof fe.field === "string" && typeof fe.message === "string") {
+            serverFieldErrors[fe.field] = fe.message;
+          }
+        }
+        if (Object.keys(serverFieldErrors).length > 0) {
+          setFieldErrors(serverFieldErrors);
+        }
         throw new Error(data.error || "Failed to create account.");
       }
+
+      setFieldErrors({});
 
       setPendingId(data.pendingId);
 
@@ -247,24 +334,35 @@ export default function SignupPage() {
                 <input
                   type="text"
                   required
+                  aria-invalid={!!fieldErrors.fullName}
+                  aria-describedby={fieldErrors.fullName ? "err-fullName" : undefined}
                   value={formData.fullName}
                   onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                   placeholder="Dr Jane Smith, PhD"
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] focus:ring-1 focus:ring-[#16233B] outline-none transition-all placeholder:text-slate-400 font-sans"
+                  className={fieldClass(!!fieldErrors.fullName)}
                 />
+                <span id="err-fullName">
+                  <FieldErrorText message={fieldErrors.fullName} />
+                </span>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5 font-sans">
-                  Professional Title / Credentials
+                  Professional Title / Credentials *
                 </label>
                 <input
                   type="text"
+                  required
+                  aria-invalid={!!fieldErrors.professionalTitle}
+                  aria-describedby={fieldErrors.professionalTitle ? "err-professionalTitle" : undefined}
                   value={formData.professionalTitle}
                   onChange={(e) => setFormData({ ...formData, professionalTitle: e.target.value })}
                   placeholder="Senior Clinical Specialist"
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] focus:ring-1 focus:ring-[#16233B] outline-none transition-all placeholder:text-slate-400 font-sans"
+                  className={fieldClass(!!fieldErrors.professionalTitle)}
                 />
+                <span id="err-professionalTitle">
+                  <FieldErrorText message={fieldErrors.professionalTitle} />
+                </span>
               </div>
             </div>
 
@@ -276,24 +374,33 @@ export default function SignupPage() {
                 <input
                   type="text"
                   required
+                  aria-invalid={!!fieldErrors.profession}
                   value={formData.profession}
                   onChange={(e) => setFormData({ ...formData, profession: e.target.value })}
                   placeholder="e.g. Psychologist, Neurologist, GP"
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] focus:ring-1 focus:ring-[#16233B] outline-none transition-all placeholder:text-slate-400 font-sans"
+                  className={fieldClass(!!fieldErrors.profession)}
                 />
+                <span>
+                  <FieldErrorText message={fieldErrors.profession} />
+                </span>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5 font-sans">
-                  Registration / Provider Number
+                  Registration / Provider Number *
                 </label>
                 <input
                   type="text"
+                  required
+                  aria-invalid={!!fieldErrors.providerNumber}
                   value={formData.providerNumber}
                   onChange={(e) => setFormData({ ...formData, providerNumber: e.target.value })}
                   placeholder="e.g. PR-88921-VIC / PSY000123"
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] focus:ring-1 focus:ring-[#16233B] outline-none transition-all placeholder:text-slate-400 font-sans"
+                  className={fieldClass(!!fieldErrors.providerNumber)}
                 />
+                <span>
+                  <FieldErrorText message={fieldErrors.providerNumber} />
+                </span>
               </div>
             </div>
 
@@ -305,38 +412,52 @@ export default function SignupPage() {
                 <input
                   type="text"
                   required
+                  aria-invalid={!!fieldErrors.clinicName}
                   value={formData.clinicName}
                   onChange={(e) => setFormData({ ...formData, clinicName: e.target.value })}
                   placeholder="Riverside NeuroCare Practice"
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] focus:ring-1 focus:ring-[#16233B] outline-none transition-all placeholder:text-slate-400 font-sans"
+                  className={fieldClass(!!fieldErrors.clinicName)}
                 />
+                <span>
+                  <FieldErrorText message={fieldErrors.clinicName} />
+                </span>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5 font-sans">
-                  Practice Contact Phone
+                  Practice Contact Phone *
                 </label>
                 <input
                   type="tel"
+                  required
+                  aria-invalid={!!fieldErrors.phone}
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   placeholder="+61 3 9820 1144"
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] focus:ring-1 focus:ring-[#16233B] outline-none transition-all placeholder:text-slate-400 font-sans"
+                  className={fieldClass(!!fieldErrors.phone)}
                 />
+                <span>
+                  <FieldErrorText message={fieldErrors.phone} />
+                </span>
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5 font-sans">
-                Practice Address
+                Practice Address *
               </label>
               <input
                 type="text"
+                required
+                aria-invalid={!!fieldErrors.practiceAddress}
                 value={formData.practiceAddress}
                 onChange={(e) => setFormData({ ...formData, practiceAddress: e.target.value })}
                 placeholder="Suite 4B, 120 Collins Street, Melbourne VIC 3000"
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] focus:ring-1 focus:ring-[#16233B] outline-none transition-all placeholder:text-slate-400 font-sans"
+                className={fieldClass(!!fieldErrors.practiceAddress)}
               />
+              <span>
+                <FieldErrorText message={fieldErrors.practiceAddress} />
+              </span>
             </div>
 
             <div>
@@ -346,11 +467,15 @@ export default function SignupPage() {
               <input
                 type="email"
                 required
+                aria-invalid={!!fieldErrors.email}
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="practitioner@clinic.com.au"
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] focus:ring-1 focus:ring-[#16233B] outline-none transition-all placeholder:text-slate-400 font-sans"
+                className={fieldClass(!!fieldErrors.email)}
               />
+              <span>
+                <FieldErrorText message={fieldErrors.email} />
+              </span>
             </div>
 
             <div>
@@ -363,11 +488,15 @@ export default function SignupPage() {
                 required
                 autoComplete="new-password"
                 aria-label="Password"
+                aria-invalid={!!fieldErrors.password}
                 placeholder="••••••••"
                 className="px-4 py-2.5"
               />
               <span className="text-[11px] text-slate-400 mt-1 block">
                 Must be at least 8 characters long.
+              </span>
+              <span>
+                <FieldErrorText message={fieldErrors.password} />
               </span>
             </div>
 
@@ -384,9 +513,13 @@ export default function SignupPage() {
               <label className="flex items-start gap-3 cursor-pointer group">
                 <input
                   type="checkbox"
+                  required
                   checked={legalChecked.dpa}
+                  aria-invalid={!!fieldErrors.dpa}
                   onChange={(e) => setLegalChecked({ ...legalChecked, dpa: e.target.checked })}
-                  className="mt-0.5 w-4 h-4 rounded border-slate-300 text-[#16233B] focus:ring-[#16233B] cursor-pointer"
+                  className={`mt-0.5 w-4 h-4 rounded border-slate-300 text-[#16233B] focus:ring-[#16233B] cursor-pointer ${
+                    fieldErrors.dpa ? "border-rose-500 ring-1 ring-rose-400" : ""
+                  }`}
                 />
                 <span className="text-xs text-slate-600 leading-relaxed font-normal">
                   I have read and agree to the{" "}
@@ -398,14 +531,19 @@ export default function SignupPage() {
                     Data Processing Agreement
                   </Link>{" "}
                   (Version {legalVersions.DPA || FALLBACK_LEGAL_VERSION}).
+                  <FieldErrorText message={fieldErrors.dpa} />
                 </span>
               </label>
               <label className="flex items-start gap-3 cursor-pointer group">
                 <input
                   type="checkbox"
+                  required
                   checked={legalChecked.eula}
+                  aria-invalid={!!fieldErrors.eula}
                   onChange={(e) => setLegalChecked({ ...legalChecked, eula: e.target.checked })}
-                  className="mt-0.5 w-4 h-4 rounded border-slate-300 text-[#16233B] focus:ring-[#16233B] cursor-pointer"
+                  className={`mt-0.5 w-4 h-4 rounded border-slate-300 text-[#16233B] focus:ring-[#16233B] cursor-pointer ${
+                    fieldErrors.eula ? "border-rose-500 ring-1 ring-rose-400" : ""
+                  }`}
                 />
                 <span className="text-xs text-slate-600 leading-relaxed font-normal">
                   I have read and agree to the{" "}
@@ -417,6 +555,7 @@ export default function SignupPage() {
                     End User Licence Agreement
                   </Link>{" "}
                   (Version {legalVersions.EULA || FALLBACK_LEGAL_VERSION}).
+                  <FieldErrorText message={fieldErrors.eula} />
                 </span>
               </label>
             </div>

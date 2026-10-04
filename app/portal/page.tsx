@@ -331,6 +331,7 @@ function PortalDashboardContent() {
   const [profileFormData, setProfileFormData] = useState<Partial<Profile>>({});
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaveSuccess, setProfileSaveSuccess] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
 
   // File Input References
   const qeegFileInputRef = useRef<HTMLInputElement>(null);
@@ -1038,6 +1039,23 @@ tovaData,
           );
           return;
         }
+        // Mandatory-field rejection (422). The server validates every field
+        // independently of the browser, so this is the authoritative list of
+        // what is still missing. Close the payment modal and show the specific
+        // field labels rather than a generic failure.
+        if (submitRes.status === 422 && Array.isArray(data.fieldErrors)) {
+          setShowPaymentModal(false);
+          setSubmitting(false);
+          setPaymentError(null);
+          const labels = data.fieldErrors
+            .map((fe: { label?: string; field?: string }) => fe?.label || fe?.field)
+            .filter(Boolean);
+          setSubmitError(
+            `Please complete every required field before submitting. Missing: ${labels.join("; ")}.`
+          );
+          return;
+        }
+
         throw new Error(data.error || "Submission failed.");
       }
 
@@ -1286,27 +1304,64 @@ body: JSON.stringify({ paypalOrderId, paymentPlan, amount: selectedAmt }),
     }
   };
 
-  const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const profileFieldClass = "w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] outline-none transition-all";
+
+  /** Profile fields that feed the report header; all mandatory. */
+  const REQUIRED_PROFILE_KEYS = [
+    "fullName",
+    "professionalTitle",
+    "profession",
+    "providerNumber",
+    "clinicName",
+    "practiceAddress",
+    "phone",
+  ] as const;
+
+const handleSaveProfile = async (e: React.FormEvent) => {
+  e.preventDefault();
     setProfileSaving(true);
     setProfileSaveSuccess(false);
 
-    try {
+    // Mandatory-field pass before the request. These all feed the generated
+    // report header, and a blank here would block case submission later.
+    const missing = REQUIRED_PROFILE_KEYS.filter(
+      (key) => String(profileFormData[key] ?? "").trim() === ""
+    );
+    if (missing.length > 0) {
+      setProfileSaving(false);
+      setProfileError(
+        `Please complete every required field: ${missing.join(", ")}.`
+      );
+ return;
+    }
+
+    setProfileError(null);
+
+ try {
       const res = await fetch("/api/practitioner/profile", {
-        method: "PUT",
+      method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify(profileFormData),
       });
 
       if (!res.ok) {
-        throw new Error("Failed to update profile.");
+        // Surface the server's per-field breakdown when it provides one.
+        const data = await res.json().catch(() => null);
+   if (data?.fieldErrors?.length) {
+  setProfileError(
+            `Please complete: ${data.fieldErrors.map((f: any) => f.label ?? f.field).join(", ")}.`
+          );
+        } else {
+          setProfileError(data?.error || "Failed to update profile.");
+        }
+        return;
       }
 
       setProfileSaveSuccess(true);
       fetchDashboardData();
     } catch (err: any) {
-      alert(err.message || "Update failed.");
+      setProfileError(err.message || "Update failed.");
     } finally {
       setProfileSaving(false);
     }
@@ -2108,10 +2163,18 @@ const badge = getStatusBadge(report);
                                 field.required && String(value ?? "").trim() === "" && !isLocked;
                               const isMissingCheck =
                                 field.required && field.type === "checkbox" && !value;
-                              const isMissingSelect =
+const isMissingSelect =
                                 field.required && field.type === "select" && String(value ?? "").trim() === "";
+                              // HTML5 `required` is driven by the SAME `required`
+                              // flag as the custom missing-field validation, so the
+                              // two layers can never disagree. Locked/readonly fields
+                              // render as static text rather than inputs, so `required`
+                              // is omitted (an attribute on a div would be meaningless)
+                              // and they are validated separately in
+                              // missingChecklistFields().
+                              const htmlRequired = !!field.required && !isLocked;
                               const baseInput =
-                                "w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs text-slate-900 focus:bg-white focus:border-[#16233B] outline-none transition-all";
+  "w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs text-slate-900 focus:bg-white focus:border-[#16233B] outline-none transition-all";
 
                               if (field.type === "checkbox") {
                                 return (
@@ -2119,12 +2182,16 @@ const badge = getStatusBadge(report);
                                     key={field.key}
                                     className="flex items-start gap-2.5 cursor-pointer select-none sm:col-span-2"
                                   >
-                                    <input
-                                      type="checkbox"
-                                      checked={!!value}
-                                      onChange={(e) => setCaseBoundFieldValue(field, e.target.checked)}
-                                      className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#16233B] focus:ring-[#16233B]"
-                                    />
+<input
+   type="checkbox"
+    required={htmlRequired}
+  name={field.key}
+   checked={!!value}
+         onChange={(e) => setCaseBoundFieldValue(field, e.target.checked)}
+  className={`mt-0.5 h-4 w-4 rounded border-slate-300 text-[#16233B] focus:ring-[#16233B] ${
+          isMissingCheck ? "border-rose-400 ring-1 ring-rose-300" : ""
+                                          }`}
+    />
                                     <span className="text-[11px] leading-snug">
                                       <span
                                         className={`font-semibold ${
@@ -2160,13 +2227,16 @@ const badge = getStatusBadge(report);
                                         {String(value ?? "")}
                                       </div>
                                     ) : (
-                                      <select
+<select
+    required={htmlRequired}
+            name={field.key}
+  aria-invalid={isMissingSelect}
                                         value={selectMatched ? selectValue : ""}
-                                        onChange={(e) => setCaseBoundFieldValue(field, e.target.value)}
-                                        className={`${baseInput} ${
-                                          isMissingSelect ? "border-rose-300" : "border-slate-200"
-                                        }`}
-                                      >
+    onChange={(e) => setCaseBoundFieldValue(field, e.target.value)}
+        className={`${baseInput} ${
+            isMissingSelect ? "border-rose-400 bg-rose-50/40" : "border-slate-200"
+             }`}
+  >
                                         <option value="">Select…</option>
                                         {(field.options || []).map((o) => (
                                           <option key={o.value} value={o.value}>
@@ -2185,15 +2255,18 @@ const badge = getStatusBadge(report);
                                     <label className="block text-[10px] font-semibold text-slate-600 mb-1">
                                       {field.label}
                                     </label>
-                                    <textarea
-                                      value={String(value ?? "")}
-                                      onChange={(e) => setCaseBoundFieldValue(field, e.target.value)}
-                                      rows={3}
-                                      placeholder={field.placeholder}
-                                      className={`${baseInput} resize-y ${
-                                        isMissingText ? "border-rose-300" : "border-slate-200"
-                                      }`}
-                                    />
+<textarea
+        required={htmlRequired}
+  name={field.key}
+      aria-invalid={isMissingText}
+value={String(value ?? "")}
+   onChange={(e) => setCaseBoundFieldValue(field, e.target.value)}
+      rows={3}
+   placeholder={field.placeholder}
+className={`${baseInput} resize-y ${
+      isMissingText ? "border-rose-400 bg-rose-50/40" : "border-slate-200"
+          }`}
+   />
                                   </div>
                                 );
                               }
@@ -2212,19 +2285,22 @@ const badge = getStatusBadge(report);
                                     <label className="block text-[10px] font-semibold text-slate-600 mb-1">
                                       {field.label}
                                     </label>
-                                    <input
-                                      type="date"
-                                      value={lockedValue}
-                                      min={today ?? undefined}
-                                      max={today ?? undefined}
-                                      onChange={(e) => {
-                                        const next = e.target.value;
-                                        setCaseBoundFieldValue(field, today !== null && next !== today ? today : next);
-                                      }}
-                                      className={`${baseInput} ${
-                                        isMissingText ? "border-rose-300" : "border-slate-200"
-                                      }`}
-                                    />
+<input
+    type="date"
+            required={htmlRequired}
+ name={field.key}
+        aria-invalid={isMissingText}
+value={lockedValue}
+           min={today ?? undefined}
+       max={today ?? undefined}
+       onChange={(e) => {
+   const next = e.target.value;
+      setCaseBoundFieldValue(field, today !== null && next !== today ? today : next);
+            }}
+        className={`${baseInput} ${
+          isMissingText ? "border-rose-400 bg-rose-50/40" : "border-slate-200"
+          }`}
+            />
                                   </div>
                                 );
                               }
@@ -2246,15 +2322,18 @@ const badge = getStatusBadge(report);
                                       )}
                                     </div>
                                   ) : (
-                                    <input
-                                      type="text"
-                                      value={String(value ?? "")}
-                                      onChange={(e) => setCaseBoundFieldValue(field, e.target.value)}
-                                      placeholder={field.placeholder}
-                                      className={`${baseInput} ${
-                                        isMissingText ? "border-rose-300" : "border-slate-200"
-                                      }`}
-                                    />
+<input
+  type="text"
+          required={htmlRequired}
+      name={field.key}
+        aria-invalid={isMissingText}
+  value={String(value ?? "")}
+    onChange={(e) => setCaseBoundFieldValue(field, e.target.value)}
+placeholder={field.placeholder}
+className={`${baseInput} ${
+          isMissingText ? "border-rose-400 bg-rose-50/40" : "border-slate-200"
+        }`}
+   />
                                   )}
                                 </div>
                               );
@@ -2594,101 +2673,115 @@ onClick={() => {
               </p>
             </div>
 
-            {profileSaveSuccess && (
-              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Practitioner profile successfully updated and saved to sovereign database.</span>
-              </div>
-            )}
+{profileSaveSuccess && (
+       <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+      <span>Practitioner profile successfully updated and saved to sovereign database.</span>
+        </div>
+    )}
+      {profileError && (
+  <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs leading-relaxed" role="alert">
+            {profileError}
+  </div>
+   )}
 
             <form onSubmit={handleSaveProfile} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
+<div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Full Name &amp; Post-Nominals
+                    Full Name &amp; Post-Nominals *
                   </label>
                   <input
-                    type="text"
-                    value={profileFormData.fullName || ""}
-                    onChange={(e) =>
-                      setProfileFormData({ ...profileFormData, fullName: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] outline-none transition-all"
-                  />
-                </div>
+type="text"
+ required
+   value={profileFormData.fullName || ""}
+   onChange={(e) =>
+    setProfileFormData({ ...profileFormData, fullName: e.target.value })
+     }
+    className={profileFieldClass}
+          />
+            </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Professional Title / Discipline
-                  </label>
-                  <input
-                    type="text"
-                    value={profileFormData.profession || ""}
-                    onChange={(e) =>
-                      setProfileFormData({ ...profileFormData, profession: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] outline-none transition-all"
-                  />
-                </div>
+    <div>
+       <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+        Professional Title / Credentials *
+   </label>
+                  {/* This field is required by the symptom checklist and was
+        previously read but never editable here, so a practitioner who skipped
+    it at signup could never complete a case. */}
+      <input
+       type="text"
+      required
+                    value={profileFormData.professionalTitle || ""}
+   onChange={(e) =>
+        setProfileFormData({ ...profileFormData, professionalTitle: e.target.value })
+  }
+          className={profileFieldClass}
+  />
+          </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Provider Number / Reg No
+Provider Number / Reg No *
                   </label>
-                  <input
-                    type="text"
-                    value={profileFormData.providerNumber || ""}
+   <input
+  type="text"
+                    required
+     value={profileFormData.providerNumber || ""}
                     onChange={(e) =>
-                      setProfileFormData({ ...profileFormData, providerNumber: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] outline-none transition-all font-mono"
-                  />
+  setProfileFormData({ ...profileFormData, providerNumber: e.target.value })
+          }
+          className={`${profileFieldClass} font-mono`}
+  />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Clinic / Practice Name
-                  </label>
-                  <input
-                    type="text"
-                    value={profileFormData.clinicName || ""}
-                    onChange={(e) =>
-                      setProfileFormData({ ...profileFormData, clinicName: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] outline-none transition-all"
-                  />
+Clinic / Practice Name *
+     </label>
+   <input
+type="text"
+    required
+           value={profileFormData.clinicName || ""}
+           onChange={(e) =>
+ setProfileFormData({ ...profileFormData, clinicName: e.target.value })
+    }
+            className={profileFieldClass}
+              />
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Practice Address
-                </label>
-                <input
-                  type="text"
-                  value={profileFormData.practiceAddress || ""}
-                  onChange={(e) =>
-                    setProfileFormData({ ...profileFormData, practiceAddress: e.target.value })
-                  }
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] outline-none transition-all"
-                />
+Practice Address *
+         </label>
+         <input
+         type="text"
+  required
+        value={profileFormData.practiceAddress || ""}
+        onChange={(e) =>
+     setProfileFormData({ ...profileFormData, practiceAddress: e.target.value })
+            }
+   className={profileFieldClass}
+   />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Practice Contact Phone
-                  </label>
-                  <input
-                    type="text"
-                    value={profileFormData.phone || ""}
-                    onChange={(e) =>
-                      setProfileFormData({ ...profileFormData, phone: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#16233B] outline-none transition-all"
-                  />
+Practice Contact Phone *
+     </label>
+             <input
+      type="tel"
+          required
+   value={profileFormData.phone || ""}
+            onChange={(e) =>
+         setProfileFormData({ ...profileFormData, phone: e.target.value })
+     }
+    className={profileFieldClass}
+        />
                 </div>
 
                 <div>
