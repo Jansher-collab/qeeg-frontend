@@ -52,11 +52,156 @@ interface Report {
   feeAmount: number;
   paidAmount: number;
   paymentStatus: string;
+  paymentsJson?: PaymentCaptureEntry[] | null;
   createdAt: string;
   updatedAt: string;
   downloadedAt: string | null;
   purgedAt: string | null;
   findings?: any;
+  /**
+   * Authoritative payment gate, derived server-side by buildPaymentGate().
+   * `downloadEligible` requires BOTH a finished analysis and the full fee.
+   * Optional so a response predating this field still renders (the local
+   * recompute below is the fallback), never trusted over the local check.
+   */
+  paymentGate?: {
+    paidAmount: number;
+    feeAmount: number;
+    remainingAmount: number;
+  fullyPaid: boolean;
+    paymentState: "NOT_STARTED" | "PARTIAL" | "PAID";
+    analysisComplete: boolean;
+    downloadEligible: boolean;
+  };
+}
+
+/** One captured PayPal installment, as recorded on QeeqReport.paymentsJson. */
+interface PaymentCaptureEntry {
+  authorizationId?: string;
+  captureId: string;
+  amount: number;
+  capturedAt: string;
+}
+
+/**
+ * The payment gate, mirroring buildPaymentGate() on the backend.
+ *
+ * "Has the customer finished paying?" and "is the analysis done?" are two
+ * INDEPENDENT facts. Conflating them is what previously let an underpaid case
+ * render as "Ready" with an enabled Download & Purge button, because the badge
+ * keyed off `status === COMPLETED` alone. Every status badge and action below
+ * must consult both.
+ */
+const isFullyPaid = (r: Report) =>
+  (r.paidAmount ?? 0) >= ((r.feeAmount ?? 65.0) - 0.005);
+
+/** Analysis finished AND the fee is settled in full. */
+const canDownload = (r: Report) => r.status === "COMPLETED" && isFullyPaid(r);
+
+/**
+ * Whether the fee is still owed. Kept separate from canPayRemaining because the
+ * billing table explains an outstanding balance even for states that are no
+ * longer open for payment (e.g. analysis finished but the ladder is short).
+ */
+const isPaymentPartial = (r: Report) =>
+  (r.paidAmount ?? 0) > 0 && !isFullyPaid(r);
+
+/** Whether the case is still accepting another installment. */
+const canPayRemaining = (r: Report) =>
+  r.status === "PAYMENT_AUTHORISED" &&
+  (r.paidAmount ?? 0) > 0 &&
+  !isFullyPaid(r);
+
+/** A single billable transaction row rendered in the billing history table. */
+interface BillingTransaction {
+  key: string;
+  reportId: string;
+  caseReference: string;
+  /** The exact amount captured in THIS transaction (e.g. 16.25 per stage). */
+  amount: number;
+  paidAt: string;
+  installmentNumber: number;
+  installmentCount: number;
+  /** Running total of captured stages, e.g. 32.50 after stage 2. */
+  runningTotal: number;
+  /** The report's full fee, so the table can render 16.25 / 65.00. */
+  feeAmount: number;
+}
+
+/**
+ * Flattens the cumulative `paidAmount` on each report into ONE row per captured
+ * payment so the billing history shows the amount actually taken in that
+ * specific transaction rather than implying the full fee was charged when a
+ * smaller amount was. Payment is normally a single full-amount capture; rows are
+ * keyed off `paymentsJson` so the real captured amounts are always shown.
+ * Legacy single-capture rows (paymentsJson null, paidAmount > 0) are
+ * reconstructed from the report totals so no transaction is ever hidden. Reports
+ * with no capture at all still produce one "authorised / awaiting payment" row
+ * so an open case stays visible.
+ */
+function buildBillingTransactions(reports: Report[]): BillingTransaction[] {
+  const rows: BillingTransaction[] = [];
+
+  for (const r of reports) {
+    const fee = Math.round((r.feeAmount || 65) * 100) / 100;
+    const paid = Math.max(0, Math.round((r.paidAmount || 0) * 100) / 100);
+    const entries = Array.isArray(r.paymentsJson) ? r.paymentsJson : [];
+
+    if (entries.length > 0) {
+      // Accumulate a running total so each row can show its progressive
+      // position on the ladder (16.25 / 65.00, then 32.50 / 65.00, ...).
+      // The ladder always totals the full fee, so the total stage count is
+      // derived from the fee, not from how many have landed so far.
+      const stageCount = Math.max(entries.length, Math.round((fee / 16.25) * 100) / 100);
+      let running = 0;
+      entries.forEach((entry, index) => {
+        const amount = Math.round((Number(entry.amount) || 0) * 100) / 100;
+  running = Math.round((running + amount) * 100) / 100;
+        rows.push({
+          key: `${r.id}-${entry.captureId || index}`,
+          reportId: r.id,
+     caseReference: r.caseReference,
+      amount,
+          paidAt: entry.capturedAt || r.updatedAt || r.createdAt,
+          installmentNumber: index + 1,
+   installmentCount: Math.round(stageCount),
+   runningTotal: running,
+    feeAmount: fee,
+        });
+      });
+      continue;
+    }
+
+    if (paid > 0) {
+      rows.push({
+key: `${r.id}-legacy`,
+        reportId: r.id,
+        caseReference: r.caseReference,
+      amount: paid,
+        paidAt: r.updatedAt || r.createdAt,
+        installmentNumber: 1,
+        installmentCount: 1,
+        runningTotal: paid,
+        feeAmount: fee,
+      });
+      continue;
+    }
+
+    rows.push({
+      key: `${r.id}-pending`,
+      reportId: r.id,
+    caseReference: r.caseReference,
+      amount: 0,
+      paidAt: r.createdAt,
+      installmentNumber: 0,
+      installmentCount: 0,
+      runningTotal: 0,
+      feeAmount: fee,
+    });
+  }
+
+  // Newest transaction first; each case's installments read top-down in order.
+  return rows.sort((a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime());
 }
 
 interface Profile {
@@ -160,8 +305,16 @@ function PortalDashboardContent() {
   // When set, the payment modal operates on an EXISTING report (a subsequent
   // installment payment against its remaining balance); null = new-case flow.
   const [payingReport, setPayingReport] = useState<Report | null>(null);
-  // Amount for THIS payment round (0 = pay the full remaining balance).
-  const [installmentAmount, setInstallmentAmount] = useState(0);
+// Which plan the buyer picked for THIS order. 'installments' means our own
+// 4-stage ladder: the backend hard-caps the order at ONE stage ($16.25) and
+  // the report stays on Payment Hold until all 4 stages are captured.
+  // 'full' means pay the whole $65.00 in one go.
+  const [paymentPlan, setPaymentPlan] = useState<"full" | "installments">("full");
+  // The exact amount the next order will request, in dollars. Derived from the
+  // plan and the report's outstanding balance; the backend re-derives it
+  // server-side and ignores anything larger, so this is display state only.
+  const [selectedAmt, setSelectedAmt] = useState<number>(65);
+  //
   // Guards against PayPal firing onApprove twice for the SAME approved order
   // (postrobot/iframe edge cases). Re-authorising a used order id returns
   // PayPal INVALID_RESOURCE_ID, so each order may be submitted exactly once.
@@ -843,8 +996,13 @@ function PortalDashboardContent() {
         checklistData,
         // TOVA is mandatory: only the de-identified, parsed metrics are ever
         // transmitted (never the raw file), and the server re-validates them.
-        tovaData,
-        paypalOrderId,
+tovaData,
+     paypalOrderId,
+   // Which plan this checkout used, and the stage amount. The backend re-derives
+        // and re-caps both, so a tampered payload cannot charge the full fee
+        // under an 'installments' claim.
+        paymentPlan,
+        amount: selectedAmt,
       };
 
       const submitRes = await fetch("/api/reports/submit", {
@@ -952,10 +1110,7 @@ function PortalDashboardContent() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          paypalOrderId,
-          amount: installmentAmount > 0 ? installmentAmount : undefined,
-        }),
+body: JSON.stringify({ paypalOrderId, paymentPlan, amount: selectedAmt }),
       });
       const text = await res.text();
       const data = text ? JSON.parse(text) : {};
@@ -971,7 +1126,6 @@ function PortalDashboardContent() {
         if (data.errorCode && PAYMENT_ERROR_CODES.includes(data.errorCode)) {
           setShowPaymentModal(false);
           setPayingReport(null);
-          setInstallmentAmount(0);
           setSubmitting(false);
           setPaymentError(
             data.error ||
@@ -988,7 +1142,6 @@ function PortalDashboardContent() {
           : "Payment received.";
       setShowPaymentModal(false);
       setPayingReport(null);
-      setInstallmentAmount(0);
       setSubmitSuccess({ caseReference: reportRef, generatedAt: new Date().toISOString(), message: paidMessage });
       fetchDashboardData();
       fetchBillingHistory();
@@ -1160,23 +1313,34 @@ function PortalDashboardContent() {
   };
 
   // Status mapping
-  const getStatusBadge = (status: string) => {
-    switch (status) {
+const getStatusBadge = (report: Report) => {
+    // Analysis completion does not imply entitlement. A report that finished
+    // correlation while still owing money is "Processing / Payment Hold", never
+    // "Ready", and its download action stays disabled.
+    if (report.status === "COMPLETED" && !isFullyPaid(report)) {
+      return {
+        label: "Payment Hold",
+        className: "bg-amber-50 text-amber-800 border-amber-200",
+        dotColor: "bg-amber-500",
+      };
+    }
+
+    switch (report.status) {
       case "COMPLETED":
-        return {
-          label: "Ready",
+      return {
+        label: "Ready",
           className: "bg-emerald-50 text-emerald-800 border-emerald-200",
           dotColor: "bg-emerald-500",
         };
       case "GENERATING":
       case "PENDING_RELIABILITY":
       case "IN_NEUROSCIENTIST_REVIEW":
-      case "PAYMENT_AUTHORISED":
-        return {
+   case "PAYMENT_AUTHORISED":
+     return {
           label: "Processing",
           className: "bg-sky-50 text-sky-800 border-sky-200",
           dotColor: "bg-sky-500",
-        };
+    };
       case "PENDING_ADMIN_APPROVAL":
         return {
           label: "Awaiting Admin Review",
@@ -1206,7 +1370,9 @@ function PortalDashboardContent() {
 
   // Metrics
   const reportsThisMonthCount = reports.length;
-  const awaitingDownloadCount = reports.filter((r) => r.status === "COMPLETED").length;
+  // A report only counts as "awaiting download" once it is BOTH generated and
+  // fully paid (paidAmount >= feeAmount) - a partially paid case stays locked.
+  const awaitingDownloadCount = reports.filter((r) => canDownload(r)).length;
   const inProcessingCount = reports.filter(
     (r) =>
       r.status === "GENERATING" ||
@@ -1215,16 +1381,23 @@ function PortalDashboardContent() {
       r.status === "PAYMENT_AUTHORISED" ||
       r.status === "PENDING_ADMIN_APPROVAL"
   ).length;
-  const successfulReportsCount = reports.filter(
-    (r) => r.status === "COMPLETED" || r.status === "DOWNLOADED_AND_PURGED"
-  ).length;
-  const totalSpentFormatted =
-    successfulReportsCount > 0 ? `$${(successfulReportsCount * 65).toFixed(0)}` : "$0";
+  // Sum the ACTUAL amounts captured across every case instead of assuming the
+  // full $65 fee, so an installment-only case contributes only what was paid.
+  const totalSpentAmount = reports.reduce(
+    (sum, r) => sum + Math.max(0, Math.round((r.paidAmount || 0) * 100) / 100),
+    0
+  );
+  const totalSpentFormatted = `$${totalSpentAmount.toFixed(0)}`;
+
+  // Billing history renders one row per captured transaction (see
+  // buildBillingTransactions) so each stage payment shows its real amount.
+  const billingTransactions = buildBillingTransactions(billingReports);
+  const billingById = new Map(billingReports.map((r) => [r.id, r]));
 
   const filteredReports = reports.filter((r) => {
     const matchesSearch = r.caseReference.toLowerCase().includes(searchTerm.toLowerCase());
     if (statusFilter === "ALL") return matchesSearch;
-    if (statusFilter === "READY") return matchesSearch && r.status === "COMPLETED";
+    if (statusFilter === "READY") return matchesSearch && canDownload(r);
     if (statusFilter === "PROCESSING")
       return (
         matchesSearch &&
@@ -1385,9 +1558,9 @@ function PortalDashboardContent() {
                     </tr>
                   ) : (
                     filteredReports.map((report) => {
-                      const badge = getStatusBadge(report.status);
-                      const isReady = report.status === "COMPLETED";
-                      const isPurged = report.status === "DOWNLOADED_AND_PURGED";
+const badge = getStatusBadge(report);
+             const isReady = canDownload(report);
+              const isPurged = report.status === "DOWNLOADED_AND_PURGED";
 
                       return (
                         <tr key={report.id} className="hover:bg-slate-50/70 transition-colors">
@@ -1874,7 +2047,7 @@ function PortalDashboardContent() {
                               {pageDomains.map((d) => (
                                 <div key={d.key} className="bg-slate-50 border border-slate-200 rounded-lg p-2.5">
                                   <span className="text-[11px] font-semibold text-slate-700 leading-tight block mb-1">
-                                    {d.num}. {d.title}
+                                    {d.title}
                                   </span>
                                   <p className="text-[10px] text-slate-400 leading-relaxed mb-2">
                                     {d.desc}
@@ -2097,7 +2270,7 @@ function PortalDashboardContent() {
                       <div key={d.key} className="bg-white border border-slate-200 rounded-lg p-2.5">
                         <div className="flex items-start justify-between gap-2 mb-1.5">
                           <span className="text-[11px] font-semibold text-slate-700 leading-tight">
-                            {d.num}. {d.title}
+                            {d.title}
                           </span>
                         </div>
                         <p className="text-[10px] text-slate-400 leading-relaxed mb-2">{d.desc}</p>
@@ -2205,11 +2378,12 @@ function PortalDashboardContent() {
                     );
                     return;
                   }
-                  setShowPaymentModal(true);
-                  setPayingReport(null);
-                  setInstallmentAmount(0);
-                  handledPayPalOrderIds.current.clear();
-                }}
+setPaymentPlan("full");
+       setSelectedAmt(65);
+      setShowPaymentModal(true);
+      setPayingReport(null);
+      handledPayPalOrderIds.current.clear();
+     }}
                 disabled={!qeegReliabilityPassed || submitting}
                 className="w-full sm:w-auto px-8 py-3.5 bg-white hover:bg-slate-100 disabled:opacity-50 text-[#16233B] text-sm font-semibold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
@@ -2260,7 +2434,8 @@ function PortalDashboardContent() {
                 Billing history
               </h2>
               <p className="text-xs sm:text-sm text-slate-500 font-normal mt-1.5 leading-relaxed">
-                $65 AUD per successfully generated report. Never charged for a rejected submission.
+                $65 AUD per successfully generated report, payable upfront or in stage payments. Each row below is
+                one captured transaction. Never charged for a rejected submission.
               </p>
             </div>
 
@@ -2272,19 +2447,21 @@ function PortalDashboardContent() {
                     <th className="py-3 px-6 sm:px-8 font-sans font-semibold">DATE</th>
                     <th className="py-3 px-6 font-sans font-semibold">CASE REFERENCE</th>
                     <th className="py-3 px-6 font-sans font-semibold">AMOUNT</th>
+                    <th className="py-3 px-6 font-sans font-semibold">CASE TOTAL</th>
                     <th className="py-3 px-6 sm:px-8 font-sans font-semibold">STATUS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
                   {/* billingReports already filtered by paymentStatus !== NOT_STARTED on backend */}
-                  {billingReports && billingReports.length > 0 ? (
-                    billingReports.map((r, index) => {
+                  {billingTransactions.length > 0 ? (
+                    billingTransactions.map((txn) => {
+                      const r = billingById.get(txn.reportId)!;
                       const getPaymentStatusLabel = (status: string) => {
                         switch (status) {
                           case "CAPTURED":
                             return "Charged";
                           case "AUTHORISED":
-                            return "Authorised (Pending Capture)";
+                            return txn.amount > 0 ? "Partially Paid" : "Authorised (Awaiting Payment)";
                           case "VOIDED":
                             return "Voided";
                           case "FAILED":
@@ -2295,14 +2472,15 @@ function PortalDashboardContent() {
                       };
                       const billingFee = r.feeAmount || 65;
                       const billingPaid = Math.max(0, Math.round((r.paidAmount || 0) * 100) / 100);
-                      const billingRemaining = Math.max(0, Math.round((billingFee - billingPaid) * 100) / 100);
-                      const canPayMore =
-                        r.status === "PAYMENT_AUTHORISED" && billingPaid < billingFee - 0.005;
+const billingRemaining = Math.max(0, Math.round((billingFee - billingPaid) * 100) / 100);
+       // Download stays locked until the case is fully paid AND generated.
+   const rowCanDownload = canDownload(r);
+               const canPayMore = canPayRemaining(r);
 
                       return (
-                        <tr key={r.id || index} className="hover:bg-slate-50/60 transition-colors">
+                        <tr key={txn.key} className="hover:bg-slate-50/60 transition-colors">
                           <td className="py-4.5 px-6 sm:px-8 text-slate-900 font-normal">
-                            {new Date(r.createdAt).toLocaleDateString("en-GB", {
+                            {new Date(txn.paidAt).toLocaleDateString("en-GB", {
                               day: "numeric",
                               month: "short",
                               year: "numeric",
@@ -2310,16 +2488,38 @@ function PortalDashboardContent() {
                           </td>
                           <td className="py-4.5 px-6">
                             <span className="text-[#2563EB] hover:text-[#1D4ED8] hover:underline font-mono text-sm cursor-pointer">
-                              {r.caseReference}
+                              {txn.caseReference}
                             </span>
+                            {txn.installmentCount > 1 && (
+                              <span className="block text-[10px] text-slate-400 font-normal mt-0.5">
+                                Stage {txn.installmentNumber} of {txn.installmentCount}
+                              </span>
+                            )}
                           </td>
+                          {/* The amount actually captured in THIS transaction. */}
                           <td className="py-4.5 px-6 text-slate-900 font-normal">
-                            <span className="font-semibold">${billingFee.toFixed(2)}</span>
-                            {billingPaid > 0 && (
-                              <>
-                                <span className="text-slate-400 mx-1">·</span>
-                                <span className="text-slate-600">{billingPaid.toFixed(2)} paid</span>
-                              </>
+{txn.amount > 0 ? (
+      <span className="font-semibold">${txn.amount.toFixed(2)}</span>
+            ) : (
+   <span className="font-semibold text-slate-400">&mdash;</span>
+      )}
+   {/* Progressive case total for THIS stage: 16.25 / 65.00, then 32.50 / 65.00. */}
+      {txn.installmentCount > 1 && (
+   <span className="block text-[10px] text-slate-400 font-normal mt-0.5 font-mono">
+          ${txn.runningTotal.toFixed(2)} of ${txn.feeAmount.toFixed(2)} paid
+          </span>
+      )}
+</td>
+                          <td className="py-4.5 px-6 text-slate-600 font-normal">
+                            <span className="font-mono text-xs">
+                              ${billingPaid.toFixed(2)}
+                            </span>
+                            <span className="text-slate-400 mx-1">/</span>
+                            <span className="font-mono text-xs">${billingFee.toFixed(2)}</span>
+                            {billingRemaining > 0 && (
+                              <span className="block text-[10px] text-amber-600 font-semibold mt-0.5">
+                                ${billingRemaining.toFixed(2)} outstanding
+                              </span>
                             )}
                           </td>
                           <td className="py-4.5 px-6 sm:px-8">
@@ -2327,15 +2527,33 @@ function PortalDashboardContent() {
                               <span className="text-slate-900 font-normal">
                                 {getPaymentStatusLabel(r.paymentStatus)}
                               </span>
-                              {canPayMore && (
+{!rowCanDownload && r.status !== "DOWNLOADED_AND_PURGED" && (
+                                 <span className="text-[11px] text-slate-400 font-normal">
+                                   {billingRemaining > 0
+                                     ? `Download locked — ${billingRemaining.toFixed(
+                                         2,
+                                       )} AUD outstanding`
+                                     : "Report processing"}
+                                 </span>
+                               )}
+                              {isPaymentPartial(r) && !canPayMore && (
+                                 <span className="text-[11px] text-amber-600 font-normal">
+                                   Balance outstanding
+                                 </span>
+                               )}
+          {canPayMore && (
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    setPayingReport(r);
-                                    setInstallmentAmount(0);
-                                    handledPayPalOrderIds.current.clear();
-                                    setShowPaymentModal(true);
-                                  }}
+onClick={() => {
+     // An outstanding balance means we're already ON the 4-stage ladder, so
+      // preselect it and price the button at ONE stage, not the whole balance.
+      // The backend caps it regardless, but the UI must not mislead.
+  setPaymentPlan("installments");
+   setSelectedAmt(Math.min(16.25, Math.round(billingRemaining * 100) / 100));
+       setPayingReport(r);
+            handledPayPalOrderIds.current.clear();
+     setShowPaymentModal(true);
+              }}
                                   className="text-[11px] font-semibold text-[#2563EB] hover:text-[#1D4ED8] hover:underline"
                                 >
                                   Pay remaining ${billingRemaining.toFixed(2)}
@@ -2347,8 +2565,9 @@ function PortalDashboardContent() {
                       );
                     })
                   ) : (
+
                     <tr>
-                      <td colSpan={4} className="py-10 text-center text-sm text-slate-500">
+                      <td colSpan={5} className="py-10 text-center text-sm text-slate-500">
                         No billing history yet.
                       </td>
                     </tr>
@@ -2682,11 +2901,27 @@ function PortalDashboardContent() {
           // Amount context for THIS payment round. New-case flow: full $65 fee,
           // nothing paid yet. Existing-report flow: the report's remaining
           // balance after its already-captured installments.
-          const feeAmt = payingReport ? payingReport.feeAmount || 65 : 65;
+const feeAmt = payingReport ? payingReport.feeAmount || 65 : 65;
           const paidAmt = payingReport ? Math.max(0, payingReport.paidAmount || 0) : 0;
-          const remainingAmt = Math.max(0, Math.round((feeAmt - paidAmt) * 100) / 100);
-          const selectedAmt = installmentAmount > 0 ? Math.min(installmentAmount, remainingAmt) : remainingAmt;
-          return (
+const remainingAmt = Math.max(0, Math.round((feeAmt - paidAmt) * 100) / 100);
+            // How many of the 4 stages have been captured, and how many
+            // payments are still needed. The final stage absorbs any
+            // rounding remainder so the ladder always totals the exact fee.
+            const stageUnit = Math.min(16.25, remainingAmt);
+            const stagesRemaining = Math.max(
+       1,
+    Math.ceil(Math.round(remainingAmt * 100) / 100 / stageUnit)
+         );
+// Stages already captured. Rounding-safe: solve it from the paid amount
+            // rather than counting ledger rows. A leading stage is only
+            // "captured" once paidAmt is actually non-zero, so stage 1 of a
+            // fresh case reads 0 captured (correctly showing "Stage 1 of 4").
+            const stagesTotal = 4;
+    const paidStages =
+  paidAmt <= 0
+      ? 0
+       : Math.max(0, Math.min(stagesTotal, stagesTotal - stagesRemaining));
+ return (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto overscroll-contain">
           <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl ring-1 ring-slate-900/5 border border-slate-200 p-6 sm:p-8 space-y-6 animate-fadeIn overflow-hidden max-h-[85vh] overflow-y-auto">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#003087]" />
@@ -2708,18 +2943,75 @@ function PortalDashboardContent() {
               </button>
             </div>
 
-            <div className="text-center py-4">
-              <span className="text-sm text-slate-500 block mb-1">
-                {payingReport ? `Report fee ${feeAmt.toFixed(2)} AUD` : "Authorization Hold"}
+<div className="text-center py-4">
+     <span className="text-sm text-slate-500 block mb-1">
+     {payingReport ? `Report fee ${feeAmt.toFixed(2)} AUD` : "Amount due"}
+    </span>
+  <span className="text-4xl font-light text-slate-800 block">
+{selectedAmt.toFixed(2)} <span className="text-lg text-slate-400">AUD</span>
+     </span>
+            {paymentPlan === "installments" && !payingReport && (
+              <span className="block text-xs text-slate-500 mt-1.5">
+                Stage {Math.min(4, paidStages + 1)} of 4 · {stagesRemaining} payment
+                {stagesRemaining === 1 ? "" : "s"} left
               </span>
-              <span className="text-4xl font-light text-slate-800 block">
-                {selectedAmt.toFixed(2)} <span className="text-lg text-slate-400">AUD</span>
-              </span>
-              {paidAmt > 0 && (
-                <span className="block text-xs text-slate-500 mt-1.5">
-                  {paidAmt.toFixed(2)} already paid · {remainingAmt.toFixed(2)} remaining
-                </span>
-              )}
+            )}
+            {paidAmt > 0 && (
+     <span className="block text-xs text-slate-500 mt-1.5">
+    {paidAmt.toFixed(2)} already paid · {remainingAmt.toFixed(2)} remaining
+    </span>
+         )}
+      </div>
+
+        {/* Payment plan selector. Our OWN 4-stage ladder (PayPal's native Pay in
+            4 is disabled at the SDK layer, so a stage is never re-split). */}
+            <div className="space-y-2">
+  <div className="grid grid-cols-2 gap-2">
+ <button
+      type="button"
+      onClick={() => {
+         setPaymentPlan("full");
+            setSelectedAmt(Math.round(remainingAmt * 100) / 100);
+           }}
+     disabled={submitting}
+    className={`px-3 py-2.5 rounded-xl border-2 text-xs font-semibold transition-all text-left ${
+     paymentPlan === "full"
+        ? "border-[#003087] bg-[#003087]/5 text-[#003087]"
+       : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+      }`}
+       >
+   <span className="block">Pay in full</span>
+       <span className="block text-[11px] font-normal text-slate-500 mt-0.5">
+                {remainingAmt.toFixed(2)} AUD once
+    </span>
+       </button>
+          <button
+       type="button"
+            onClick={() => {
+     setPaymentPlan("installments");
+   const stage = Math.min(16.25, Math.round(remainingAmt * 100) / 100);
+       setSelectedAmt(stage);
+          }}
+         disabled={submitting}
+    className={`px-3 py-2.5 rounded-xl border-2 text-xs font-semibold transition-all text-left ${
+       paymentPlan === "installments"
+         ? "border-[#003087] bg-[#003087]/5 text-[#003087]"
+       : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+     }`}
+        >
+     <span className="block">4 × installments</span>
+         <span className="block text-[11px] font-normal text-slate-500 mt-0.5">
+           {Math.min(16.25, remainingAmt).toFixed(2)} AUD × 4
+    </span>
+         </button>
+      </div>
+{paymentPlan === "installments" && payingReport && (
+    <p className="text-[11px] text-slate-500 leading-relaxed">
+            This pays ONE stage ({Math.min(16.25, remainingAmt).toFixed(2)} AUD)
+            of the {stagesRemaining} stage{stagesRemaining === 1 ? "" : "s"} still
+      outstanding. Your report unlocks the moment the final stage clears.
+            </p>
+        )}
             </div>
 
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-600">
@@ -2733,58 +3025,14 @@ function PortalDashboardContent() {
                   {payingReport ? payingReport.caseReference : newCaseData.caseReference}
                 </span>
               </div>
-              <p className="mt-4 text-slate-500 text-[11px] leading-relaxed">
-                <Lock className="w-3 h-3 inline-block mr-1 -mt-0.5" />
-                {payingReport
-                  ? "This is a secure payment towards your outstanding report fee. This installment is captured immediately; once the full fee is paid, the report is generated automatically."
-                  : "This is a secure authorization hold. Funds are only captured once the report has been paid for in full."}
-              </p>
+<p className="mt-4 text-slate-500 text-[11px] leading-relaxed">
+        <Lock className="w-3 h-3 inline-block mr-1 -mt-0.5" />
+          {paymentPlan === "installments"
+   ? "This is one stage of a 4-stage plan, captured immediately. Your report stays on Payment Hold and cannot be downloaded until all four stages total the full $65.00 AUD."
+            : "This is a secure authorization hold. Funds are only captured once the report has been paid for in full."}
+   </p>
             </div>
 
-            {payingReport && (
-              <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
-                <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Installment amount
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    ...new Set(
-                      [20, 45, remainingAmt].filter(
-                        (v) => v > 0 && v <= remainingAmt + 0.005
-                      )
-                    ),
-                  ].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setInstallmentAmount(preset)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-                        installmentAmount === preset
-                          ? "bg-[#003087] text-white border-[#003087]"
-                          : "border-slate-200 text-slate-600 hover:border-[#003087] hover:text-[#003087]"
-                      }`}
-                    >
-                      ${preset.toFixed(2)}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setInstallmentAmount(0)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-                      installmentAmount === 0
-                        ? "bg-[#003087] text-white border-[#003087]"
-                        : "border-slate-200 text-slate-600 hover:border-[#003087] hover:text-[#003087]"
-                    }`}
-                  >
-                    Pay full balance (${remainingAmt.toFixed(2)})
-                  </button>
-                </div>
-                <p className="text-[10px] text-slate-400 leading-relaxed">
-                  Pay now towards your {feeAmt.toFixed(2)} AUD report fee. Generation begins automatically once the
-                  total reaches {feeAmt.toFixed(2)} AUD.
-                </p>
-              </div>
-            )}
 
             <div className="pt-2 flex flex-col gap-3 min-h-[150px]">
               <PayPalButtons
@@ -2816,14 +3064,19 @@ function PortalDashboardContent() {
                       method: "POST",
                       credentials: "include",
                       headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify(
-                        payingReport
-                          ? {
-                              reportId: payingReport.id,
-                              amount: installmentAmount > 0 ? installmentAmount : undefined,
-                            }
-                          : { caseReference: newCaseData.caseReference }
-                      ),
+body: JSON.stringify(
+payingReport
+ ? {
+         reportId: payingReport.id,
+    amount: selectedAmt,
+    paymentPlan,
+  }
+ : {
+      caseReference: newCaseData.caseReference,
+    amount: selectedAmt,
+            paymentPlan,
+      }
+      ),
                     });
                   } catch (networkError: unknown) {
                     // fetch() only rejects on a transport failure (backend down,
@@ -3004,11 +3257,11 @@ function PortalDashboardContent() {
             <div className="flex flex-col gap-2.5">
               <button
                 type="button"
-                onClick={() => {
-                  setPaymentError(null);
-                  setShowPaymentModal(true);
-                  handledPayPalOrderIds.current.clear();
-                }}
+onClick={() => {
+ setPaymentError(null);
+        setShowPaymentModal(true);
+        handledPayPalOrderIds.current.clear();
+     }}
                 className="w-full py-3 text-sm font-semibold text-white bg-[#16233B] hover:bg-[#0F172A] rounded-xl shadow-sm transition-all cursor-pointer"
               >
                 Try payment again
@@ -3133,9 +3386,10 @@ export default function PortalPage() {
     clientId: getPayPalClientId(),
     currency: "AUD",
     intent: "authorize",
-    // Structural disallow of Pay Later / Pay in 4 / PayPal Credit: only full
-    // upfront payment is accepted. The backend also rejects any CAPTURE-intent
-    // order from the SDK, so this is enforced on both sides.
+    // Structural disallow of Pay Later / Pay in 4 / PayPal Credit. Our OWN
+    // 4-stage installment ladder is managed server-side (one $16.25 order per
+    // stage), so PayPal must NOT also split a stage into sub-payments on its
+    // side. Enforced on the backend too, which rejects CAPTURE-intent orders.
     "disable-funding": "paylater,credit",
   };
 
