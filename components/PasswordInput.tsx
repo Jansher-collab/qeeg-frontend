@@ -12,6 +12,11 @@ interface PasswordInputProps {
   autoFocus?: boolean;
   id?: string;
   name?: string;
+  /**
+   * Optional native length floor. Omitted by every caller that does not pass
+   * it, so other forms keep the browser's default behaviour unchanged.
+   */
+  minLength?: number;
   autoComplete?: string;
   "aria-label"?: string;
   "aria-describedby"?: string;
@@ -38,6 +43,7 @@ export default function PasswordInput({
   autoFocus,
   id,
   name,
+  minLength,
   autoComplete = "current-password",
   "aria-label": ariaLabel,
   "aria-describedby": ariaDescribedBy,
@@ -59,6 +65,7 @@ export default function PasswordInput({
       <input
         id={id}
         name={name}
+        minLength={minLength}
         type={visible ? "text" : "password"}
         required={required}
         disabled={disabled}

@@ -16,30 +16,12 @@ import {
   KeyRound,
 } from "lucide-react";
 
-/**
- * Per-field validation messages, keyed by field name. Populated client-side
- * before submit and merged with the server's 422 `fieldErrors` so both layers
- * speak the same shape and the UI has a single place to read from.
- */
-type FieldErrors = Record<string, string>;
-
-/**
- * Mandatory practitioner fields. Each is rendered into the generated report
- * header, and `professionalTitle` is additionally required by
- * `checklist-definition.json` — so a blank here permanently blocks case
- * submission rather than merely looking untidy.
- */
-const REQUIRED_FIELD_LABELS: Record<string, string> = {
-  fullName: "Full Name & Post-Nominals",
-  professionalTitle: "Professional Title / Credentials",
-  profession: "Profession / Registration Type",
-  providerNumber: "Registration / Provider Number",
-  clinicName: "Practice / Clinic Name",
-  practiceAddress: "Practice Address",
-  phone: "Practice Contact Phone",
-  email: "Login & Notification Email",
-  password: "Password",
-};
+import {
+  validateSignupForm,
+  firstInvalidField,
+  FIELD_FOCUS_ORDER,
+  type FieldErrors,
+} from "@/lib/signupValidation";
 
 /** Shared input styling, with an invalid state driven by fieldErrors. */
 function fieldClass(invalid: boolean) {
@@ -48,13 +30,37 @@ function fieldClass(invalid: boolean) {
   }`;
 }
 
-/** Inline, field-level error text. Rendered directly beneath its input. */
+/**
+ * Inline, field-level error text, rendered directly beneath its input. This is
+ * the PRIMARY error channel: each message sits next to the field it describes
+ * so the practitioner does not have to match a list against the form.
+ */
 function FieldErrorText({ message }: { message?: string }) {
   if (!message) return null;
   return (
-    <span className="block text-[11px] text-rose-600 mt-1 leading-snug" role="alert">
-      {message}
+    <span className="flex items-start gap-1 text-[11px] text-rose-600 mt-1 leading-snug" role="alert">
+      <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" aria-hidden="true" />
+      <span>{message}</span>
     </span>
+  );
+}
+
+/**
+ * Compact accessible summary of how many fields need attention. Deliberately
+ * NOT a generic "please complete the form" banner - it exists to orient a
+ * screen-reader user to the count, while the specifics live inline.
+ */
+function InvalidFieldSummary({ count }: { count: number }) {
+  if (count === 0) return null;
+  return (
+    <div
+      className="mb-6 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs"
+      role="alert"
+      aria-live="assertive"
+    >
+      {count} field{count === 1 ? "" : "s"} need{count === 1 ? "s" : ""} attention. Each
+      message is shown directly beneath the field it applies to.
+    </div>
   );
 }
 
@@ -102,6 +108,33 @@ export default function SignupPage() {
     clearSessionStateClientSide();
   }, []);
 
+  /**
+   * Updates one field and clears that field's inline error as soon as the
+   * practitioner starts correcting it. Without this, a resolved error stays on
+   * screen (and the input stays red) until the next submit, which reads as
+   * "still broken" and hides whether the fix actually worked.
+   */
+  const updateField = (key: keyof typeof formData, value: string) => {
+    setFormData((prev) => ({ ...prev, [key]: value }));
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  /** Same clearing behaviour for the two mandatory legal checkboxes. */
+  const setAgreement = (key: "dpa" | "eula", checked: boolean) => {
+    setLegalChecked((prev) => ({ ...prev, [key]: checked }));
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
   // Load the currently published DPA / EULA versions. Falls back to the last
   // known static versions if the backend is unreachable so the form still works.
   useEffect(() => {
@@ -129,47 +162,28 @@ export default function SignupPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
 
-    // Client-side mandatory-field pass. Every field is checked BEFORE any
-    // network call so the practitioner sees all gaps at once, rather than
-    // discovering them one round-trip at a time.
-    const nextErrors: FieldErrors = {};
-    for (const [key, label] of Object.entries(REQUIRED_FIELD_LABELS)) {
-      const value = (formData as Record<string, string>)[key];
-      if (typeof value !== "string" || value.trim() === "") {
-        nextErrors[key] = `${label} is required.`;
-      }
-    }
-    if (!nextErrors.phone && formData.phone.replace(/\D/g, "").length < 7) {
-      nextErrors.phone = "Practice Contact Phone must contain at least 7 digits.";
-    }
-    if (formData.email.trim() !== "" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
-      nextErrors.email = "Enter a valid email address.";
-    }
-    if (!nextErrors.password && formData.password.length < 8) {
-      nextErrors.password = "Password must be at least 8 characters long.";
-    }
-
-    // The two statutory agreements are mandatory and must be affirmatively
-    // ticked, so they are enforced as fields in their own right.
-    if (!legalChecked.dpa) {
-      nextErrors.dpa = "You must accept the Data Processing Agreement to continue.";
-    }
-    if (!legalChecked.eula) {
-      nextErrors.eula = "You must accept the End User Licence Agreement to continue.";
-    }
-
+    // Field-level validation runs first, with NO network call, so the
+    // practitioner sees every problem at once. Errors are rendered inline
+    // beneath each input; the top banner is reserved for whole-form failures
+    // that cannot be attributed to a single field (network / server errors).
+    const nextErrors = validateSignupForm(formData, legalChecked);
     setFieldErrors(nextErrors);
+
     if (Object.keys(nextErrors).length > 0) {
-      setError(
-        `Please complete ${Object.keys(nextErrors).length} required field${
-          Object.keys(nextErrors).length === 1 ? "" : "s"
-        } before continuing. The missing fields are highlighted below.`
-      );
+      setError(null);
+      // Move focus to the first invalid field so keyboard and screen-reader
+      // users land on the actual problem instead of the top of the page.
+      const first = firstInvalidField(nextErrors);
+      if (first) {
+        window.requestAnimationFrame(() => {
+          document.getElementById(`signup-${first}`)?.focus();
+        });
+      }
       return;
     }
 
+    setError(null);
     setLoading(true);
 
     try {
@@ -315,13 +329,23 @@ export default function SignupPage() {
             </p>
           </div>
 
-          {/* Error Banner */}
-          {(step === "form" ? error : enrollError) && (
-            <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-3 text-rose-800 text-xs animate-fadeIn">
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <span className="leading-relaxed">{step === "form" ? error : enrollError}</span>
-            </div>
+          {/* Field-level errors render INLINE beneath each input (see
+              FieldErrorText). The summary below only orients the user to how
+              many fields are affected; it deliberately does not restate them. */}
+          {step === "form" && (
+            <InvalidFieldSummary count={Object.keys(fieldErrors).length} />
           )}
+
+          {/* Whole-form errors only: network failures, server errors, and the
+              2FA stage. Hidden while field-level messages are showing, so the
+              user is never given a generic message alongside specific ones. */}
+          {(step === "form" ? error : enrollError) &&
+            (step !== "form" || Object.keys(fieldErrors).length === 0) && (
+              <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-3 text-rose-800 text-xs animate-fadeIn" role="alert">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <span className="leading-relaxed">{step === "form" ? error : enrollError}</span>
+              </div>
+            )}
 
           {/* Form */}
           {step === "form" ? (
@@ -334,10 +358,11 @@ export default function SignupPage() {
                 <input
                   type="text"
                   required
+                  id="signup-fullName"
                   aria-invalid={!!fieldErrors.fullName}
                   aria-describedby={fieldErrors.fullName ? "err-fullName" : undefined}
                   value={formData.fullName}
-                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  onChange={(e) => updateField("fullName", e.target.value)}
                   placeholder="Dr Jane Smith, PhD"
                   className={fieldClass(!!fieldErrors.fullName)}
                 />
@@ -353,10 +378,11 @@ export default function SignupPage() {
                 <input
                   type="text"
                   required
+                  id="signup-professionalTitle"
                   aria-invalid={!!fieldErrors.professionalTitle}
                   aria-describedby={fieldErrors.professionalTitle ? "err-professionalTitle" : undefined}
                   value={formData.professionalTitle}
-                  onChange={(e) => setFormData({ ...formData, professionalTitle: e.target.value })}
+                  onChange={(e) => updateField("professionalTitle", e.target.value)}
                   placeholder="Senior Clinical Specialist"
                   className={fieldClass(!!fieldErrors.professionalTitle)}
                 />
@@ -374,9 +400,10 @@ export default function SignupPage() {
                 <input
                   type="text"
                   required
+                  id="signup-profession"
                   aria-invalid={!!fieldErrors.profession}
                   value={formData.profession}
-                  onChange={(e) => setFormData({ ...formData, profession: e.target.value })}
+                  onChange={(e) => updateField("profession", e.target.value)}
                   placeholder="e.g. Psychologist, Neurologist, GP"
                   className={fieldClass(!!fieldErrors.profession)}
                 />
@@ -392,9 +419,10 @@ export default function SignupPage() {
                 <input
                   type="text"
                   required
+                  id="signup-providerNumber"
                   aria-invalid={!!fieldErrors.providerNumber}
                   value={formData.providerNumber}
-                  onChange={(e) => setFormData({ ...formData, providerNumber: e.target.value })}
+                  onChange={(e) => updateField("providerNumber", e.target.value)}
                   placeholder="e.g. PR-88921-VIC / PSY000123"
                   className={fieldClass(!!fieldErrors.providerNumber)}
                 />
@@ -412,9 +440,10 @@ export default function SignupPage() {
                 <input
                   type="text"
                   required
+                  id="signup-clinicName"
                   aria-invalid={!!fieldErrors.clinicName}
                   value={formData.clinicName}
-                  onChange={(e) => setFormData({ ...formData, clinicName: e.target.value })}
+                  onChange={(e) => updateField("clinicName", e.target.value)}
                   placeholder="Riverside NeuroCare Practice"
                   className={fieldClass(!!fieldErrors.clinicName)}
                 />
@@ -430,9 +459,13 @@ export default function SignupPage() {
                 <input
                   type="tel"
                   required
+                  id="signup-phone"
+                  inputMode="tel"
+                  pattern="[0-9+()\-\s]+"
+                  title="Digits, spaces, +, - and parentheses only - no letters"
                   aria-invalid={!!fieldErrors.phone}
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={(e) => updateField("phone", e.target.value)}
                   placeholder="+61 3 9820 1144"
                   className={fieldClass(!!fieldErrors.phone)}
                 />
@@ -449,9 +482,10 @@ export default function SignupPage() {
               <input
                 type="text"
                 required
+                id="signup-practiceAddress"
                 aria-invalid={!!fieldErrors.practiceAddress}
                 value={formData.practiceAddress}
-                onChange={(e) => setFormData({ ...formData, practiceAddress: e.target.value })}
+                onChange={(e) => updateField("practiceAddress", e.target.value)}
                 placeholder="Suite 4B, 120 Collins Street, Melbourne VIC 3000"
                 className={fieldClass(!!fieldErrors.practiceAddress)}
               />
@@ -467,9 +501,10 @@ export default function SignupPage() {
               <input
                 type="email"
                 required
+                id="signup-email"
                 aria-invalid={!!fieldErrors.email}
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) => updateField("email", e.target.value)}
                 placeholder="practitioner@clinic.com.au"
                 className={fieldClass(!!fieldErrors.email)}
               />
@@ -484,10 +519,12 @@ export default function SignupPage() {
               </label>
               <PasswordInput
                 value={formData.password}
-                onChange={(password) => setFormData({ ...formData, password })}
+                onChange={(password) => updateField("password", password)}
                 required
                 autoComplete="new-password"
                 aria-label="Password"
+                id="signup-password"
+                minLength={8}
                 aria-invalid={!!fieldErrors.password}
                 placeholder="••••••••"
                 className="px-4 py-2.5"
@@ -515,8 +552,9 @@ export default function SignupPage() {
                   type="checkbox"
                   required
                   checked={legalChecked.dpa}
+                  id="signup-dpa"
                   aria-invalid={!!fieldErrors.dpa}
-                  onChange={(e) => setLegalChecked({ ...legalChecked, dpa: e.target.checked })}
+                  onChange={(e) => setAgreement("dpa", e.target.checked)}
                   className={`mt-0.5 w-4 h-4 rounded border-slate-300 text-[#16233B] focus:ring-[#16233B] cursor-pointer ${
                     fieldErrors.dpa ? "border-rose-500 ring-1 ring-rose-400" : ""
                   }`}
@@ -539,8 +577,9 @@ export default function SignupPage() {
                   type="checkbox"
                   required
                   checked={legalChecked.eula}
+                  id="signup-eula"
                   aria-invalid={!!fieldErrors.eula}
-                  onChange={(e) => setLegalChecked({ ...legalChecked, eula: e.target.checked })}
+                  onChange={(e) => setAgreement("eula", e.target.checked)}
                   className={`mt-0.5 w-4 h-4 rounded border-slate-300 text-[#16233B] focus:ring-[#16233B] cursor-pointer ${
                     fieldErrors.eula ? "border-rose-500 ring-1 ring-rose-400" : ""
                   }`}
