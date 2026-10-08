@@ -34,6 +34,8 @@ export function proxy(request: NextRequest) {
 
   const isAuthPage =
     pathname === '/login' ||
+    pathname === '/login/admin' ||
+    pathname === '/login/practitioner' ||
     pathname === '/signup' ||
     pathname === '/forgot-password' ||
     pathname === '/reset-password';
@@ -66,6 +68,11 @@ export function proxy(request: NextRequest) {
 
   // 1. If user is logged in and visits auth pages, redirect to appropriate dashboard
   if (user && isAuthPage) {
+    // An ADMIN who is already signed in and lands on the admin login goes
+    // straight to the admin portal rather than the review queue.
+    if (pathname === '/login/admin' && user.role === 'ADMIN') {
+      return NextResponse.redirect(new URL('/admin', request.url));
+    }
     if (user.role === 'NEUROSCIENTIST' || user.role === 'ADMIN') {
       return NextResponse.redirect(new URL('/portal/review', request.url));
     }
@@ -93,6 +100,8 @@ export const config = {
   matcher: [
     '/portal/:path*',
     '/login',
+    '/login/admin',
+    '/login/practitioner',
     '/signup',
     '/forgot-password',
     '/reset-password',

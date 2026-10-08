@@ -1616,6 +1616,14 @@ const getStatusBadge = (report: Report) => {
 const badge = getStatusBadge(report);
              const isReady = canDownload(report);
               const isPurged = report.status === "DOWNLOADED_AND_PURGED";
+              // A case still on the Pay in 4 / installment ladder owes money and
+              // stays in PAYMENT_AUTHORISED, so surface the same "Pay remaining"
+              // shortcut used in Billing History instead of generic text.
+              const payRemainingAmount =
+                report.status === "PAYMENT_AUTHORISED" && !isFullyPaid(report)
+                  ? Math.max(0, Math.round(((report.feeAmount || 65) - (report.paidAmount || 0)) * 100) / 100)
+                  : 0;
+              const canPayHere = payRemainingAmount > 0;
 
                       return (
                         <tr key={report.id} className="hover:bg-slate-50/70 transition-colors">
@@ -1662,6 +1670,24 @@ const badge = getStatusBadge(report);
                                 <Check className="w-3.5 h-3.5 text-emerald-600" />
                                 <span>Purged</span>
                               </span>
+                            ) : canPayHere ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  // Same flow as the Billing History link: one
+                                  // ladder stage is preselected and priced, and
+                                  // the existing report payment modal completes
+                                  // the remaining balance.
+                                  setPaymentPlan("installments");
+                                  setSelectedAmt(Math.min(16.25, payRemainingAmount));
+                                  setPayingReport(report);
+                                  handledPayPalOrderIds.current.clear();
+                                  setShowPaymentModal(true);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-700 text-xs font-semibold transition-all cursor-pointer"
+                              >
+                                <span>Pay remaining ${payRemainingAmount.toFixed(2)}</span>
+                              </button>
                             ) : (
                               <span className="text-xs text-slate-400 italic">Processing</span>
                             )}
@@ -2414,6 +2440,13 @@ className={`${baseInput} ${
                 </div>
               </div>
 
+              {submitError && (
+                <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-3">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <span>{submitError}</span>
+                </div>
+              )}
+
               {checklistReviewed ? (
                 <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -2491,13 +2524,6 @@ setPaymentPlan("full");
             </div>
           </div>
           </div>
-
-          {submitError && (
-            <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-3">
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <span>{submitError}</span>
-            </div>
-          )}
         </div>
       )}
 
@@ -2525,7 +2551,7 @@ setPaymentPlan("full");
                   <tr className="border-y border-slate-100 bg-[#F8FAFC]/80 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                     <th className="py-3 px-6 sm:px-8 font-sans font-semibold">DATE</th>
                     <th className="py-3 px-6 font-sans font-semibold">CASE REFERENCE</th>
-                    <th className="py-3 px-6 font-sans font-semibold">AMOUNT</th>
+                    <th className="py-3 px-6 font-sans font-semibold normal-case">Paid Amount</th>
                     <th className="py-3 px-6 font-sans font-semibold">CASE TOTAL</th>
                     <th className="py-3 px-6 sm:px-8 font-sans font-semibold">STATUS</th>
                   </tr>

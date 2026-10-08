@@ -1099,7 +1099,7 @@ function AdminDashboardContent() {
                         <th className="py-3.5 px-4">Practitioner</th>
                         <th className="py-3.5 px-4">Status</th>
                         <th className="py-3.5 px-4">Payment</th>
-                        <th className="py-3.5 px-4">Amount</th>
+                        <th className="py-3.5 px-4 normal-case">Paid Amount</th>
                         <th className="py-3.5 px-4">Auth ID</th>
                         <th className="py-3.5 px-4">Capture ID</th>
                         <th className="py-3.5 px-4">Download</th>
