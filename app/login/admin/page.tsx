@@ -55,7 +55,7 @@ function AdminLoginForm() {
       // Defence in depth: never trust the form alone — only an ADMIN session
       // may enter the admin portal.
       if (data.user?.role !== "ADMIN") {
-        throw new Error("This account does not have administrator access.");
+        throw new Error("Access denied: Admins only.");
       }
 
       window.location.href = "/admin";

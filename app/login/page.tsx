@@ -66,6 +66,13 @@ function LoginForm() {
         throw new Error(data.error || "Invalid login credentials.");
       }
 
+      // Strict portal boundary (defence in depth — the backend already refuses
+      // an ADMIN on this endpoint): this flow is for practitioner accounts
+      // only, so an admin session must never be established from here.
+      if (data.user?.role === "ADMIN") {
+        throw new Error(data.error || "Admins must use the admin login page.");
+      }
+
       // If the user arrived from a report collection link (e.g. via the
       // portal's logged-out redirect), continue to that destination after login.
       const redirectParam = searchParams.get("redirect");
