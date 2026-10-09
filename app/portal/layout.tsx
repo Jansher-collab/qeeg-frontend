@@ -72,10 +72,10 @@ function PortalShell({ children }: { children: React.ReactNode }) {
       // Ignore network errors; still clear the session locally below.
     } finally {
       // Aggressively strip all session cookies and storage client-side, then
-      // force a full page reload to the login view so no stale auth state
+      // force a full page reload to the landing page so no stale auth state
       // survives in memory or the URL.
       clearSessionStateClientSide();
-      window.location.href = "/login";
+      window.location.href = "/";
     }
   };
 

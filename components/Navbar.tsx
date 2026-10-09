@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { clearSessionStateClientSide } from "@/lib/clearSession";
 import { Menu, X, User, ArrowRight, ChevronDown, ShieldCheck } from "lucide-react";
@@ -101,9 +102,14 @@ export default function Navbar() {
             href="/"
             className="flex items-center group focus:outline-none shrink-0"
           >
-            <span className="text-xl sm:text-2xl font-serif font-normal tracking-tight text-white group-hover:text-slate-200 transition-colors">
-              QEEG.com.au
-            </span>
+            <Image
+              src="/logo.png"
+              alt="QEEG.com.au"
+              width={1600}
+              height={1194}
+              priority
+              className="h-11 sm:h-12 w-auto object-contain"
+            />
           </Link>
 
           {/* Desktop / Laptop Navigation Links (Visible on lg and larger) */}
@@ -131,11 +137,15 @@ export default function Navbar() {
             {user ? (
               <>
                 <Link
-                  href="/portal"
+                  href={user.role === "ADMIN" ? "/admin" : "/portal"}
                   className="px-4 py-2 text-xs lg:text-sm font-semibold text-[#16233B] bg-white hover:bg-slate-100 rounded-lg shadow-sm hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center gap-2"
                 >
-                  <User className="w-4 h-4 text-[#16233B]" />
-                  <span>Practitioner Portal</span>
+                  {user.role === "ADMIN" ? (
+                    <ShieldCheck className="w-4 h-4 text-[#16233B]" />
+                  ) : (
+                    <User className="w-4 h-4 text-[#16233B]" />
+                  )}
+                  <span>{user.role === "ADMIN" ? "Admin Portal" : "Practitioner Portal"}</span>
                 </Link>
                 <button
                   onClick={async () => {
@@ -145,7 +155,7 @@ export default function Navbar() {
                       // Ignore network errors; still clear everything locally below.
                     }
                     clearSessionStateClientSide();
-                    window.location.href = '/login';
+                    window.location.href = '/';
                   }}
                   className="px-3.5 py-1.5 xl:px-4 xl:py-2 text-xs lg:text-sm font-medium text-slate-300 hover:text-white bg-transparent hover:bg-slate-800/80 border border-slate-700 hover:border-slate-500 rounded-lg transition-all duration-200 cursor-pointer"
                 >
@@ -259,12 +269,16 @@ export default function Navbar() {
                 {user ? (
                   <>
                     <Link
-                      href="/portal"
+                      href={user.role === "ADMIN" ? "/admin" : "/portal"}
                       onClick={() => setMobileMenuOpen(false)}
                       className="w-full text-center py-3 text-sm font-semibold text-[#16233B] bg-white hover:bg-slate-100 rounded-xl shadow-sm flex items-center justify-center gap-2"
                     >
-                      <User className="w-4 h-4 text-[#16233B]" />
-                      <span>Practitioner Portal</span>
+                      {user.role === "ADMIN" ? (
+                        <ShieldCheck className="w-4 h-4 text-[#16233B]" />
+                      ) : (
+                        <User className="w-4 h-4 text-[#16233B]" />
+                      )}
+                      <span>{user.role === "ADMIN" ? "Admin Portal" : "Practitioner Portal"}</span>
                     </Link>
                     <button
                       onClick={async () => {
@@ -274,7 +288,7 @@ export default function Navbar() {
                           // Ignore network errors; still clear everything locally below.
                         }
                         clearSessionStateClientSide();
-                        window.location.href = '/login';
+                        window.location.href = '/';
                       }}
                       className="w-full text-center py-2.5 text-sm font-medium text-slate-200 bg-slate-800/90 hover:bg-slate-800 border border-slate-700 rounded-xl transition-colors cursor-pointer"
                     >

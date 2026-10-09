@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Mail, MapPin } from "lucide-react";
 
 export default function Footer() {
@@ -9,10 +10,14 @@ export default function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 pb-12 border-b border-slate-800">
           {/* Column 1: Brand & Nav Links */}
           <div className="flex flex-col gap-3.5">
-            <Link href="/" className="flex items-center gap-2">
-              <span className="text-xl font-serif font-normal text-white tracking-tight">
-                QEEG.com.au
-              </span>
+            <Link href="/" className="flex items-center">
+              <Image
+                src="/logo.png"
+                alt="QEEG.com.au"
+                width={1600}
+                height={1194}
+                className="h-16 sm:h-20 w-auto object-contain"
+              />
             </Link>
 
             <p className="text-xs text-slate-400 leading-relaxed font-normal">

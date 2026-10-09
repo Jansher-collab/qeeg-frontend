@@ -479,9 +479,9 @@ function AdminDashboardContent() {
       // Ignore network errors; still clear everything locally below.
     } finally {
       // Aggressively strip all session cookies and storage, then force a full
-      // reload so no stale auth state survives in memory.
+      // reload to the landing page so no stale auth state survives in memory.
       clearSessionStateClientSide();
-      window.location.href = "/login";
+      window.location.href = "/";
     }
   };
 
