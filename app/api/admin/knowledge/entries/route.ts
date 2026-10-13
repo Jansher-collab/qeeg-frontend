@@ -13,7 +13,11 @@ export async function GET(req: NextRequest) {
   }
 
   const sourcePdfId = req.nextUrl.searchParams.get('sourcePdfId');
-  const query = sourcePdfId ? `?sourcePdfId=${encodeURIComponent(sourcePdfId)}` : '';
+  const status = req.nextUrl.searchParams.get('status');
+  const params = new URLSearchParams();
+  if (sourcePdfId) params.set('sourcePdfId', sourcePdfId);
+  if (status) params.set('status', status);
+  const query = params.toString() ? `?${params.toString()}` : '';
 
   try {
     const backendRes = await fetch(`${BACKEND_URL}/api/admin/knowledge/entries${query}`, {

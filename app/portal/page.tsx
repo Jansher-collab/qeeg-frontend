@@ -12,10 +12,14 @@ import {
   PractitionerChecklistDetails,
   CompletedChecklistPdfOptions,
   CorrelationReportFindings,
+  DEFAULT_REPORT_FEE_AUD,
 } from "@/lib/services/pdfService";
 import { generateCaseReference } from "@/lib/caseReference";
 import { getPayPalClientId } from "@/lib/paypalConfig";
 import { useModalScrollLock } from "@/lib/hooks/useModalScrollLock";
+import { usePayPalExceptionGuard } from "@/lib/hooks/usePayPalExceptionGuard";
+import TopScrollbar from "@/components/TopScrollbar";
+import PayPalErrorBoundary from "@/components/PayPalErrorBoundary";
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import {
   PlusCircle,
@@ -36,7 +40,18 @@ import {
   Check,
   ClipboardList,
   Scale,
+  Sparkles,
 } from "lucide-react";
+
+/**
+ * Formats a fee amount for display, e.g. 65 -> "$65.00".
+ *
+ * The report fee is always charged in full, once, upfront: there is no
+ * installment ladder anywhere in the app, and PayPal's native Pay Later /
+ * Pay in 4 is disabled at the SDK layer.
+ */
+const formatFee = (amount: number): string =>
+  `$${(Number.isFinite(amount) ? amount : DEFAULT_REPORT_FEE_AUD).toFixed(2)}`;
 
 interface Report {
   id: string;
@@ -75,7 +90,7 @@ interface Report {
   };
 }
 
-/** One captured PayPal installment, as recorded on QeeqReport.paymentsJson. */
+/** One captured PayPal payment, as recorded on QeeqReport.paymentsJson. */
 interface PaymentCaptureEntry {
   authorizationId?: string;
   captureId: string;
@@ -93,38 +108,20 @@ interface PaymentCaptureEntry {
  * must consult both.
  */
 const isFullyPaid = (r: Report) =>
-  (r.paidAmount ?? 0) >= ((r.feeAmount ?? 65.0) - 0.005);
+  (r.paidAmount ?? 0) >= ((r.feeAmount ?? DEFAULT_REPORT_FEE_AUD) - 0.005);
 
 /** Analysis finished AND the fee is settled in full. */
 const canDownload = (r: Report) => r.status === "COMPLETED" && isFullyPaid(r);
-
-/**
- * Whether the fee is still owed. Kept separate from canPayRemaining because the
- * billing table explains an outstanding balance even for states that are no
- * longer open for payment (e.g. analysis finished but the ladder is short).
- */
-const isPaymentPartial = (r: Report) =>
-  (r.paidAmount ?? 0) > 0 && !isFullyPaid(r);
-
-/** Whether the case is still accepting another installment. */
-const canPayRemaining = (r: Report) =>
-  r.status === "PAYMENT_AUTHORISED" &&
-  (r.paidAmount ?? 0) > 0 &&
-  !isFullyPaid(r);
 
 /** A single billable transaction row rendered in the billing history table. */
 interface BillingTransaction {
   key: string;
   reportId: string;
   caseReference: string;
-  /** The exact amount captured in THIS transaction (e.g. 16.25 per stage). */
+  /** The exact amount captured in THIS transaction (the full fee). */
   amount: number;
   paidAt: string;
-  installmentNumber: number;
-  installmentCount: number;
-  /** Running total of captured stages, e.g. 32.50 after stage 2. */
-  runningTotal: number;
-  /** The report's full fee, so the table can render 16.25 / 65.00. */
+  /** The report's full fee, so the table can render amount / fee. */
   feeAmount: number;
 }
 
@@ -132,41 +129,30 @@ interface BillingTransaction {
  * Flattens the cumulative `paidAmount` on each report into ONE row per captured
  * payment so the billing history shows the amount actually taken in that
  * specific transaction rather than implying the full fee was charged when a
- * smaller amount was. Payment is normally a single full-amount capture; rows are
- * keyed off `paymentsJson` so the real captured amounts are always shown.
- * Legacy single-capture rows (paymentsJson null, paidAmount > 0) are
- * reconstructed from the report totals so no transaction is ever hidden. Reports
- * with no capture at all still produce one "authorised / awaiting payment" row
- * so an open case stays visible.
+ * smaller amount was. Payment is a single full-amount capture; rows are keyed
+ * off `paymentsJson` so the real captured amount is always shown. Legacy
+ * single-capture rows (paymentsJson null, paidAmount > 0) are reconstructed from
+ * the report totals so no transaction is ever hidden. Reports with no capture at
+ * all still produce one "authorised / awaiting payment" row so an open case
+ * stays visible.
  */
 function buildBillingTransactions(reports: Report[]): BillingTransaction[] {
   const rows: BillingTransaction[] = [];
 
   for (const r of reports) {
-    const fee = Math.round((r.feeAmount || 65) * 100) / 100;
+    const fee = Math.round((r.feeAmount || DEFAULT_REPORT_FEE_AUD) * 100) / 100;
     const paid = Math.max(0, Math.round((r.paidAmount || 0) * 100) / 100);
     const entries = Array.isArray(r.paymentsJson) ? r.paymentsJson : [];
 
     if (entries.length > 0) {
-      // Accumulate a running total so each row can show its progressive
-      // position on the ladder (16.25 / 65.00, then 32.50 / 65.00, ...).
-      // The ladder always totals the full fee, so the total stage count is
-      // derived from the fee, not from how many have landed so far.
-      const stageCount = Math.max(entries.length, Math.round((fee / 16.25) * 100) / 100);
-      let running = 0;
       entries.forEach((entry, index) => {
-        const amount = Math.round((Number(entry.amount) || 0) * 100) / 100;
-  running = Math.round((running + amount) * 100) / 100;
         rows.push({
           key: `${r.id}-${entry.captureId || index}`,
           reportId: r.id,
-     caseReference: r.caseReference,
-      amount,
+          caseReference: r.caseReference,
+          amount: Math.round((Number(entry.amount) || 0) * 100) / 100,
           paidAt: entry.capturedAt || r.updatedAt || r.createdAt,
-          installmentNumber: index + 1,
-   installmentCount: Math.round(stageCount),
-   runningTotal: running,
-    feeAmount: fee,
+          feeAmount: fee,
         });
       });
       continue;
@@ -174,14 +160,11 @@ function buildBillingTransactions(reports: Report[]): BillingTransaction[] {
 
     if (paid > 0) {
       rows.push({
-key: `${r.id}-legacy`,
+        key: `${r.id}-legacy`,
         reportId: r.id,
         caseReference: r.caseReference,
-      amount: paid,
+        amount: paid,
         paidAt: r.updatedAt || r.createdAt,
-        installmentNumber: 1,
-        installmentCount: 1,
-        runningTotal: paid,
         feeAmount: fee,
       });
       continue;
@@ -190,17 +173,14 @@ key: `${r.id}-legacy`,
     rows.push({
       key: `${r.id}-pending`,
       reportId: r.id,
-    caseReference: r.caseReference,
+      caseReference: r.caseReference,
       amount: 0,
       paidAt: r.createdAt,
-      installmentNumber: 0,
-      installmentCount: 0,
-      runningTotal: 0,
       feeAmount: fee,
     });
   }
 
-  // Newest transaction first; each case's installments read top-down in order.
+  // Newest transaction first.
   return rows.sort((a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime());
 }
 
@@ -265,7 +245,11 @@ const todayLocalDateString = (): string => {
   return `${now.getFullYear()}-${month}-${day}`;
 };
 
-const defaultChecklistFieldValues = (): Record<string, string | boolean> => ({
+// Baseline defaults for the fields the resolver reads by name. These values are
+// also produced from the live schema below, but keeping them hardcoded means the
+// form still initialises correctly before the checklist config has finished
+// loading (and if the config fetch ever fails).
+const legacyChecklistDefaults = (): Record<string, string | boolean> => ({
   recording_condition: "",
   quality_1: false,
   quality_2: false,
@@ -277,6 +261,52 @@ const defaultChecklistFieldValues = (): Record<string, string | boolean> => ({
   signature: "",
   date_signed: todayLocalDateString(),
 });
+
+// Schema-derived defaults: every field declared in the active definition gets a
+// type-appropriate initial value (checkbox -> false, date -> today, else "").
+// Driven by the database-backed config so admin-authored fields appear with
+// sensible values without any code change.
+const defaultChecklistFieldValues = (
+  config?: ChecklistConfig | null
+): Record<string, string | boolean> => {
+  const values = legacyChecklistDefaults();
+  for (const section of config?.sections ?? []) {
+    for (const field of section.fields ?? []) {
+      if (Object.prototype.hasOwnProperty.call(values, field.key)) continue;
+      if (field.type === "checkbox") values[field.key] = false;
+      else if (field.type === "date") values[field.key] = todayLocalDateString();
+      else values[field.key] = "";
+    }
+  }
+  return values;
+};
+
+// Robustly normalises any stored value into a strict boolean for checkbox
+// fields. Real booleans pass through; the native/HTML string encodings "true",
+// "on", "1" and "yes" count as checked, while "false", "off", "0", "no",
+// whitespace-only strings, null and undefined count as unchecked. Any other
+// non-empty token falls back to JavaScript truthiness, so a checked box can
+// never be misread as unchecked.
+const isCheckboxChecked = (value: unknown): boolean => {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  if (value === null || value === undefined) return false;
+  const normalised = String(value).trim().toLowerCase();
+  if (normalised === "") return false;
+  return !["false", "off", "0", "no", "null", "undefined"].includes(normalised);
+};
+
+// A required field is complete when it holds a real value: a checked checkbox,
+// or a non-empty (trimmed) value for every other input type. Shares the same
+// checkbox semantics as the rendered `<input type="checkbox">`, so the visible
+// state and the submit gate can never disagree.
+const isChecklistFieldFilled = (
+  field: ChecklistSectionField,
+  resolved: string | boolean
+): boolean => {
+  if (field.type === "checkbox") return isCheckboxChecked(resolved);
+  return String(resolved ?? "").trim() !== "";
+};
 
 function useAutoDismiss(value: unknown, onClear: () => void, delayMs = 4500) {
   const onClearRef = useRef(onClear);
@@ -302,18 +332,10 @@ function PortalDashboardContent() {
 
   // Modals state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  // When set, the payment modal operates on an EXISTING report (a subsequent
-  // installment payment against its remaining balance); null = new-case flow.
-  const [payingReport, setPayingReport] = useState<Report | null>(null);
-// Which plan the buyer picked for THIS order. 'installments' means our own
-// 4-stage ladder: the backend hard-caps the order at ONE stage ($16.25) and
-  // the report stays on Payment Hold until all 4 stages are captured.
-  // 'full' means pay the whole $65.00 in one go.
-  const [paymentPlan, setPaymentPlan] = useState<"full" | "installments">("full");
-  // The exact amount the next order will request, in dollars. Derived from the
-  // plan and the report's outstanding balance; the backend re-derives it
-  // server-side and ignores anything larger, so this is display state only.
-  const [selectedAmt, setSelectedAmt] = useState<number>(65);
+  // Live admin-configured fee, fetched from /api/config. Drives every amount
+  // shown in the checkout, the PayPal modal and the billing copy so the portal
+  // always reflects the active price. The whole fee is charged in one payment.
+  const [reportFee, setReportFee] = useState<number>(DEFAULT_REPORT_FEE_AUD);
   //
   // Guards against PayPal firing onApprove twice for the SAME approved order
   // (postrobot/iframe edge cases). Re-authorising a used order id returns
@@ -384,6 +406,11 @@ function PortalDashboardContent() {
       (!legalLoading && legalPending.length > 0)
   );
   useModalScrollLock(isAnyModalOpen);
+
+  // Swallow PayPal's SDK-internal "paypal_js_sdk_v5_unhandled_exception"
+  // rejections while the payment modal is on screen so they never reach the
+  // global error handler or spam the console after a successful authorisation.
+  usePayPalExceptionGuard(showPaymentModal);
 
   // Bring the payment modal into view the instant it opens, even if the user
   // clicked "Pay" while scrolled deep into the dashboard or billing table.
@@ -479,15 +506,32 @@ function PortalDashboardContent() {
 
     (async () => {
       try {
-        const [configRes, legalRes, legalCurrentRes] = await Promise.all([
+        const [configRes, legalRes, legalCurrentRes, billingConfigRes] = await Promise.all([
           fetch("/api/checklist-config", { credentials: "include" }),
           fetch("/api/legal/status", { credentials: "include" }),
           fetch("/api/legal/current", { credentials: "include" }),
+          fetch("/api/config", { credentials: "include" }),
         ]);
+
+        if (active && billingConfigRes.ok) {
+          const billingConfigData = await billingConfigRes.json();
+          const liveFee = Number(billingConfigData.config?.reportFeeAUD);
+          if (Number.isFinite(liveFee) && liveFee > 0) {
+            setReportFee(liveFee);
+          }
+        }
 
         if (active && configRes.ok) {
           const configData = await configRes.json();
-          if (configData.config) setChecklistConfig(configData.config);
+          if (configData.config) {
+            setChecklistConfig(configData.config);
+            // Seed schema-derived defaults for any admin-authored fields while
+            // preserving anything the practitioner has already entered.
+            setChecklistFieldValues((prev) => ({
+              ...defaultChecklistFieldValues(configData.config),
+              ...prev,
+            }));
+          }
         }
 
         if (active && legalRes.ok) {
@@ -582,6 +626,17 @@ function PortalDashboardContent() {
       practiceEmail: profileFormData.practiceEmail || "",
       email: profileFormData.notificationEmail || "",
     };
+
+    // Generic, schema-agnostic value map: every field in every section is keyed
+    // by its field key so the PDF generator can render admin-authored custom
+    // fields without any code change.
+    const fieldValues: Record<string, string | boolean> = {};
+    for (const section of config?.sections ?? []) {
+      for (const field of section.fields ?? []) {
+        fieldValues[field.key] = resolveChecklistFieldValue(field);
+      }
+    }
+
     const options: CompletedChecklistPdfOptions = {
       caseReference: overrides?.caseReference ?? newCaseData.caseReference,
       age: overrides?.age ?? newCaseData.age,
@@ -591,6 +646,11 @@ function PortalDashboardContent() {
       checklistScores: scoreMap,
       domains: config?.domains ?? [],
       likert: config?.likert,
+      sections: config?.sections ?? [],
+      fieldValues,
+      // Raw case store so a custom field bound to an arbitrary `case.*` source
+      // resolves in the PDF even if it is not one of the canonical fields.
+      caseData: newCaseData as unknown as Record<string, unknown>,
       recordingCondition:
         typeof checklistFieldValues.recording_condition === "string"
           ? checklistFieldValues.recording_condition
@@ -648,41 +708,88 @@ function PortalDashboardContent() {
   };
 
   const resetChecklistInputs = () => {
-    setChecklistFieldValues(defaultChecklistFieldValues());
+    setChecklistFieldValues(defaultChecklistFieldValues(checklistConfig));
     setChecklistReviewed(false);
   };
 
   // Resolves a config-driven field's current value: profile/case fields bind to
-  // account + upload data; everything else lives in checklistFieldValues.
+  // account + upload data; everything else lives in checklistFieldValues. The
+  // result is normalised per input type so checkbox and select state is read
+  // consistently by the renderer, the PDF generator and the submit gate.
   const resolveChecklistFieldValue = (field: ChecklistSectionField): string | boolean => {
+    let raw: string | boolean;
     switch (field.source) {
       case "profile.fullName":
-        return profileFormData.fullName || "";
+        raw = profileFormData.fullName || "";
+        break;
       case "profile.notificationEmail":
-        return profileFormData.notificationEmail || "";
+        raw = profileFormData.notificationEmail || "";
+        break;
       case "profile.professionalTitle":
-        return profileFormData.professionalTitle || "";
+        raw = profileFormData.professionalTitle || "";
+        break;
       case "profile.profession":
-        return profileFormData.profession || "";
+        raw = profileFormData.profession || "";
+        break;
       case "profile.providerNumber":
-        return profileFormData.providerNumber || "";
+        raw = profileFormData.providerNumber || "";
+        break;
       case "profile.clinicName":
-        return profileFormData.clinicName || "";
+        raw = profileFormData.clinicName || "";
+        break;
       case "profile.phone":
-        return profileFormData.phone || "";
+        raw = profileFormData.phone || "";
+        break;
       case "profile.practiceAddress":
-        return profileFormData.practiceAddress || "";
+        raw = profileFormData.practiceAddress || "";
+        break;
       case "case.reference":
-        return newCaseData.caseReference;
+        raw = newCaseData.caseReference;
+        break;
       case "case.age":
-        return newCaseData.age;
+        raw = newCaseData.age;
+        break;
       case "case.gender":
-        return newCaseData.gender;
+        raw = newCaseData.gender;
+        break;
       case "case.handedness":
-        return newCaseData.handedness;
+        raw = newCaseData.handedness;
+        break;
       default:
-        return checklistFieldValues[field.key] ?? "";
+        // Mirror setCaseBoundFieldValue: any (including future) `case.*` source
+        // is written to newCaseData, so it must be read from there too, not
+        // from checklistFieldValues. Otherwise a custom case-bound field would
+        // always resolve empty and be falsely reported as missing.
+        if (field.source?.startsWith("case.")) {
+          const caseKey = field.source.slice("case.".length);
+          if (caseKey && caseKey !== "reference") {
+            raw = (newCaseData as unknown as Record<string, string | undefined>)[caseKey] ?? "";
+            break;
+          }
+        }
+        raw = Object.prototype.hasOwnProperty.call(checklistFieldValues, field.key)
+          ? checklistFieldValues[field.key] ?? ""
+          : "";
+        break;
     }
+
+    if (field.type === "checkbox") {
+      return isCheckboxChecked(raw);
+    }
+
+    if (field.type === "select") {
+      const trimmed = (typeof raw === "string" ? raw : raw ? String(raw) : "").trim();
+      if (trimmed === "") return "";
+      // Canonicalise to the matched option's value (case-insensitive) so
+      // "female" / "FEMALE" / "Female" all resolve to the same selection.
+      const match = (field.options || []).find(
+        (o) => o.value.toLowerCase() === trimmed.toLowerCase()
+      );
+      return match ? match.value : trimmed;
+    }
+
+    if (typeof raw === "boolean") return raw ? "true" : "";
+    return raw;
   };
 
   // Every required section and field, from the first to the last, must be
@@ -699,25 +806,15 @@ function PortalDashboardContent() {
           .filter((d) => d.page === section.domainPage && checklistScores[d.key] === undefined)
           .map((d) => d.num);
         if (unrated.length > 0) {
-          missing.push(`${section.title}: domains ${unrated.join(", ")} not rated`);
+          missing.push(`${section.title}: domains ${unrated.join(", ")}`);
         }
       } else if (kind === "fields" && Array.isArray(section.fields)) {
         if (section.required === false) continue;
         for (const f of section.fields) {
           if (!f.required) continue;
-          if (f.readonly || section.readonly) {
-            if (String(resolveChecklistFieldValue(f) ?? "").trim() === "") missing.push(f.label);
-          } else if (f.type === "checkbox") {
-            if (!checklistFieldValues[f.key]) missing.push(f.label);
-          } else {
-            // Read the field's live value through its source binding so
-            // case-bound fields (client age, gender, handedness) and
-            // profile-bound fields validate against newCaseData/profile,
-            // never against a stale checklistFieldValues key.
-            const resolved = resolveChecklistFieldValue(f);
-            let filled = typeof resolved === "boolean" ? true : String(resolved ?? "").trim() !== "";
-            if (f.key === "signature" && !filled && profileFormData.fullName) filled = true;
-            if (!filled) missing.push(f.label);
+          const resolved = resolveChecklistFieldValue(f);
+          if (!isChecklistFieldFilled(f, resolved)) {
+            missing.push(f.label);
           }
         }
       }
@@ -760,7 +857,7 @@ function PortalDashboardContent() {
     try {
       setChecklistPdfBusy(true);
       const { details, options } = resolveChecklistPdfInputs();
-      const bytes = await generatePreFilledChecklistPDF(details, options);
+      const bytes = await generatePreFilledChecklistPDF(details, options, reportFee);
       const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
       window.open(url, "_blank");
@@ -789,7 +886,7 @@ function PortalDashboardContent() {
     try {
       setChecklistPdfBusy(true);
       const { details, options } = resolveChecklistPdfInputs();
-      const bytes = await generatePreFilledChecklistPDF(details, options);
+      const bytes = await generatePreFilledChecklistPDF(details, options, reportFee);
       const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -950,6 +1047,20 @@ function PortalDashboardContent() {
       // Config-driven checklist payload built from the live definition,
       // including every section captured in the HTML form (recording quality,
       // recording condition, clinical notes, agreement/payment ack, sign-off).
+      //
+      // Generic, schema-agnostic field map: EVERY field in the active schema is
+      // serialised by its exact `field.key` (the same identifier the UI writes
+      // into state and resolveChecklistFieldValue reads), so admin-authored
+      // custom fields reach the server validator, the report payload and both
+      // PDF engines with no code change. The legacy aliases below are kept for
+      // backward compatibility with older consumers.
+      const checklistFieldPayload: Record<string, string | boolean> = {};
+      for (const section of checklistConfig.sections ?? []) {
+        for (const field of section.fields ?? []) {
+          checklistFieldPayload[field.key] = resolveChecklistFieldValue(field);
+        }
+      }
+
       const checklistData = {
         version: checklistConfig.version,
         domains: checklistConfig.domains.map((d) => ({
@@ -980,6 +1091,9 @@ function PortalDashboardContent() {
         paymentAuthorisationAcknowledged: !!checklistFieldValues.payment_auth_ack,
         signature: typeof checklistFieldValues.signature === "string" ? checklistFieldValues.signature : "",
         dateSigned: typeof checklistFieldValues.date_signed === "string" ? checklistFieldValues.date_signed : "",
+        // Generic per-field map consumed by the server validator / report
+        // pipeline. Keyed by field.key so custom fields require no changes.
+        fields: checklistFieldPayload,
       };
 
       const submitPayload: Record<string, unknown> = {
@@ -997,13 +1111,11 @@ function PortalDashboardContent() {
         checklistData,
         // TOVA is mandatory: only the de-identified, parsed metrics are ever
         // transmitted (never the raw file), and the server re-validates them.
-tovaData,
-     paypalOrderId,
-   // Which plan this checkout used, and the stage amount. The backend re-derives
-        // and re-caps both, so a tampered payload cannot charge the full fee
-        // under an 'installments' claim.
-        paymentPlan,
-        amount: selectedAmt,
+        tovaData,
+        // The single, one-time full payment: the backend authorises and then
+        // captures the ENTIRE fee for this approved order. The amount is
+        // derived server-side from the configured fee, never sent by the client.
+        paypalOrderId,
       };
 
       const submitRes = await fetch("/api/reports/submit", {
@@ -1109,63 +1221,6 @@ tovaData,
       fetchDashboardData();
     } catch (err: any) {
       setSubmitError(err.message || "Failed to submit case.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // Subsequent installment payment for an EXISTING report that is still on HOLD
-  // (status PAYMENT_AUTHORISED, cumulative paidAmount < feeAmount). The backend
-  // authorises + captures per-installment and auto-starts generation the moment
-  // paidAmount reaches the full fee.
-  const handleReportPayment = async (paypalOrderId: string) => {
-    if (!payingReport) return;
-    setSubmitError(null);
-    setSubmitting(true);
-    console.info("[PAYPAL] Submitting installment payment for report", payingReport.id, "order", paypalOrderId);
-    try {
-      const res = await fetch(`/api/reports/${payingReport.id}/pay`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-body: JSON.stringify({ paypalOrderId, paymentPlan, amount: selectedAmt }),
-      });
-      const text = await res.text();
-      const data = text ? JSON.parse(text) : {};
-      if (!res.ok) {
-        const PAYMENT_ERROR_CODES = [
-          "PAYMENT_FAILED",
-          "INSUFFICIENT_FUNDS",
-          "INSTRUMENT_DECLINED",
-          "FUNDING_SOURCE_LIMIT",
-          "PAYER_ACCOUNT_LOCKED",
-          "REPORT_ALREADY_PAID",
-        ];
-        if (data.errorCode && PAYMENT_ERROR_CODES.includes(data.errorCode)) {
-          setShowPaymentModal(false);
-          setPayingReport(null);
-          setSubmitting(false);
-          setPaymentError(
-            data.error ||
-              "Your payment could not be authorised. Please check your payment method or account funds and try again."
-          );
-          return;
-        }
-        throw new Error(data.error || "Payment failed.");
-      }
-      const reportRef = payingReport.caseReference;
-      const paidMessage =
-        typeof data.message === "string" && data.message
-          ? data.message
-          : "Payment received.";
-      setShowPaymentModal(false);
-      setPayingReport(null);
-      setSubmitSuccess({ caseReference: reportRef, generatedAt: new Date().toISOString(), message: paidMessage });
-      fetchDashboardData();
-      fetchBillingHistory();
-      router.push("/portal?view=billing");
-    } catch (err: any) {
-      setSubmitError(err.message || "Failed to process payment.");
     } finally {
       setSubmitting(false);
     }
@@ -1436,8 +1491,8 @@ const getStatusBadge = (report: Report) => {
       r.status === "PAYMENT_AUTHORISED" ||
       r.status === "PENDING_ADMIN_APPROVAL"
   ).length;
-  // Sum the ACTUAL amounts captured across every case instead of assuming the
-  // full $65 fee, so an installment-only case contributes only what was paid.
+  // Sum the ACTUAL amounts captured across every case rather than assuming the
+  // full fee was charged.
   const totalSpentAmount = reports.reduce(
     (sum, r) => sum + Math.max(0, Math.round((r.paidAmount || 0) * 100) / 100),
     0
@@ -1445,7 +1500,7 @@ const getStatusBadge = (report: Report) => {
   const totalSpentFormatted = `$${totalSpentAmount.toFixed(0)}`;
 
   // Billing history renders one row per captured transaction (see
-  // buildBillingTransactions) so each stage payment shows its real amount.
+  // buildBillingTransactions) so each payment shows its real amount.
   const billingTransactions = buildBillingTransactions(billingReports);
   const billingById = new Map(billingReports.map((r) => [r.id, r]));
 
@@ -1552,13 +1607,31 @@ const getStatusBadge = (report: Report) => {
                 {totalSpentFormatted}
               </div>
               <span className="text-xs text-slate-500 block mt-2">
-                Flat $65 AUD · Zero subscription
+                Flat {formatFee(reportFee)} AUD · Zero subscription
               </span>
             </div>
           </div>
 
           {/* Reports Table Card */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            {/* AI-generated report notice (Spec 3.1b / platform transparency): shown
+                whenever the practitioner views generated correlation reports, so the
+                AI provenance + clinician-review duty is always visible. */}
+            {reports.length > 0 && (
+              <div className="px-5 sm:px-6 pt-4">
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-3">
+                  <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" aria-hidden="true" />
+                  <p className="text-[11px] text-amber-800 leading-relaxed font-normal">
+                    <span className="font-semibold">AI-generated report notice: </span>
+                    Every correlation report is synthesized by an AI engine from
+                    evidence-linked literature and delivered without human review. AI-generated
+                    content can be wrong — the referring practitioner must review the report and
+                    verify its findings before any clinical reliance.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Search & Filter Bar */}
             <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
               <div className="relative flex-1 max-w-md">
@@ -1592,6 +1665,7 @@ const getStatusBadge = (report: Report) => {
             </div>
 
               {/* Table Content */}
+              <TopScrollbar />
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[820px] text-left text-xs sm:text-sm">
                 <thead>
@@ -1616,14 +1690,6 @@ const getStatusBadge = (report: Report) => {
 const badge = getStatusBadge(report);
              const isReady = canDownload(report);
               const isPurged = report.status === "DOWNLOADED_AND_PURGED";
-              // A case still on the Pay in 4 / installment ladder owes money and
-              // stays in PAYMENT_AUTHORISED, so surface the same "Pay remaining"
-              // shortcut used in Billing History instead of generic text.
-              const payRemainingAmount =
-                report.status === "PAYMENT_AUTHORISED" && !isFullyPaid(report)
-                  ? Math.max(0, Math.round(((report.feeAmount || 65) - (report.paidAmount || 0)) * 100) / 100)
-                  : 0;
-              const canPayHere = payRemainingAmount > 0;
 
                       return (
                         <tr key={report.id} className="hover:bg-slate-50/70 transition-colors">
@@ -1670,24 +1736,6 @@ const badge = getStatusBadge(report);
                                 <Check className="w-3.5 h-3.5 text-emerald-600" />
                                 <span>Purged</span>
                               </span>
-                            ) : canPayHere ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  // Same flow as the Billing History link: one
-                                  // ladder stage is preselected and priced, and
-                                  // the existing report payment modal completes
-                                  // the remaining balance.
-                                  setPaymentPlan("installments");
-                                  setSelectedAmt(Math.min(16.25, payRemainingAmount));
-                                  setPayingReport(report);
-                                  handledPayPalOrderIds.current.clear();
-                                  setShowPaymentModal(true);
-                                }}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-700 text-xs font-semibold transition-all cursor-pointer"
-                              >
-                                <span>Pay remaining ${payRemainingAmount.toFixed(2)}</span>
-                              </button>
                             ) : (
                               <span className="text-xs text-slate-400 italic">Processing</span>
                             )}
@@ -2078,13 +2126,13 @@ const badge = getStatusBadge(report);
                   <p className="text-xs text-slate-500">Loading checklist definition...</p>
                 ) : checklistConfig.sections && checklistConfig.sections.length > 0 ? (
                   <div className="space-y-3 max-h-[820px] overflow-y-auto pr-1">
-                    {checklistConfig.sections.map((section) => {
+                     {checklistConfig.sections.map((section, sIdx) => {
                       const kind = section.kind ?? "fields";
 
                       if (kind === "static") {
                         return (
                           <div
-                            key={section.key}
+                            key={`${sIdx}-${section.key}`}
                             className="bg-white border border-amber-200 rounded-lg p-3"
                           >
                             <span className="text-[11px] font-semibold text-[#16233B] uppercase tracking-wider block mb-2">
@@ -2109,7 +2157,7 @@ const badge = getStatusBadge(report);
                           (d) => checklistScores[d.key] !== undefined
                         ).length;
                         return (
-                          <div key={section.key} className="bg-white border border-slate-200 rounded-lg p-3 space-y-2">
+                          <div key={`${sIdx}-${section.key}`} className="bg-white border border-slate-200 rounded-lg p-3 space-y-2">
                             <div className="flex items-center justify-between gap-2">
                               <span className="text-[11px] font-semibold text-[#16233B]">
                                 {section.title}
@@ -2165,7 +2213,7 @@ const badge = getStatusBadge(report);
                       }
 
                       return (
-                        <div key={section.key} className="bg-white border border-slate-200 rounded-lg p-3 space-y-3">
+                        <div key={`${sIdx}-${section.key}`} className="bg-white border border-slate-200 rounded-lg p-3 space-y-3">
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-[11px] font-semibold text-[#16233B]">
                               {section.title}
@@ -2182,7 +2230,7 @@ const badge = getStatusBadge(report);
                             </p>
                           )}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {(section.fields || []).map((field) => {
+                            {(section.fields || []).map((field, fIdx) => {
                               const value = resolveChecklistFieldValue(field);
                               const isLocked = field.readonly || section.readonly;
                               const isMissingText =
@@ -2205,8 +2253,8 @@ const isMissingSelect =
                               if (field.type === "checkbox") {
                                 return (
                                   <label
-                                    key={field.key}
-                                    className="flex items-start gap-2.5 cursor-pointer select-none sm:col-span-2"
+                                    key={`${sIdx}-${fIdx}-${field.key}`}
+                                    className="flex items-start gap-3 cursor-pointer select-none sm:col-span-2"
                                   >
 <input
    type="checkbox"
@@ -2214,11 +2262,11 @@ const isMissingSelect =
   name={field.key}
    checked={!!value}
          onChange={(e) => setCaseBoundFieldValue(field, e.target.checked)}
-  className={`mt-0.5 h-4 w-4 rounded border-slate-300 text-[#16233B] focus:ring-[#16233B] ${
+  className={`mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-[#16233B] focus:ring-[#16233B] ${
           isMissingCheck ? "border-rose-400 ring-1 ring-rose-300" : ""
                                           }`}
     />
-                                    <span className="text-[11px] leading-snug">
+                                    <span className="min-w-0 flex-1 text-[11px] leading-snug break-words">
                                       <span
                                         className={`font-semibold ${
                                           isMissingCheck ? "text-rose-600" : "text-slate-800"
@@ -2244,7 +2292,7 @@ const isMissingSelect =
                                   (o) => o.value.toUpperCase() === selectValue
                                 );
                                 return (
-                                  <div key={field.key}>
+                                  <div key={`${sIdx}-${fIdx}-${field.key}`}>
                                     <label className="block text-[10px] font-semibold text-slate-600 mb-1">
                                       {field.label}
                                     </label>
@@ -2277,7 +2325,7 @@ const isMissingSelect =
 
                               if (field.type === "textarea") {
                                 return (
-                                  <div key={field.key} className="sm:col-span-2">
+                                  <div key={`${sIdx}-${fIdx}-${field.key}`} className="sm:col-span-2">
                                     <label className="block text-[10px] font-semibold text-slate-600 mb-1">
                                       {field.label}
                                     </label>
@@ -2307,7 +2355,7 @@ className={`${baseInput} resize-y ${
                                 const rawValue = String(value ?? "");
                                 const lockedValue = today !== null && rawValue !== today ? today : rawValue;
                                 return (
-                                  <div key={field.key}>
+                                  <div key={`${sIdx}-${fIdx}-${field.key}`}>
                                     <label className="block text-[10px] font-semibold text-slate-600 mb-1">
                                       {field.label}
                                     </label>
@@ -2332,7 +2380,7 @@ value={lockedValue}
                               }
 
                               return (
-                                <div key={field.key}>
+                                <div key={`${sIdx}-${fIdx}-${field.key}`}>
                                   <label className="block text-[10px] font-semibold text-slate-600 mb-1">
                                     {field.label}
                                   </label>
@@ -2412,7 +2460,7 @@ className={`${baseInput} ${
                 <button
                   type="button"
                   onClick={handlePreviewChecklistPdf}
-                  disabled={!qeegReliabilityPassed || checklistPdfBusy}
+                  disabled={!qeegReliabilityPassed || checklistPdfBusy || missingChecklistFields().length > 0}
                   className="px-5 py-3 bg-white border border-slate-300 hover:border-[#16233B] hover:bg-slate-50 disabled:opacity-50 text-[#16233B] text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer"
                 >
                   <FileCheck className="w-4 h-4" />
@@ -2424,7 +2472,7 @@ className={`${baseInput} ${
                 <button
                   type="button"
                   onClick={handleDownloadChecklistPdfCompleted}
-                  disabled={!qeegReliabilityPassed || checklistPdfBusy}
+                  disabled={!qeegReliabilityPassed || checklistPdfBusy || missingChecklistFields().length > 0}
                   className="px-5 py-3 bg-[#16233B] hover:bg-[#0F172A] disabled:opacity-50 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
@@ -2451,7 +2499,7 @@ className={`${baseInput} ${
                 <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>
-                    Checklist PDF reviewed — you can now Authorize $65 AUD &amp; Submit (Step 3).
+                    Checklist PDF reviewed — you can now Authorize {formatFee(reportFee)} AUD &amp; Submit (Step 3).
                   </span>
                 </div>
               ) : (
@@ -2476,7 +2524,7 @@ className={`${baseInput} ${
                 Submit de-identified payload
               </div>
               <p className="text-xs text-slate-300 mt-1 font-normal max-w-lg leading-relaxed">
-                $65 AUD payment hold placed on submission. Funds captured strictly when the report is successfully generated and verified. Unlocked once the completed Symptom Checklist PDF has been reviewed/downloaded (Tab 2).
+                {formatFee(reportFee)} AUD payment hold placed on submission. Funds captured strictly when the report is successfully generated and verified. Unlocked once the completed Symptom Checklist PDF has been reviewed/downloaded (Tab 2).
               </p>
             </div>
 
@@ -2490,13 +2538,10 @@ className={`${baseInput} ${
                     );
                     return;
                   }
-setPaymentPlan("full");
-       setSelectedAmt(65);
-      setShowPaymentModal(true);
-      setPayingReport(null);
-      handledPayPalOrderIds.current.clear();
-     }}
-                disabled={!qeegReliabilityPassed || submitting}
+                  setShowPaymentModal(true);
+                  handledPayPalOrderIds.current.clear();
+                }}
+                disabled={!allRequiredComplete || submitting}
                 className="w-full sm:w-auto px-8 py-3.5 bg-white hover:bg-slate-100 disabled:opacity-50 text-[#16233B] text-sm font-semibold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {submitting ? (
@@ -2510,7 +2555,7 @@ setPaymentPlan("full");
                     )}
                     <span>
                       {checklistReviewed
-                        ? "Authorize $65 AUD & Submit"
+                        ? `Authorize ${formatFee(reportFee)} AUD & Submit`
                         : "Locked until checklist PDF reviewed"}
                     </span>
                     <ArrowRight className="w-4 h-4" />
@@ -2539,12 +2584,13 @@ setPaymentPlan("full");
                 Billing history
               </h2>
               <p className="text-xs sm:text-sm text-slate-500 font-normal mt-1.5 leading-relaxed">
-                $65 AUD per successfully generated report, payable upfront or in stage payments. Each row below is
+                {formatFee(reportFee)} AUD per successfully generated report, charged in full, upfront. Each row below is
                 one captured transaction. Never charged for a rejected submission.
               </p>
             </div>
 
               {/* Table */}
+              <TopScrollbar />
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[560px] text-left">
                 <thead>
@@ -2566,7 +2612,7 @@ setPaymentPlan("full");
                           case "CAPTURED":
                             return "Charged";
                           case "AUTHORISED":
-                            return txn.amount > 0 ? "Partially Paid" : "Authorised (Awaiting Payment)";
+                            return txn.amount > 0 ? "Partially Paid (legacy)" : "Authorised (Awaiting Payment)";
                           case "VOIDED":
                             return "Voided";
                           case "FAILED":
@@ -2575,12 +2621,11 @@ setPaymentPlan("full");
                             return "Pending";
                         }
                       };
-                      const billingFee = r.feeAmount || 65;
+                      const billingFee = r.feeAmount || reportFee;
                       const billingPaid = Math.max(0, Math.round((r.paidAmount || 0) * 100) / 100);
-const billingRemaining = Math.max(0, Math.round((billingFee - billingPaid) * 100) / 100);
-       // Download stays locked until the case is fully paid AND generated.
-   const rowCanDownload = canDownload(r);
-               const canPayMore = canPayRemaining(r);
+                      const billingRemaining = Math.max(0, Math.round((billingFee - billingPaid) * 100) / 100);
+                      // Download stays locked until the case is fully paid AND generated.
+                      const rowCanDownload = canDownload(r);
 
                       return (
                         <tr key={txn.key} className="hover:bg-slate-50/60 transition-colors">
@@ -2595,26 +2640,15 @@ const billingRemaining = Math.max(0, Math.round((billingFee - billingPaid) * 100
                             <span className="text-[#2563EB] hover:text-[#1D4ED8] hover:underline font-mono text-sm cursor-pointer">
                               {txn.caseReference}
                             </span>
-                            {txn.installmentCount > 1 && (
-                              <span className="block text-[10px] text-slate-400 font-normal mt-0.5">
-                                Stage {txn.installmentNumber} of {txn.installmentCount}
-                              </span>
-                            )}
                           </td>
                           {/* The amount actually captured in THIS transaction. */}
                           <td className="py-4.5 px-6 text-slate-900 font-normal">
-{txn.amount > 0 ? (
-      <span className="font-semibold">${txn.amount.toFixed(2)}</span>
-            ) : (
-   <span className="font-semibold text-slate-400">&mdash;</span>
-      )}
-   {/* Progressive case total for THIS stage: 16.25 / 65.00, then 32.50 / 65.00. */}
-      {txn.installmentCount > 1 && (
-   <span className="block text-[10px] text-slate-400 font-normal mt-0.5 font-mono">
-          ${txn.runningTotal.toFixed(2)} of ${txn.feeAmount.toFixed(2)} paid
-          </span>
-      )}
-</td>
+                            {txn.amount > 0 ? (
+                              <span className="font-semibold">${txn.amount.toFixed(2)}</span>
+                            ) : (
+                              <span className="font-semibold text-slate-400">&mdash;</span>
+                            )}
+                          </td>
                           <td className="py-4.5 px-6 text-slate-600 font-normal">
                             <span className="font-mono text-xs">
                               ${billingPaid.toFixed(2)}
@@ -2628,49 +2662,21 @@ const billingRemaining = Math.max(0, Math.round((billingFee - billingPaid) * 100
                             )}
                           </td>
                           <td className="py-4.5 px-6 sm:px-8">
-                            <div className="flex flex-col items-start gap-1.5">
-                              <span className="text-slate-900 font-normal">
-                                {getPaymentStatusLabel(r.paymentStatus)}
+                            <span className="text-slate-900 font-normal">
+                              {getPaymentStatusLabel(r.paymentStatus)}
+                            </span>
+                            {!rowCanDownload && r.status !== "DOWNLOADED_AND_PURGED" && (
+                              <span className="block text-[11px] text-slate-400 font-normal">
+                                {billingRemaining > 0
+                                  ? `Download locked — ${billingRemaining.toFixed(2)} AUD outstanding`
+                                  : "Report processing"}
                               </span>
-{!rowCanDownload && r.status !== "DOWNLOADED_AND_PURGED" && (
-                                 <span className="text-[11px] text-slate-400 font-normal">
-                                   {billingRemaining > 0
-                                     ? `Download locked — ${billingRemaining.toFixed(
-                                         2,
-                                       )} AUD outstanding`
-                                     : "Report processing"}
-                                 </span>
-                               )}
-                              {isPaymentPartial(r) && !canPayMore && (
-                                 <span className="text-[11px] text-amber-600 font-normal">
-                                   Balance outstanding
-                                 </span>
-                               )}
-          {canPayMore && (
-                                <button
-                                  type="button"
-onClick={() => {
-     // An outstanding balance means we're already ON the 4-stage ladder, so
-      // preselect it and price the button at ONE stage, not the whole balance.
-      // The backend caps it regardless, but the UI must not mislead.
-  setPaymentPlan("installments");
-   setSelectedAmt(Math.min(16.25, Math.round(billingRemaining * 100) / 100));
-       setPayingReport(r);
-            handledPayPalOrderIds.current.clear();
-     setShowPaymentModal(true);
-              }}
-                                  className="text-[11px] font-semibold text-[#2563EB] hover:text-[#1D4ED8] hover:underline"
-                                >
-                                  Pay remaining ${billingRemaining.toFixed(2)}
-                                </button>
-                              )}
-                            </div>
+                            )}
                           </td>
                         </tr>
                       );
                     })
                   ) : (
-
                     <tr>
                       <td colSpan={5} className="py-10 text-center text-sm text-slate-500">
                         No billing history yet.
@@ -2933,6 +2939,25 @@ Practice Contact Phone *
               </p>
             </div>
 
+            {/* AI-generated report warning: prominent, shown at the exact moment
+                the practitioner is about to view/obtain the compiled report. */}
+            <div className="rounded-xl border border-sky-200 bg-sky-50 p-4">
+              <div className="flex items-start gap-3">
+                <Sparkles className="w-5 h-5 text-sky-700 shrink-0 mt-0.5" aria-hidden="true" />
+                <div>
+                  <p className="text-xs font-semibold text-sky-900">
+                    AI-generated, evidence-linked report — review required
+                  </p>
+                  <p className="text-[11px] text-sky-800 mt-1 leading-relaxed">
+                    This report was synthesized by an AI correlation engine from cited
+                    literature and delivered without human review. It must be reviewed and
+                    validated by the referring practitioner for clinical accuracy before any
+                    reliance on its findings.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
               <div className="flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
@@ -3017,30 +3042,11 @@ Practice Contact Phone *
         showPaymentModal &&
         createPortal(
           (() => {
-          // Amount context for THIS payment round. New-case flow: full $65 fee,
-          // nothing paid yet. Existing-report flow: the report's remaining
-          // balance after its already-captured installments.
-const feeAmt = payingReport ? payingReport.feeAmount || 65 : 65;
-          const paidAmt = payingReport ? Math.max(0, payingReport.paidAmount || 0) : 0;
-const remainingAmt = Math.max(0, Math.round((feeAmt - paidAmt) * 100) / 100);
-            // How many of the 4 stages have been captured, and how many
-            // payments are still needed. The final stage absorbs any
-            // rounding remainder so the ladder always totals the exact fee.
-            const stageUnit = Math.min(16.25, remainingAmt);
-            const stagesRemaining = Math.max(
-       1,
-    Math.ceil(Math.round(remainingAmt * 100) / 100 / stageUnit)
-         );
-// Stages already captured. Rounding-safe: solve it from the paid amount
-            // rather than counting ledger rows. A leading stage is only
-            // "captured" once paidAmt is actually non-zero, so stage 1 of a
-            // fresh case reads 0 captured (correctly showing "Stage 1 of 4").
-            const stagesTotal = 4;
-    const paidStages =
-  paidAmt <= 0
-      ? 0
-       : Math.max(0, Math.min(stagesTotal, stagesTotal - stagesRemaining));
- return (
+          // The report fee is always charged in full, once. There is no
+          // installment ladder, so the amount due is simply the live fee.
+          const feeAmt = reportFee;
+          const amountDue = Math.round(feeAmt * 100) / 100;
+          return (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto overscroll-contain">
           <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl ring-1 ring-slate-900/5 border border-slate-200 p-6 sm:p-8 space-y-6 animate-fadeIn overflow-hidden max-h-[85vh] overflow-y-auto">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#003087]" />
@@ -3062,75 +3068,14 @@ const remainingAmt = Math.max(0, Math.round((feeAmt - paidAmt) * 100) / 100);
               </button>
             </div>
 
-<div className="text-center py-4">
-     <span className="text-sm text-slate-500 block mb-1">
-     {payingReport ? `Report fee ${feeAmt.toFixed(2)} AUD` : "Amount due"}
-    </span>
-  <span className="text-4xl font-light text-slate-800 block">
-{selectedAmt.toFixed(2)} <span className="text-lg text-slate-400">AUD</span>
-     </span>
-            {paymentPlan === "installments" && !payingReport && (
-              <span className="block text-xs text-slate-500 mt-1.5">
-                Stage {Math.min(4, paidStages + 1)} of 4 · {stagesRemaining} payment
-                {stagesRemaining === 1 ? "" : "s"} left
+            <div className="text-center py-4">
+              <span className="text-sm text-slate-500 block mb-1">Amount due</span>
+              <span className="text-4xl font-light text-slate-800 block">
+                {amountDue.toFixed(2)} <span className="text-lg text-slate-400">AUD</span>
               </span>
-            )}
-            {paidAmt > 0 && (
-     <span className="block text-xs text-slate-500 mt-1.5">
-    {paidAmt.toFixed(2)} already paid · {remainingAmt.toFixed(2)} remaining
-    </span>
-         )}
-      </div>
-
-        {/* Payment plan selector. Our OWN 4-stage ladder (PayPal's native Pay in
-            4 is disabled at the SDK layer, so a stage is never re-split). */}
-            <div className="space-y-2">
-  <div className="grid grid-cols-2 gap-2">
- <button
-      type="button"
-      onClick={() => {
-         setPaymentPlan("full");
-            setSelectedAmt(Math.round(remainingAmt * 100) / 100);
-           }}
-     disabled={submitting}
-    className={`px-3 py-2.5 rounded-xl border-2 text-xs font-semibold transition-all text-left ${
-     paymentPlan === "full"
-        ? "border-[#003087] bg-[#003087]/5 text-[#003087]"
-       : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-      }`}
-       >
-   <span className="block">Pay in full</span>
-       <span className="block text-[11px] font-normal text-slate-500 mt-0.5">
-                {remainingAmt.toFixed(2)} AUD once
-    </span>
-       </button>
-          <button
-       type="button"
-            onClick={() => {
-     setPaymentPlan("installments");
-   const stage = Math.min(16.25, Math.round(remainingAmt * 100) / 100);
-       setSelectedAmt(stage);
-          }}
-         disabled={submitting}
-    className={`px-3 py-2.5 rounded-xl border-2 text-xs font-semibold transition-all text-left ${
-       paymentPlan === "installments"
-         ? "border-[#003087] bg-[#003087]/5 text-[#003087]"
-       : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-     }`}
-        >
-     <span className="block">4 × installments</span>
-         <span className="block text-[11px] font-normal text-slate-500 mt-0.5">
-           {Math.min(16.25, remainingAmt).toFixed(2)} AUD × 4
-    </span>
-         </button>
-      </div>
-{paymentPlan === "installments" && payingReport && (
-    <p className="text-[11px] text-slate-500 leading-relaxed">
-            This pays ONE stage ({Math.min(16.25, remainingAmt).toFixed(2)} AUD)
-            of the {stagesRemaining} stage{stagesRemaining === 1 ? "" : "s"} still
-      outstanding. Your report unlocks the moment the final stage clears.
-            </p>
-        )}
+              <span className="block text-xs text-slate-500 mt-1.5">
+                One-time payment in full
+              </span>
             </div>
 
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-600">
@@ -3140,20 +3085,26 @@ const remainingAmt = Math.max(0, Math.round((feeAmt - paidAmt) * 100) / 100);
               </div>
               <div className="flex justify-between">
                 <span>Case Reference</span>
-                <span className="font-mono">
-                  {payingReport ? payingReport.caseReference : newCaseData.caseReference}
-                </span>
+                <span className="font-mono">{newCaseData.caseReference}</span>
               </div>
-<p className="mt-4 text-slate-500 text-[11px] leading-relaxed">
-        <Lock className="w-3 h-3 inline-block mr-1 -mt-0.5" />
-          {paymentPlan === "installments"
-   ? "This is one stage of a 4-stage plan, captured immediately. Your report stays on Payment Hold and cannot be downloaded until all four stages total the full $65.00 AUD."
-            : "This is a secure authorization hold. Funds are only captured once the report has been paid for in full."}
-   </p>
+              <p className="mt-4 text-slate-500 text-[11px] leading-relaxed">
+                <Lock className="w-3 h-3 inline-block mr-1 -mt-0.5" />
+                This is a secure authorization hold. The full {formatFee(feeAmt)} AUD fee is
+                captured once, in a single payment, as soon as the report is accepted.
+              </p>
             </div>
 
-
             <div className="pt-2 flex flex-col gap-3 min-h-[150px]">
+              <PayPalErrorBoundary
+                fallback={
+                  <p className="text-xs text-red-700 bg-red-50 border border-red-100 rounded-lg p-3 leading-relaxed">
+                    The PayPal checkout failed to load. Please close this dialog and try again.
+                  </p>
+                }
+                onError={(error) =>
+                  console.warn("[PAYPAL] Button rendering failed:", error?.message)
+                }
+              >
               <PayPalButtons
                 style={{ layout: "vertical", shape: "pill", color: "gold" }}
                 createOrder={async () => {
@@ -3161,9 +3112,7 @@ const remainingAmt = Math.max(0, Math.round((feeAmt - paidAmt) * 100) / 100);
                   // order from the backend (/api/payments/orders). Never reuse a
                   // previous order id: approving/re-authorising a stale or used
                   // order returns PayPal INVALID_RESOURCE_ID.
-                  const activeCaseRef = payingReport
-                    ? payingReport.caseReference
-                    : newCaseData.caseReference;
+                  const activeCaseRef = newCaseData.caseReference;
                   if (!activeCaseRef) {
                     throw new Error(
                       "Case reference is missing — payment cannot be started. Please re-upload the QEEG file."
@@ -3171,8 +3120,7 @@ const remainingAmt = Math.max(0, Math.round((feeAmt - paidAmt) * 100) / 100);
                   }
                   console.info(
                     "[PAYPAL] Requesting a fresh order from /api/payments/orders for case",
-                    activeCaseRef,
-                    payingReport ? "(installment for existing report)" : "(new case)"
+                    activeCaseRef
                   );
                   // Same-origin by design: app/api/payments/orders proxies to the
                   // backend so the httpOnly session cookie is forwarded. Calling
@@ -3183,19 +3131,7 @@ const remainingAmt = Math.max(0, Math.round((feeAmt - paidAmt) * 100) / 100);
                       method: "POST",
                       credentials: "include",
                       headers: { "Content-Type": "application/json" },
-body: JSON.stringify(
-payingReport
- ? {
-         reportId: payingReport.id,
-    amount: selectedAmt,
-    paymentPlan,
-  }
- : {
-      caseReference: newCaseData.caseReference,
-    amount: selectedAmt,
-            paymentPlan,
-      }
-      ),
+                      body: JSON.stringify({ caseReference: newCaseData.caseReference }),
                     });
                   } catch (networkError: unknown) {
                     // fetch() only rejects on a transport failure (backend down,
@@ -3284,13 +3220,9 @@ payingReport
                     console.info(
                       "[PAYPAL] Submitting approved order",
                       orderId,
-                      payingReport ? "via /api/reports/:id/pay (installment)" : "to /api/reports/submit"
+                      "to /api/reports/submit"
                     );
-                    if (payingReport) {
-                      await handleReportPayment(orderId);
-                    } else {
-                      await handleCreateCase(orderId);
-                    }
+                    await handleCreateCase(orderId);
                   } catch (err: any) {
                     setShowPaymentModal(false);
                     setPaymentError(
@@ -3301,21 +3233,30 @@ payingReport
                   }
                 }}
                 onCancel={() => {
-                  setShowPaymentModal(false);
-                  setSubmitting(false);
+                  try {
+                    setShowPaymentModal(false);
+                    setSubmitting(false);
+                  } catch (callbackError) {
+                    console.warn("[PAYPAL] onCancel handler failed:", callbackError);
+                  }
                 }}
                 onError={(err) => {
-                  setShowPaymentModal(false);
-                  setPaymentError(
-                    `PayPal Checkout error: ${
-                      (err as any)?.message ||
-                      (err as any)?.name ||
-                      "Payment could not be processed. Please try again."
-                    }`
-                  );
-                  setSubmitting(false);
+                  try {
+                    setShowPaymentModal(false);
+                    setPaymentError(
+                      `PayPal Checkout error: ${
+                        (err as any)?.message ||
+                        (err as any)?.name ||
+                        "Payment could not be processed. Please try again."
+                      }`
+                    );
+                    setSubmitting(false);
+                  } catch (callbackError) {
+                    console.warn("[PAYPAL] onError handler failed:", callbackError);
+                  }
                 }}
               />
+              </PayPalErrorBoundary>
               <button
                 type="button"
                 onClick={() => setShowPaymentModal(false)}
@@ -3505,10 +3446,10 @@ export default function PortalPage() {
     clientId: getPayPalClientId(),
     currency: "AUD",
     intent: "authorize",
-    // Structural disallow of Pay Later / Pay in 4 / PayPal Credit. Our OWN
-    // 4-stage installment ladder is managed server-side (one $16.25 order per
-    // stage), so PayPal must NOT also split a stage into sub-payments on its
-    // side. Enforced on the backend too, which rejects CAPTURE-intent orders.
+    // Structural disallow of Pay Later / Pay in 4 / PayPal Credit. Each report
+    // is paid for in ONE full, upfront payment, so PayPal must never split the
+    // fee into sub-payments on its side. Enforced on the backend too, which
+    // rejects CAPTURE-intent orders (authorize only).
     "disable-funding": "paylater,credit",
   };
 

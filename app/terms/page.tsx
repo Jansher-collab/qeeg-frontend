@@ -59,7 +59,7 @@ export default function TermsPage() {
       title: "5. Fees",
       content: (
         <p>
-          The current fee is AU$65 per successfully generated report, charged only once a report is produced. Rejected submissions (failing the reliability threshold) are never charged. A resubmission is treated as a new report and charged in full if successful.
+          The current fee is stated on the Pricing page and is charged per successfully generated report, only once a report is produced. Rejected submissions (failing the reliability threshold) are never charged. A resubmission is treated as a new report and charged in full if successful.
         </p>
       ),
     },

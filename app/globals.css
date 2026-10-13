@@ -67,6 +67,7 @@
 /* Smooth custom scrollbar */
 ::-webkit-scrollbar {
   width: 7px;
+  height: 7px; /* matches width so horizontal bars (incl. the top table bar) stay slim */
 }
 ::-webkit-scrollbar-track {
   background: #F3F6F8;

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { clearSessionStateClientSide } from "@/lib/clearSession";
 import { getBrowserTimeZone } from "@/lib/getBrowserTimeZone";
+import { formatRetryAfter } from "@/lib/formatRetryAfter";
 import PasswordInput from "@/components/PasswordInput";
 import { AlertCircle, ArrowRight, ShieldCheck, CheckCircle2, Check } from "lucide-react";
 
@@ -59,6 +60,18 @@ function LoginForm() {
       // TOTP/backup code before issuing a session token.
       if (res.status === 428 || data.code === "TOTP_REQUIRED") {
         setRequires2FA(true);
+        return;
+      }
+
+      // Account-scoped rate limit (HTTP 429, distinct from a plain 401 wrong
+      // password/code): the backend sends retryAfterSeconds so the message can
+      // say exactly when the account unlocks again.
+      if (res.status === 429) {
+        setError(
+          data.error ||
+            formatRetryAfter(data.retryAfterSeconds) ||
+            "Too many failed sign-in attempts. Please try again later."
+        );
         return;
       }
 

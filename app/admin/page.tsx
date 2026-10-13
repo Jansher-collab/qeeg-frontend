@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { clearSessionStateClientSide } from "@/lib/clearSession";
+import TopScrollbar from "@/components/TopScrollbar";
+import ChecklistFormBuilder from "@/components/admin/ChecklistFormBuilder";
 import {
   CheckCircle2,
   AlertCircle,
@@ -26,6 +28,7 @@ import {
   ExternalLink,
   Database,
   Clock,
+  ClipboardList,
 } from "lucide-react";
 
 interface PractitionerProfile {
@@ -89,33 +92,6 @@ interface AdminSettings {
   hostingRegion: string;
 }
 
-interface KnowledgeSourcePdf {
-  id: string;
-  originalFileName: string;
-  fileName: string;
-  sizeBytes: number;
-  title: string | null;
-  status: string;
-  error: string | null;
-  entryCount: number;
-  uploadedBy: { email: string } | null;
-  uploadedAt: string;
-}
-
-interface KnowledgeEntry {
-  id: string;
-  sourcePdfId: string;
-  title: string;
-  authors: string[];
-  journal: string | null;
-  year: number | null;
-  abstract: string | null;
-  url: string;
-  doi: string | null;
-  keywords: string[];
-  createdAt: string;
-  sourcePdf: { id: string; originalFileName: string; status: string } | null;
-}
 
 function useAutoDismiss(value: unknown, onClear: () => void, delayMs = 4500) {
   const onClearRef = useRef(onClear);
@@ -125,6 +101,12 @@ function useAutoDismiss(value: unknown, onClear: () => void, delayMs = 4500) {
     const timer = setTimeout(() => onClearRef.current(), delayMs);
     return () => clearTimeout(timer);
   }, [value, delayMs]);
+}
+
+function errorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error && err.message) return err.message;
+  if (typeof err === "string" && err) return err;
+  return fallback;
 }
 
 function AdminDashboardContent() {
@@ -142,7 +124,7 @@ function AdminDashboardContent() {
   const [historyError, setHistoryError] = useState<string | null>(null);
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<"pending" | "history" | "legal" | "settings" | "knowledge">("pending");
+  const [currentView, setCurrentView] = useState<"pending" | "history" | "legal" | "settings" | "schema">("pending");
 
   // Legal Documents management (DPA / EULA)
   const [legalDocs, setLegalDocs] = useState<LegalDocument[]>([]);
@@ -165,16 +147,6 @@ function AdminDashboardContent() {
   const [feeInput, setFeeInput] = useState<string>("65");
   const [retentionInput, setRetentionInput] = useState<string>("30");
 
-  // Knowledge Base (research PDF ingestion)
-  const [knowledgeSourcePdfs, setKnowledgeSourcePdfs] = useState<KnowledgeSourcePdf[]>([]);
-  const [knowledgeEntries, setKnowledgeEntries] = useState<KnowledgeEntry[]>([]);
-  const [knowledgeLoaded, setKnowledgeLoaded] = useState(false);
-  const [knowledgeLoading, setKnowledgeLoading] = useState(false);
-  const [knowledgeUploadFiles, setKnowledgeUploadFiles] = useState<File[]>([]);
-  const [knowledgeUploading, setKnowledgeUploading] = useState(false);
-  const [knowledgeBusyId, setKnowledgeBusyId] = useState<string | null>(null);
-  const [knowledgeMessage, setKnowledgeMessage] = useState<string | null>(null);
-  const [knowledgeError, setKnowledgeError] = useState<string | null>(null);
 
   useEffect(() => {
     async function checkAuth() {
@@ -406,8 +378,6 @@ function AdminDashboardContent() {
   useAutoDismiss(historyError, () => setHistoryError(null));
   useAutoDismiss(legalMessage, () => setLegalMessage(null));
   useAutoDismiss(legalError, () => setLegalError(null));
-  useAutoDismiss(knowledgeMessage, () => setKnowledgeMessage(null));
-  useAutoDismiss(knowledgeError, () => setKnowledgeError(null));
   useAutoDismiss(settingsMessage, () => setSettingsMessage(null));
   useAutoDismiss(settingsError, () => setSettingsError(null));
 
@@ -511,163 +481,6 @@ function AdminDashboardContent() {
     }
   };
 
-  // ----------------------------------------------------------
-  // Knowledge Base (research PDF ingestion)
-  // ----------------------------------------------------------
-  const fetchKnowledge = async () => {
-    try {
-      setKnowledgeLoading(true);
-      setKnowledgeError(null);
-      const [sourcesRes, entriesRes] = await Promise.all([
-        fetch("/api/admin/knowledge/source-pdfs", { credentials: "include" }),
-        fetch("/api/admin/knowledge/entries", { credentials: "include" }),
-      ]);
-      const sourcesData = await sourcesRes.json().catch(() => null);
-      if (!sourcesRes.ok) {
-        throw new Error(sourcesData?.error || "Failed to load knowledge source PDFs.");
-      }
-      setKnowledgeSourcePdfs(sourcesData?.sourcePdfs || []);
-      const entriesData = entriesRes.ok ? await entriesRes.json().catch(() => null) : null;
-      setKnowledgeEntries(entriesData?.entries || []);
-      setKnowledgeLoaded(true);
-    } catch (err: any) {
-      setKnowledgeError(err.message);
-    } finally {
-      setKnowledgeLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!authLoading && user?.role === "ADMIN" && currentView === "knowledge" && !knowledgeLoaded) {
-      fetchKnowledge();
-    }
-  }, [authLoading, user, currentView, knowledgeLoaded]);
-
-  const handleKnowledgeFileSelect = (files: FileList | null) => {
-    setKnowledgeMessage(null);
-    setKnowledgeError(null);
-    setKnowledgeUploadFiles(files ? Array.from(files) : []);
-  };
-
-  const handleUploadKnowledgePdf = async () => {
-    if (knowledgeUploadFiles.length === 0) {
-      setKnowledgeError("Choose at least one research PDF to upload first.");
-      return;
-    }
-    const oversized = knowledgeUploadFiles.find((f) => f.size > 25 * 1024 * 1024);
-    if (oversized) {
-      setKnowledgeError(`"${oversized.name}" exceeds the 25 MB limit. No files were uploaded.`);
-      return;
-    }
-    try {
-      setKnowledgeUploading(true);
-      setKnowledgeMessage(null);
-      setKnowledgeError(null);
-      const batch = [];
-      for (const file of knowledgeUploadFiles) {
-        batch.push({ fileName: file.name, contentType: file.type || "application/pdf", base64: await fileToBase64(file) });
-      }
-      const res = await fetch("/api/admin/knowledge/source-pdfs", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ files: batch }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to upload the source PDFs.");
-      }
-      const results = Array.isArray(data.results) ? data.results : [];
-      const okList = results.filter((r: any) => r.ok);
-      const failedList = results.filter((r: any) => !r.ok);
-      const okCount = okList.length;
-      const totalEntries = okList.reduce((sum: number, r: any) => sum + (r.ingested ?? 0), 0);
-      if (failedList.length === 0) {
-        setKnowledgeMessage(
-          `${okCount} ${okCount === 1 ? "research PDF" : "research PDFs"} ingested successfully — ${totalEntries} structured research ${totalEntries === 1 ? "entry" : "entries"} extracted.`
-        );
-      } else if (okCount === 0) {
-        setKnowledgeError(
-          `Upload failed: ${failedList.map((f: any) => `"${f.fileName}" (${f.error})`).join("; ")}`
-        );
-      } else {
-        setKnowledgeMessage(
-          `${okCount} ${okCount === 1 ? "research PDF" : "research PDFs"} ingested (${totalEntries} entries); ${failedList.length} failed: ${failedList.map((f: any) => `"${f.fileName}" (${f.error})`).join("; ")}`
-        );
-      }
-      setKnowledgeUploadFiles([]);
-      if (okCount > 0) {
-        await fetchKnowledge();
-      }
-    } catch (err: any) {
-      setKnowledgeError(err.message);
-    } finally {
-      setKnowledgeUploading(false);
-    }
-  };
-
-  const handleReingestKnowledgePdf = async (id: string) => {
-    try {
-      setKnowledgeBusyId(id);
-      setKnowledgeMessage(null);
-      setKnowledgeError(null);
-      const res = await fetch(`/api/admin/knowledge/source-pdfs/${id}/ingest`, {
-        method: "POST",
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to re-run ingestion.");
-      }
-      setKnowledgeMessage(`Ingestion re-run complete — ${data.ingested ?? 0} entries extracted.`);
-      await fetchKnowledge();
-    } catch (err: any) {
-      setKnowledgeError(err.message);
-    } finally {
-      setKnowledgeBusyId(null);
-    }
-  };
-
-  const handleRetractKnowledgePdf = async (source: KnowledgeSourcePdf) => {
-    if (
-      !confirm(
-        `Remove "${source.originalFileName}" and its ${source.entryCount} extracted entr${source.entryCount === 1 ? "y" : "ies"} from the Knowledge Base? This cannot be undone.`
-      )
-    ) {
-      return;
-    }
-    try {
-      setKnowledgeBusyId(source.id);
-      setKnowledgeMessage(null);
-      setKnowledgeError(null);
-      const res = await fetch(`/api/admin/knowledge/source-pdfs/${source.id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to remove the source PDF.");
-      }
-      setKnowledgeMessage(`"${source.originalFileName}" and its extracted entries have been removed.`);
-      await fetchKnowledge();
-    } catch (err: any) {
-      setKnowledgeError(err.message);
-    } finally {
-      setKnowledgeBusyId(null);
-    }
-  };
-
-  const knowledgeStatusBadge = (status: string) => {
-    if (status === "INGESTED")
-      return { label: "Ingested", className: "bg-emerald-50 text-emerald-700 border-emerald-200", dotColor: "bg-emerald-500" };
-    if (status === "INGESTING")
-      return { label: "Ingesting", className: "bg-sky-50 text-sky-700 border-sky-200", dotColor: "bg-sky-500" };
-    if (status === "FAILED")
-      return { label: "Failed", className: "bg-rose-50 text-rose-700 border-rose-200", dotColor: "bg-rose-500" };
-    if (status === "PENDING_INGESTION")
-      return { label: "Pending", className: "bg-amber-50 text-amber-700 border-amber-200", dotColor: "bg-amber-500" };
-    return { label: status.replace(/_/g, " "), className: "bg-slate-100 text-slate-600 border-slate-200", dotColor: "bg-slate-400" };
-  };
 
   const getStatusBadge = (status: string) => {
     const s = status;
@@ -846,14 +659,22 @@ function AdminDashboardContent() {
               </button>
 
               <button
-                onClick={() => { setCurrentView("knowledge"); setMobileSidebarOpen(false); }}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${currentView === "knowledge"
+                onClick={() => { router.push("/admin/knowledge-base"); setMobileSidebarOpen(false); }}
+                className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all text-slate-300 hover:text-white hover:bg-[#1B2B46]"
+              >
+                <Database className="w-4 h-4 text-slate-400" />
+                <span>Knowledge Base</span>
+              </button>
+
+              <button
+                onClick={() => { setCurrentView("schema"); setMobileSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${currentView === "schema"
                     ? "bg-[#223554] text-white font-semibold shadow-xs"
                     : "text-slate-300 hover:text-white hover:bg-[#1B2B46]"
                   }`}
               >
-                <Database className={`w-4 h-4 ${currentView === "knowledge" ? "text-white" : "text-slate-400"}`} />
-                <span>Knowledge Base</span>
+                <ClipboardList className={`w-4 h-4 ${currentView === "schema" ? "text-white" : "text-slate-400"}`} />
+                <span>Dynamic Form Builder</span>
               </button>
 
               <button
@@ -924,8 +745,8 @@ function AdminDashboardContent() {
                     ? "Billing & Action History"
                     : currentView === "legal"
                     ? "Legal Documents"
-                    : currentView === "knowledge"
-                    ? "Knowledge Base Ingestion"
+                    : currentView === "schema"
+                    ? "Dynamic Form Builder"
                     : "Settings"}
                 </h1>
                 <p className="text-xs sm:text-sm text-slate-500 mt-1 font-normal">
@@ -935,8 +756,8 @@ function AdminDashboardContent() {
                     ? "Log of all processed, declined, and completed reports."
                     : currentView === "legal"
                     ? "Publish the DPA / EULA PDFs shown to new practitioners on the signup page. New documents go live immediately — no code change."
-                    : currentView === "knowledge"
-                    ? "Upload research PDFs; the AI pipeline extracts structured literature entries, keeps them linked to their source, and makes them searchable by the report-generation and correlation engine."
+                    : currentView === "schema"
+                    ? "Author the practitioner checklist schema directly in the database. Save a draft, publish it, then activate it to make it live across the portal, validator, and PDFs without a redeploy."
                     : "Configure the default report fee charged to practitioners per completed report."}
                 </p>
               </div>
@@ -961,6 +782,7 @@ function AdminDashboardContent() {
                     {loading ? "Refreshing..." : "Refresh List"}
                   </button>
                 </div>
+                <TopScrollbar />
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[880px] text-left text-sm">
                     <thead>
@@ -1091,6 +913,7 @@ function AdminDashboardContent() {
                   </div>
                 )}
 
+                <TopScrollbar />
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[1100px] text-left text-sm">
                     <thead>
@@ -1397,256 +1220,8 @@ function AdminDashboardContent() {
                   )}
                 </div>
               </div>
-            ) : currentView === "knowledge" ? (
-              <div className="space-y-6">
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#16233B]/5 border border-[#16233B]/10 text-[#16233B] flex items-center justify-center">
-                      <Database className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-serif text-[#16233B]">Upload research PDF</h3>
-                      <p className="text-[11px] text-slate-500">
-                        The AI pipeline reads the PDF, extracts structured literature entries, and keeps every entry linked back to its source document.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="p-5 sm:p-6 space-y-3">
-                    <input
-                      type="file"
-                      accept="application/pdf,.pdf"
-                      multiple
-                      id="kb-upload"
-                      className="hidden"
-                      onChange={(e) => handleKnowledgeFileSelect(e.target.files)}
-                    />
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <label
-                        htmlFor="kb-upload"
-                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed text-xs font-semibold transition-all cursor-pointer ${
-                          knowledgeUploadFiles.length > 0
-                            ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-                            : "border-slate-300 bg-slate-50 text-slate-600 hover:border-[#16233B] hover:bg-white"
-                        }`}
-                      >
-                        <FileUp className="w-4 h-4" />
-                        {knowledgeUploadFiles.length > 0
-                          ? `${knowledgeUploadFiles.length} ${knowledgeUploadFiles.length === 1 ? "research PDF" : "research PDFs"} selected`
-                          : "Choose research PDFs"}
-                      </label>
-                      <button
-                        type="button"
-                        onClick={handleUploadKnowledgePdf}
-                        disabled={knowledgeUploadFiles.length === 0 || knowledgeUploading}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#16233B] hover:bg-[#0F172A] disabled:opacity-50 text-white text-xs font-semibold shadow-xs transition-all"
-                      >
-                        {knowledgeUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
-                        {knowledgeUploading
-                          ? `Ingesting ${knowledgeUploadFiles.length} ${knowledgeUploadFiles.length === 1 ? "PDF" : "PDFs"}…`
-                          : "Upload & ingest"}
-                      </button>
-                    </div>
-                    {knowledgeUploadFiles.length > 0 && (
-                      <ul className="flex flex-wrap gap-1.5">
-                        {knowledgeUploadFiles.map((file) => (
-                          <li
-                            key={file.name + file.size}
-                            className="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-600 text-[11px] px-2.5 py-1 max-w-full"
-                          >
-                            <span className="truncate">{file.name}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    <p className="text-[11px] text-slate-400">
-                      PDF only · max 25 MB per file · up to 10 at once · text-based documents (scanned image-only PDFs cannot be extracted).
-                    </p>
-
-                    {knowledgeError && (
-                      <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
-                        <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                        <span>{knowledgeError}</span>
-                      </div>
-                    )}
-                    {knowledgeMessage && (
-                      <div className="flex items-start gap-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl px-4 py-3 text-sm">
-                        <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
-                        <span>{knowledgeMessage}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
-                    <div>
-                      <h2 className="text-lg font-serif text-[#16233B]">Source PDFs ({knowledgeSourcePdfs.length})</h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Uploaded research documents and their ingestion status. Removing a source also removes every entry extracted from it.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={fetchKnowledge}
-                      disabled={knowledgeLoading}
-                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-300 hover:border-[#16233B] text-[#16233B] text-xs font-semibold transition-all disabled:opacity-50"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${knowledgeLoading ? "animate-spin" : ""}`} />
-                      Refresh
-                    </button>
-                  </div>
-                    {knowledgeSourcePdfs.length > 0 ? (
-                      <div className="overflow-x-auto">
-                        <table className="w-full min-w-[640px] text-left">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-100">
-                            <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Document</th>
-                            <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                            <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Entries</th>
-                            <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Uploaded</th>
-                            <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {knowledgeSourcePdfs.map((source) => {
-                            const badge = knowledgeStatusBadge(source.status);
-                            const busy = knowledgeBusyId === source.id;
-                            return (
-                              <tr key={source.id} className="hover:bg-slate-50/50 align-top">
-                                <td className="py-3.5 px-4">
-                                  <span className="text-xs font-semibold text-[#16233B] block">{source.title || source.originalFileName}</span>
-                                  <span className="text-[11px] text-slate-400 block mt-0.5">{source.originalFileName} · {formatBytes(source.sizeBytes)}</span>
-                                  {source.status === "FAILED" && source.error && (
-                                    <span className="text-[11px] text-rose-600 block mt-1">{source.error}</span>
-                                  )}
-                                </td>
-                                <td className="py-3.5 px-4">
-                                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${badge.className}`}>
-                                    <span className={`w-1.5 h-1.5 rounded-full ${badge.dotColor}`} />
-                                    {badge.label}
-                                  </span>
-                                </td>
-                                <td className="py-3.5 px-4 text-xs text-slate-700">{source.entryCount}</td>
-                                <td className="py-3.5 px-4 text-xs text-slate-500 whitespace-nowrap">
-                                  {formatDateTime(source.uploadedAt)}
-                                  <span className="block text-[11px] text-slate-400">{source.uploadedBy?.email || "—"}</span>
-                                </td>
-                                <td className="py-3.5 px-4">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <a
-                                      href={`/api/admin/knowledge/source-pdfs/${source.id}/pdf`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#16233B] hover:underline"
-                                    >
-                                      <ExternalLink className="w-3.5 h-3.5" />
-                                      Preview
-                                    </a>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleReingestKnowledgePdf(source.id)}
-                                      disabled={busy}
-                                      className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 hover:text-[#16233B] disabled:opacity-50"
-                                    >
-                                      {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                                      Re-ingest
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRetractKnowledgePdf(source)}
-                                      disabled={busy}
-                                      className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-rose-600 hover:text-rose-800 disabled:opacity-50"
-                                    >
-                                      <XCircle className="w-3.5 h-3.5" />
-                                      Remove
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="p-8 text-center text-xs text-slate-500">
-                      <Database className="w-6 h-6 mx-auto text-slate-300 mb-2" />
-                      No source PDFs yet. Upload a research PDF above to build the curated Knowledge Base.
-                    </div>
-                  )}
-                </div>
-
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="p-5 sm:p-6 border-b border-slate-100">
-                    <h2 className="text-lg font-serif text-[#16233B]">Extracted entries ({knowledgeEntries.length})</h2>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Structured research entries made available to the report-generation and correlation engine for search and matching.
-                    </p>
-                  </div>
-                    {knowledgeEntries.length > 0 ? (
-                      <div className="overflow-x-auto">
-                        <table className="w-full min-w-[880px] text-left">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-100">
-                            <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Title</th>
-                            <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Authors</th>
-                            <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Year</th>
-                            <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Keywords</th>
-                            <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Source PDF</th>
-                            <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Reference</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {knowledgeEntries.map((entry) => (
-                            <tr key={entry.id} className="hover:bg-slate-50/50 align-top">
-                              <td className="py-3.5 px-4 text-xs font-medium text-[#16233B] max-w-xs">{entry.title}</td>
-                              <td className="py-3.5 px-4 text-xs text-slate-500 max-w-xs">
-                                {entry.authors && entry.authors.length > 0 ? entry.authors.join(", ") : "—"}
-                              </td>
-                              <td className="py-3.5 px-4 text-xs text-slate-700">{entry.year ?? "—"}</td>
-                              <td className="py-3.5 px-4">
-                                <div className="flex flex-wrap gap-1">
-                                  {(entry.keywords || []).slice(0, 5).map((k) => (
-                                    <span key={k} className="px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-[10px] text-slate-600">{k}</span>
-                                  ))}
-                                </div>
-                              </td>
-                              <td className="py-3.5 px-4 text-xs">
-                                {entry.sourcePdf ? (
-                                  <a
-                                    href={`/api/admin/knowledge/source-pdfs/${entry.sourcePdfId}/pdf`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1.5 text-[#16233B] hover:underline"
-                                  >
-                                    <FileText className="w-3.5 h-3.5" />
-                                    {entry.sourcePdf.originalFileName}
-                                  </a>
-                                ) : (
-                                  <span className="text-slate-400">Source removed</span>
-                                )}
-                              </td>
-                              <td className="py-3.5 px-4 text-xs">
-                                {entry.url && entry.url.startsWith("http") ? (
-                                  <a href={entry.url} target="_blank" rel="noopener noreferrer" className="text-sky-700 underline">
-                                    {entry.doi ? "DOI" : "Link"}
-                                  </a>
-                                ) : (
-                                  <span className="text-slate-400">—</span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="p-8 text-center text-xs text-slate-500">
-                      No structured entries yet. Upload and ingest a source PDF to populate the Knowledge Base.
-                    </div>
-                  )}
-                </div>
-              </div>
+            ) : currentView === "schema" ? (
+              <ChecklistFormBuilder />
             ) : (
               <div className="space-y-6">
                 {settingsError && (

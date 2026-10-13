@@ -11,9 +11,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 });
   }
 
+  const folderId = req.nextUrl.searchParams.get('folderId');
+  const query = folderId ? `?folderId=${encodeURIComponent(folderId)}` : '';
+
   try {
-    const backendRes = await fetch(`${BACKEND_URL}/api/admin/knowledge/source-pdfs`, {
+    const backendRes = await fetch(`${BACKEND_URL}/api/admin/knowledge/source-pdfs${query}`, {
       headers: { Cookie: `qeeg_session_token=${sessionCookie}` },
+      cache: 'no-store',
     });
 
     if (backendRes.ok) {
@@ -41,7 +45,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const sessionCookie = req.cookies.get('qeeg_session_token')?.value;
-  const body = await req.json();
+  const body = await req.json().catch(() => null);
 
   // Light validation before proxying: the backend accepts a single
   // `{ fileName, base64 }` or a batch `{ files: [...] }` (max 10 PDFs).
@@ -67,24 +71,28 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify(body),
     });
 
+    const data = await backendRes.json().catch(() => null);
+
     if (backendRes.ok) {
-      const data = await backendRes.json();
       return NextResponse.json(data);
     }
-
-    const errorData = await backendRes.json().catch(() => null);
 
     if (backendRes.status === 401) {
       return clearSessionCookiesOnResponse(
         NextResponse.json(
-          { error: errorData?.error || 'Not authenticated.' },
+          { error: data?.error || 'Not authenticated.' },
           { status: 401 }
         )
       );
     }
 
+    // Preserve the per-file `results` array (and `message`) so the client can
+    // surface exactly which file(s) failed and why.
     return NextResponse.json(
-      { error: errorData?.error || 'Failed to upload knowledge source PDF.' },
+      {
+        error: data?.error || data?.message || 'Failed to upload knowledge source PDF.',
+        ...(data?.results ? { results: data.results, message: data.message } : {}),
+      },
       { status: backendRes.status }
     );
   } catch {

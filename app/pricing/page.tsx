@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   ArrowRight,
@@ -13,8 +15,38 @@ import {
   FileText,
   Check,
 } from "lucide-react";
+import { useEffect, useState } from "react";
+
+const DEFAULT_REPORT_FEE_AUD = 65;
 
 export default function PricingPage() {
+  const [reportFee, setReportFee] = useState<number>(DEFAULT_REPORT_FEE_AUD);
+  const formattedFee = new Intl.NumberFormat("en-AU", {
+    style: "currency",
+    currency: "AUD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  })
+    .format(reportFee)
+    .replace("A$", "$");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/config", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          const live = Number(data.config?.reportFeeAUD);
+          if (Number.isFinite(live) && live > 0) {
+            setReportFee(live);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    })();
+  }, []);
+
   const cardFeatures = [
     "Full QEEG, TOVA & symptom correlation",
     "Evidence mapped to PubMed & curated research",
@@ -53,13 +85,13 @@ export default function PricingPage() {
     {
       title: "Report generated successfully?",
       description:
-        "That is the moment your $65 authorisation is captured, not before, and not for a rejected submission.",
+        `That is the moment your ${formattedFee} authorisation is captured, not before, and not for a rejected submission.`,
       icon: CheckCircle2,
     },
     {
       title: "Need to resubmit corrected data?",
       description:
-        "A reiteration is a new report request from scratch: a new upload, a new reliability check, and (if it succeeds) a new $65 charge.",
+        `A reiteration is a new report request from scratch: a new upload, a new reliability check, and (if it succeeds) a new ${formattedFee} charge.`,
       icon: RotateCcw,
     },
     {
@@ -111,7 +143,7 @@ export default function PricingPage() {
               {/* Price Display */}
               <div className="flex items-baseline justify-center gap-2.5 mb-4">
                 <span className="text-5xl sm:text-6xl font-serif font-normal text-[#16233B] tracking-tight">
-                  $65
+                  {formattedFee}
                 </span>
                 <span className="text-base sm:text-lg text-slate-700 font-bold font-sans">
                   AUD
@@ -163,7 +195,7 @@ export default function PricingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-10">
             <h2 className="text-xl sm:text-2xl font-serif font-normal text-[#16233B] tracking-tight">
-              What is included in every $65 report
+              What is included in every {formattedFee} report
             </h2>
           </div>
 

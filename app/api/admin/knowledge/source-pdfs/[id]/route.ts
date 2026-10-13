@@ -4,7 +4,8 @@ import { clearSessionCookiesOnResponse } from '@/lib/session';
 const BACKEND_URL =
   process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
-// Deletes a knowledge source PDF and its derived entries (retraction).
+// Retracts (soft-removes) a knowledge source document and deactivates its
+// derived entries. Recoverable via the /restore route.
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

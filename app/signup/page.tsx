@@ -562,7 +562,7 @@ export default function SignupPage() {
                 <span className="text-xs text-slate-600 leading-relaxed font-normal">
                   I have read and agree to the{" "}
                   <Link
-                    href="/legal/dpa"
+                    href="/legal/data-processing-agreement.html"
                     target="_blank"
                     className="font-semibold text-[#16233B] hover:underline"
                   >
@@ -587,7 +587,7 @@ export default function SignupPage() {
                 <span className="text-xs text-slate-600 leading-relaxed font-normal">
                   I have read and agree to the{" "}
                   <Link
-                    href="/legal/eula"
+                    href="/legal/eula.html"
                     target="_blank"
                     className="font-semibold text-[#16233B] hover:underline"
                   >

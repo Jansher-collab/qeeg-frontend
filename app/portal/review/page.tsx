@@ -17,6 +17,7 @@ import {
   X,
   Stethoscope,
   ExternalLink,
+  Sparkles,
 } from "lucide-react";
 
 interface QueueItem {
@@ -228,6 +229,18 @@ export default function NeuroscientistReviewPage() {
                 <span>{actionSuccess}</span>
               </div>
             )}
+
+            {/* AI-synthesis provenance reminder: the summary under review was
+                produced by the AI correlation engine and needs clinical review. */}
+            <div className="mb-4 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 flex items-start gap-3">
+              <Sparkles className="w-4 h-4 text-sky-700 shrink-0 mt-0.5" aria-hidden="true" />
+              <p className="text-[11px] text-sky-900 leading-relaxed font-normal">
+                <span className="font-semibold">AI-generated synthesis: </span>
+                this summary was produced by the AI correlation engine from evidence-linked
+                literature. Clinical review and verification are required before the report is
+                released for practitioner use.
+              </p>
+            </div>
 
             <div className="space-y-5 text-xs">
               {/* Case Metadata */}

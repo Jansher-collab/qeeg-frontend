@@ -1,7 +1,38 @@
+"use client";
+
 import Link from "next/link";
 import { ShieldCheck, ArrowRight, Check } from "lucide-react";
+import { useEffect, useState } from "react";
+
+const DEFAULT_REPORT_FEE_AUD = 65;
 
 export default function PricingSection() {
+  const [reportFee, setReportFee] = useState<number>(DEFAULT_REPORT_FEE_AUD);
+  const formattedFee = new Intl.NumberFormat("en-AU", {
+    style: "currency",
+    currency: "AUD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  })
+    .format(reportFee)
+    .replace("A$", "$");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/config", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          const live = Number(data.config?.reportFeeAUD);
+          if (Number.isFinite(live) && live > 0) {
+            setReportFee(live);
+          }
+        }
+      } catch {
+        // Fallback to default
+      }
+    })();
+  }, []);
   const features = [
     "No subscription or recurring monthly fees",
     "Only charged when report is generated",
@@ -42,9 +73,8 @@ export default function PricingSection() {
             {/* Price Display */}
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-5xl sm:text-6xl font-serif font-normal tracking-tight text-[#16233B]">
-                $65
+                {formattedFee}
               </span>
-              <span className="text-lg font-bold text-slate-700 font-sans">AUD</span>
               <span className="text-slate-500 font-medium text-xs">/ report</span>
             </div>
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { clearSessionStateClientSide } from "@/lib/clearSession";
 import { getBrowserTimeZone } from "@/lib/getBrowserTimeZone";
+import { formatRetryAfter } from "@/lib/formatRetryAfter";
 import PasswordInput from "@/components/PasswordInput";
 import { AlertCircle, ArrowRight, ShieldCheck, CheckCircle2, Shield } from "lucide-react";
 
@@ -47,6 +48,17 @@ function AdminLoginForm() {
       });
 
       const data = await res.json();
+
+      // Account-scoped rate limit (HTTP 429): surfaced distinctly so the admin
+      // sees an actionable "try again in N minutes" instead of a generic error.
+      if (res.status === 429) {
+        setError(
+          data.error ||
+            formatRetryAfter(data.retryAfterSeconds) ||
+            "Too many failed sign-in attempts. Please try again later."
+        );
+        return;
+      }
 
       if (!res.ok) {
         throw new Error(data.error || "Invalid login credentials.");
