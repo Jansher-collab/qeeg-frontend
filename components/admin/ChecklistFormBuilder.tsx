@@ -963,6 +963,20 @@ export default function ChecklistFormBuilder() {
                               Remove
                             </button>
                           </div>
+                          {field.type === "checkbox" && (
+                            <div>
+                              <label htmlFor={`field-detail-${sIdx}-${fIdx}`} className="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">
+                                Detail / description (gray subtext under the label)
+                              </label>
+                              <textarea
+                                id={`field-detail-${sIdx}-${fIdx}`}
+                                value={field.detail ?? ""}
+                                onChange={(e) => setField({ detail: e.target.value || undefined })}
+                                rows={2}
+                                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#16233B]/20 focus:border-[#16233B]"
+                              />
+                            </div>
+                          )}
                           {field.type === "select" && (
                             <div>
                               <label htmlFor={`field-options-${sIdx}-${fIdx}`} className="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">

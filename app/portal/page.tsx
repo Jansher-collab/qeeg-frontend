@@ -2285,11 +2285,16 @@ const isMissingSelect =
                               }
 
                               if (field.type === "select") {
-                                // Case-normalised selection so values like
-                                // 'Female' or 'FEMALE' map to the same option.
-                                const selectValue = String(value ?? "").toUpperCase();
-                                const selectMatched = (field.options || []).some(
-                                  (o) => o.value.toUpperCase() === selectValue
+                                // Resolve the stored value to the ACTUAL matched
+                                // option (case-insensitively) and bind the select
+                                // to that option's real value. Uppercasing the
+                                // value broke any option whose value was not
+                                // already uppercase (e.g. a custom "Primary
+                                // Clinical Focus" option "Attention"), since it no
+                                // longer matched any <option> and rendered blank.
+                                const rawSelect = String(value ?? "").trim();
+                                const matchedOption = (field.options || []).find(
+                                  (o) => o.value.toUpperCase() === rawSelect.toUpperCase()
                                 );
                                 return (
                                   <div key={`${sIdx}-${fIdx}-${field.key}`}>
@@ -2305,7 +2310,7 @@ const isMissingSelect =
     required={htmlRequired}
             name={field.key}
   aria-invalid={isMissingSelect}
-                                        value={selectMatched ? selectValue : ""}
+                                        value={matchedOption ? matchedOption.value : ""}
     onChange={(e) => setCaseBoundFieldValue(field, e.target.value)}
         className={`${baseInput} ${
             isMissingSelect ? "border-rose-400 bg-rose-50/40" : "border-slate-200"
