@@ -8,14 +8,19 @@ export async function POST(req: NextRequest) {
   const sessionCookie = req.cookies.get('qeeg_session_token')?.value;
   const body = await req.json().catch(() => ({}));
 
+  if (!sessionCookie) {
+    return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 });
+  }
+
   try {
     const backendRes = await fetch(`${BACKEND_URL}/api/admin/checklist-schema/reset`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(sessionCookie ? { Cookie: `qeeg_session_token=${sessionCookie}` } : {}),
+        Cookie: `qeeg_session_token=${sessionCookie}`,
       },
       body: JSON.stringify(body),
+      cache: 'no-store',
     });
 
     const data = await backendRes.json().catch(() => null);

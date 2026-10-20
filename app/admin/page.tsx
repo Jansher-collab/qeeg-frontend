@@ -126,14 +126,18 @@ function AdminDashboardContent() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [currentView, setCurrentView] = useState<"pending" | "history" | "legal" | "settings" | "schema">("pending");
 
-  // Legal Documents management (DPA / EULA)
+  // Legal Documents management (DPA / EULA). All interactive card state is
+  // keyed by document type so the DPA and EULA cards are fully independent:
+  // selecting a file, publishing, and status banners on one card can never
+  // affect or trigger the other.
   const [legalDocs, setLegalDocs] = useState<LegalDocument[]>([]);
   const [legalCurrent, setLegalCurrent] = useState<Record<string, LegalCurrentDoc>>({});
   const [legalLoaded, setLegalLoaded] = useState(false);
   const [legalLoading, setLegalLoading] = useState(false);
-  const [legalBusy, setLegalBusy] = useState(false);
-  const [legalMessage, setLegalMessage] = useState<string | null>(null);
-  const [legalError, setLegalError] = useState<string | null>(null);
+  const [legalBusyByType, setLegalBusyByType] = useState<Record<string, boolean>>({});
+  const [legalMessageByType, setLegalMessageByType] = useState<Record<string, string | null>>({});
+  const [legalErrorByType, setLegalErrorByType] = useState<Record<string, string | null>>({});
+  const [legalListError, setLegalListError] = useState<string | null>(null);
   const [legalUploadFiles, setLegalUploadFiles] = useState<Record<string, File | null>>({});
 
   // Settings
@@ -199,8 +203,13 @@ function AdminDashboardContent() {
   const fetchLegalDocuments = async () => {
     try {
       setLegalLoading(true);
-      setLegalError(null);
-      const res = await fetch("/api/admin/legal/documents", { credentials: "include" });
+      setLegalListError(null);
+      // Cache-buster query + no-store: a replaced document must be re-read from
+      // the backend on every fetch, never served from an intermediary cache.
+      const res = await fetch(`/api/admin/legal/documents?t=${Date.now()}`, {
+        credentials: "include",
+        cache: "no-store",
+      });
       if (!res.ok) {
         const errorData = await res.json().catch(() => null);
         throw new Error(errorData?.error || "Failed to load legal documents.");
@@ -213,8 +222,8 @@ function AdminDashboardContent() {
       });
       setLegalCurrent(currentMap);
       setLegalLoaded(true);
-    } catch (err: any) {
-      setLegalError(err.message);
+    } catch (err) {
+      setLegalListError(errorMessage(err, "Failed to load legal documents."));
     } finally {
       setLegalLoading(false);
     }
@@ -239,25 +248,32 @@ function AdminDashboardContent() {
     });
 
   const handleLegalFileSelect = (type: string, file: File | null) => {
-    setLegalMessage(null);
-    setLegalError(null);
+    // Only touch this card's state; the other document card is untouched.
+    setLegalMessageByType((prev) => ({ ...prev, [type]: null }));
+    setLegalErrorByType((prev) => ({ ...prev, [type]: null }));
     setLegalUploadFiles((prev) => ({ ...prev, [type]: file }));
   };
+
+  const setLegalCardError = (type: string, message: string | null) =>
+    setLegalErrorByType((prev) => ({ ...prev, [type]: message }));
+
+  const clearLegalCardMessage = (type: string) =>
+    setLegalMessageByType((prev) => ({ ...prev, [type]: null }));
 
   const handlePublishLegalDocument = async (type: string) => {
     const file = legalUploadFiles[type];
     if (!file) {
-      setLegalError(`Select a replacement ${type} PDF first.`);
+      setLegalCardError(type, `Select a replacement ${type} PDF first.`);
       return;
     }
     if (file.size > 20 * 1024 * 1024) {
-      setLegalError("The selected PDF exceeds the 20 MB limit.");
+      setLegalCardError(type, "The selected PDF exceeds the 20 MB limit.");
       return;
     }
     try {
-      setLegalBusy(true);
-      setLegalMessage(null);
-      setLegalError(null);
+      setLegalBusyByType((prev) => ({ ...prev, [type]: true }));
+      setLegalMessageByType((prev) => ({ ...prev, [type]: null }));
+      setLegalCardError(type, null);
       const base64 = await fileToBase64(file);
       const res = await fetch("/api/admin/legal/documents", {
         method: "POST",
@@ -273,13 +289,59 @@ function AdminDashboardContent() {
       if (!res.ok) {
         throw new Error(data.error || "Failed to publish the document.");
       }
-      setLegalMessage(`New ${type} version ${data.document?.version || ""} published. Practitioners on the signup page now see the latest version.`);
+      // Reflect the replacement in the UI immediately from the POST response
+      // (authoritative server row), then re-fetch to refresh the full registry.
+      const published = data.document as
+        | {
+            documentType: string;
+            version: string;
+            fileName: string;
+            sizeBytes: number;
+            sha256?: string | null;
+            uploadedAt: string;
+          }
+        | undefined;
+      if (published) {
+        setLegalCurrent((prev) => ({
+          ...prev,
+          [type]: {
+            documentType: published.documentType,
+            version: published.version,
+            fileName: published.fileName,
+            sizeBytes: published.sizeBytes,
+            sha256: published.sha256 ?? null,
+            uploadedAt: published.uploadedAt,
+            pdfUrl: `/api/legal/documents/pdf/${type.toLowerCase()}?v=${encodeURIComponent(published.version)}`,
+          },
+        }));
+        setLegalDocs((prev) => [
+          {
+            id: `${published.documentType}-${published.version}`,
+            documentType: published.documentType,
+            version: published.version,
+            fileName: published.fileName,
+            sizeBytes: published.sizeBytes,
+            isActive: true,
+            uploadedAt: published.uploadedAt,
+            uploadedBy: null,
+          },
+          ...prev.filter(
+            (d) => !(d.documentType === published.documentType && d.isActive)
+          ),
+        ]);
+      }
+      setLegalMessageByType((prev) => ({
+        ...prev,
+        [type]: `New ${type} version ${data.document?.version || ""} published. Practitioners on the signup page now see the latest version.`,
+      }));
       setLegalUploadFiles((prev) => ({ ...prev, [type]: null }));
+      const input = document.getElementById(`legal-upload-${type}`) as HTMLInputElement | null;
+      if (input) input.value = "";
       await fetchLegalDocuments();
-    } catch (err: any) {
-      setLegalError(err.message);
+    } catch (err) {
+      setLegalCardError(type, errorMessage(err, "Failed to publish the document."));
     } finally {
-      setLegalBusy(false);
+      setLegalBusyByType((prev) => ({ ...prev, [type]: false }));
     }
   };
 
@@ -376,8 +438,6 @@ function AdminDashboardContent() {
 
   useAutoDismiss(error, () => setError(null));
   useAutoDismiss(historyError, () => setHistoryError(null));
-  useAutoDismiss(legalMessage, () => setLegalMessage(null));
-  useAutoDismiss(legalError, () => setLegalError(null));
   useAutoDismiss(settingsMessage, () => setSettingsMessage(null));
   useAutoDismiss(settingsError, () => setSettingsError(null));
 
@@ -1015,6 +1075,12 @@ function AdminDashboardContent() {
               </div>
             ) : currentView === "legal" ? (
               <div className="space-y-6">
+                {legalListError && (
+                  <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+                    <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                    <span>{legalListError}</span>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {["DPA", "EULA"].map((type) => {
                     const current = legalCurrent[type];
@@ -1041,6 +1107,32 @@ function AdminDashboardContent() {
                         </div>
 
                         <div className="p-5 sm:p-6 flex-1 space-y-4">
+                          {legalErrorByType[type] && (
+                            <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-xs">
+                              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                              <span className="flex-1">{legalErrorByType[type]}</span>
+                              <button
+                                type="button"
+                                onClick={() => setLegalCardError(type, null)}
+                                className="text-red-500 hover:text-red-700 text-[11px] font-semibold cursor-pointer shrink-0"
+                              >
+                                Dismiss
+                              </button>
+                            </div>
+                          )}
+                          {legalMessageByType[type] && (
+                            <div className="flex items-start gap-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl px-4 py-3 text-xs">
+                              <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+                              <span className="flex-1">{legalMessageByType[type]}</span>
+                              <button
+                                type="button"
+                                onClick={() => clearLegalCardMessage(type)}
+                                className="text-emerald-600 hover:text-emerald-800 text-[11px] font-semibold cursor-pointer shrink-0"
+                              >
+                                Dismiss
+                              </button>
+                            </div>
+                          )}
                           {current ? (
                             <dl className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 text-xs">
                               <div className="flex items-center justify-between gap-2">
@@ -1104,15 +1196,18 @@ function AdminDashboardContent() {
                               accept="application/pdf,.pdf"
                               id={`legal-upload-${type}`}
                               className="hidden"
+                              disabled={!!legalBusyByType[type]}
                               onChange={(e) => handleLegalFileSelect(type, e.target.files?.[0] || null)}
                             />
                             <div className="flex flex-col sm:flex-row gap-2">
                               <label
                                 htmlFor={`legal-upload-${type}`}
-                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed text-xs font-semibold transition-all cursor-pointer ${
-                                  legalUploadFiles[type]
-                                    ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-                                    : "border-slate-300 bg-slate-50 text-slate-600 hover:border-[#16233B] hover:bg-white"
+                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed text-xs font-semibold transition-all ${
+                                  legalBusyByType[type]
+                                    ? "opacity-60 cursor-wait border-slate-300 bg-slate-50 text-slate-500"
+                                    : legalUploadFiles[type]
+                                      ? "border-emerald-300 bg-emerald-50 text-emerald-800 cursor-pointer"
+                                      : "border-slate-300 bg-slate-50 text-slate-600 hover:border-[#16233B] hover:bg-white cursor-pointer"
                                 }`}
                               >
                                 <FileUp className="w-4 h-4" />
@@ -1121,11 +1216,11 @@ function AdminDashboardContent() {
                               <button
                                 type="button"
                                 onClick={() => handlePublishLegalDocument(type)}
-                                disabled={!legalUploadFiles[type] || legalBusy}
+                                disabled={!legalUploadFiles[type] || !!legalBusyByType[type]}
                                 className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#16233B] hover:bg-[#0F172A] disabled:opacity-50 text-white text-xs font-semibold shadow-xs transition-all"
                               >
-                                {legalBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
-                                Publish
+                                {legalBusyByType[type] ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
+                                {legalBusyByType[type] ? "Publishing…" : "Publish"}
                               </button>
                             </div>
                             <p className="text-[11px] text-slate-400 mt-2">
@@ -1137,19 +1232,6 @@ function AdminDashboardContent() {
                     );
                   })}
                 </div>
-
-                {legalError && (
-                  <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
-                    <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                    <span>{legalError}</span>
-                  </div>
-                )}
-                {legalMessage && (
-                  <div className="flex items-start gap-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl px-4 py-3 text-sm">
-                    <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
-                    <span>{legalMessage}</span>
-                  </div>
-                )}
 
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                   <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">

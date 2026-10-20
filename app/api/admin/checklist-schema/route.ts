@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
   try {
     const backendRes = await fetch(`${BACKEND_URL}/api/admin/checklist-schema`, {
       headers: { Cookie: `qeeg_session_token=${sessionCookie}` },
+      cache: 'no-store',
     });
 
     if (backendRes.ok) {

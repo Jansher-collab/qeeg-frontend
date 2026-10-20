@@ -507,7 +507,7 @@ function PortalDashboardContent() {
     (async () => {
       try {
         const [configRes, legalRes, legalCurrentRes, billingConfigRes] = await Promise.all([
-          fetch("/api/checklist-config", { credentials: "include" }),
+          fetch("/api/checklist-config", { credentials: "include", cache: "no-store" }),
           fetch("/api/legal/status", { credentials: "include" }),
           fetch("/api/legal/current", { credentials: "include" }),
           fetch("/api/config", { credentials: "include" }),

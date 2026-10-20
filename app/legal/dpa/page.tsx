@@ -30,7 +30,7 @@ export default async function DpaPage() {
 
   return (
     <div className="bg-slate-50 text-slate-900 font-sans animate-fadeIn">
-      <section className="relative pt-28 pb-12 md:pt-32 md:pb-16 overflow-hidden bg-[#16233B] text-white border-b border-slate-800 text-left">
+      <section className="relative pt-24 pb-10 md:pt-28 md:pb-12 overflow-hidden bg-[#16233B] text-white border-b border-slate-800 text-left">
         <div className="absolute top-1/4 -left-32 w-96 h-96 bg-[#1C2F4A]/40 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute top-1/3 -right-32 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
 

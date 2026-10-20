@@ -4,6 +4,11 @@ import { clearSessionCookiesOnResponse } from '@/lib/session';
 const BACKEND_URL =
   process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
+// The legal-document registry changes whenever an admin publishes a
+// replacement, so this proxy must never serve a cached response - otherwise
+// the admin UI keeps rendering the previous document after a replacement.
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   const sessionCookie = req.cookies.get('qeeg_session_token')?.value;
 
@@ -12,13 +17,19 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const backendRes = await fetch(`${BACKEND_URL}/api/admin/legal/documents`, {
-      headers: { Cookie: `qeeg_session_token=${sessionCookie}` },
-    });
+    const backendRes = await fetch(
+      `${BACKEND_URL}/api/admin/legal/documents${req.nextUrl.search}`,
+      {
+        headers: { Cookie: `qeeg_session_token=${sessionCookie}` },
+        cache: 'no-store',
+      }
+    );
 
     if (backendRes.ok) {
       const data = await backendRes.json();
-      return NextResponse.json(data);
+      return NextResponse.json(data, {
+        headers: { 'Cache-Control': 'no-store' },
+      });
     }
 
     if (backendRes.status === 401) {

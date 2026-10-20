@@ -8,15 +8,11 @@ import {
   Clock,
   Loader2,
   Plus,
-  RefreshCw,
-  RotateCcw,
   Save,
-  Sparkles,
   Trash2,
   Trash,
   ArrowUp,
   ArrowDown,
-  Lock,
   Zap,
 } from "lucide-react";
 
@@ -121,11 +117,9 @@ function formatOptions(options?: FieldOption[]): string {
 }
 
 export default function ChecklistFormBuilder() {
-  const [active, setActive] = useState<Outline | null>(null);
   const [versions, setVersions] = useState<Outline[]>([]);
   const [definition, setDefinition] = useState<Definition | null>(null);
   const [description, setDescription] = useState("");
-  const [draftId, setDraftId] = useState<string | null>(null);
   const [draftVersion, setDraftVersion] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(true);
@@ -133,19 +127,28 @@ export default function ChecklistFormBuilder() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchSchemaResponse = useCallback(async (): Promise<SchemaResponse> => {
+    let res: Response;
+    try {
+      res = await fetch("/api/admin/checklist-schema", { credentials: "include", cache: "no-store" });
+    } catch {
+      // Network-level failure: surface an actionable message instead of the
+      // raw browser TypeError ("Failed to fetch").
+      throw new Error("Could not reach the checklist service. Check your connection and retry.");
+    }
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: unknown };
+      throw new Error(typeof data.error === "string" ? data.error : "Failed to load checklist schema.");
+    }
+    return (await res.json()) as SchemaResponse;
+  }, []);
+
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/checklist-schema", { credentials: "include" });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: unknown };
-        throw new Error(typeof data.error === "string" ? data.error : "Failed to load checklist schema.");
-      }
-      const data = (await res.json()) as SchemaResponse;
-      setActive(data.active ?? null);
+      const data = await fetchSchemaResponse();
       setVersions(data.versions ?? []);
       setDefinition(deepClone(data.activeDefinition));
       setDescription(data.activeDefinition.description ?? data.active?.description ?? "");
-      setDraftId(null);
       setDraftVersion(null);
       setError(null);
     } catch (err) {
@@ -153,7 +156,19 @@ export default function ChecklistFormBuilder() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchSchemaResponse]);
+
+  // Best-effort refresh of the version registry only. Used after saving a draft
+  // so the new draft row appears in the registry WITHOUT resetting the editor
+  // back to the active definition (unsaved-in-memory edits are preserved).
+  const loadRegistry = useCallback(async () => {
+    try {
+      const data = await fetchSchemaResponse();
+      setVersions(data.versions ?? []);
+    } catch {
+      // Registry refresh is non-critical; the editor keeps working.
+    }
+  }, [fetchSchemaResponse]);
 
   useEffect(() => {
     void (async () => {
@@ -163,12 +178,26 @@ export default function ChecklistFormBuilder() {
 
   const postJson = useCallback(
     async (path: string, body: unknown) => {
-      const res = await fetch(path, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(body),
-      });
+      let res: Response;
+      try {
+        res = await fetch(path, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          // Always send the session cookie and never let a proxy or the
+          // browser reuse a cached save/publish/activate response.
+          credentials: "include",
+          cache: "no-store",
+          body: JSON.stringify(body),
+        });
+      } catch {
+        // Network-level failure (server unreachable, connection dropped):
+        // map the raw "Failed to fetch" TypeError to a clear message.
+        return {
+          ok: false,
+          status: 0,
+          data: { error: "Could not reach the server. Please check your connection and retry." },
+        };
+      }
       let data: Record<string, unknown> = {};
       try {
         data = (await res.json()) as Record<string, unknown>;
@@ -212,11 +241,10 @@ export default function ChecklistFormBuilder() {
       }
       const draft = data.draft as Outline | undefined;
       if (draft) {
-        setDraftId(draft.id);
         setDraftVersion(draft.version);
       }
-      setMessage(messageOf(data, "Draft saved."));
-      await load();
+      setMessage(messageOf(data, "Draft saved. The live portal is unchanged until you publish & activate."));
+      await loadRegistry();
     } catch {
       setError("Checklist schema service is unavailable.");
     } finally {
@@ -303,33 +331,6 @@ export default function ChecklistFormBuilder() {
     }
   };
 
-  const handleReset = async () => {
-    setBusy("reset");
-    setError(null);
-    setMessage(null);
-    try {
-      const { ok, data } = await postJson("/api/admin/checklist-schema/reset", {});
-      if (!ok) {
-        setError(extractError(data, "Failed to reset checklist schema."));
-        return;
-      }
-      setMessage(messageOf(data, "Built-in seed restored as a draft."));
-      await load();
-    } catch {
-      setError("Checklist schema service is unavailable.");
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const startNewDraft = () => {
-    if (!active) return;
-    setDraftId(null);
-    setDraftVersion(null);
-    setMessage("Started a new draft from the active scheme. Save it to assign a version.");
-    setError(null);
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-slate-500 gap-2">
@@ -388,39 +389,23 @@ export default function ChecklistFormBuilder() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={startNewDraft}
-            disabled={busy !== null}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 disabled:opacity-50 transition-all cursor-pointer"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            New draft from active
-          </button>
-          <button
-            type="button"
-            onClick={handleReset}
-            disabled={busy !== null}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-amber-300 text-amber-700 text-xs font-semibold hover:bg-amber-50 disabled:opacity-50 transition-all cursor-pointer"
-          >
-            {busy === "reset" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
-            Restore built-in seed
-          </button>
-          <button
-            type="button"
             onClick={handleSave}
             disabled={busy !== null}
+            title="Save changes as a draft without affecting the live portal"
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-[#16233B]/30 text-[#16233B] text-xs font-semibold hover:bg-[#16233B]/5 disabled:opacity-50 transition-all cursor-pointer"
           >
             {busy === "save" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            Save draft
+            Save
           </button>
           <button
             type="button"
             onClick={handleSaveAndActivate}
             disabled={busy !== null}
+            title="Save, publish, and push this scheme live across the portal"
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[#16233B] hover:bg-[#0F172A] text-white text-xs font-semibold shadow-xs disabled:opacity-50 transition-all cursor-pointer"
           >
             {busy === "save-activate" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-            Save, publish &amp; activate
+            Publish &amp; Activate
           </button>
         </div>
       </div>
@@ -547,35 +532,69 @@ export default function ChecklistFormBuilder() {
 
       {/* Domains */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-5 sm:p-6 border-b border-slate-100">
-          <h3 className="text-base font-serif text-[#16233B]">Clinician domains</h3>
-          <p className="text-[11px] text-slate-500 mt-1">
-            The checklist is fixed at 11 QEEG domains to preserve the PDF layout and clinical mapping.
-            Edit titles, descriptions, page placement, and order only. Domain keys are locked.
-          </p>
+        <div className="p-5 sm:p-6 border-b border-slate-100 flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h3 className="text-base font-serif text-[#16233B]">Clinician domains</h3>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Add, edit, and remove domains freely — the portal, validator, and PDFs follow this list.
+              Keys must be unique and keep the domain_&lt;n&gt; format.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              update((d) => {
+                const existingKeys = new Set(d.domains.map((x) => x.key));
+                const num = d.domains.length + 1;
+                let keyNum = num;
+                while (existingKeys.has(`domain_${keyNum}`)) keyNum += 1;
+                d.domains.push({
+                  num,
+                  key: `domain_${keyNum}`,
+                  page: 2,
+                  title: `${num}. New domain`,
+                  desc: "Describe the clinical indicators for this domain.",
+                });
+              })
+            }
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[#16233B] hover:bg-[#0F172A] text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Add domain
+          </button>
         </div>
         <div className="p-5 sm:p-6 space-y-4">
           {definition.domains.map((domain, idx) => (
-            <div key={domain.key} className="rounded-xl border border-slate-200 p-4">
-              <div className="flex items-center justify-between gap-3 mb-3">
+            <div key={`${idx}-${domain.key}`} className="rounded-xl border border-slate-200 p-4">
+              <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
                 <div className="flex items-center gap-2">
                   <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-[#16233B] text-white text-xs font-semibold">
                     {domain.num}
                   </span>
-                  <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
-                    <Lock className="w-3 h-3" />
-                    {domain.key}
-                  </span>
+                  <label htmlFor={`domain-key-${idx}`} className="text-[10px] uppercase tracking-wider text-slate-400">
+                    Key
+                  </label>
+                  <input
+                    id={`domain-key-${idx}`}
+                    type="text"
+                    value={domain.key}
+                    onChange={(e) =>
+                      update((d) => {
+                        d.domains[idx].key = e.target.value.trim();
+                      })
+                    }
+                    className="w-36 rounded-lg border border-slate-300 px-2 py-1 text-[11px] font-mono text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#16233B]/20 focus:border-[#16233B]"
+                  />
                 </div>
                 <div className="flex items-center gap-2">
-                  <label htmlFor={`domain-num-${domain.key}`} className="text-[10px] uppercase tracking-wider text-slate-400">
+                  <label htmlFor={`domain-num-${idx}`} className="text-[10px] uppercase tracking-wider text-slate-400">
                     Order
                   </label>
                   <input
-                    id={`domain-num-${domain.key}`}
+                    id={`domain-num-${idx}`}
                     type="number"
                     min={1}
-                    max={11}
+                    max={definition.domains.length}
                     value={domain.num}
                     onChange={(e) =>
                       update((d) => {
@@ -597,6 +616,22 @@ export default function ChecklistFormBuilder() {
                     <option value={2}>Page 2</option>
                     <option value={3}>Page 3</option>
                   </select>
+                  <button
+                    type="button"
+                    aria-label={`Remove domain ${domain.key}`}
+                    disabled={definition.domains.length <= 1}
+                    onClick={() =>
+                      update((d) => {
+                        d.domains.splice(idx, 1);
+                        d.domains.forEach((dom, i) => {
+                          dom.num = i + 1;
+                        });
+                      })
+                    }
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 disabled:opacity-30 transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
               <div className="space-y-3">
@@ -1006,40 +1041,6 @@ export default function ChecklistFormBuilder() {
           )}
         </div>
       </div>
-
-      {/* Draft publish shortcut */}
-      {draftId && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center shrink-0">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <p className="text-xs text-slate-600">
-              Draft v{draftVersion} is saved. Publish it, then activate it to go live.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => handlePublish(draftId)}
-              disabled={busy !== null}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-[#16233B]/30 text-[#16233B] text-xs font-semibold hover:bg-[#16233B]/5 disabled:opacity-50 transition-all cursor-pointer"
-            >
-              {busy === `publish:${draftId}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-              Publish draft
-            </button>
-            <button
-              type="button"
-              onClick={() => handleActivate(draftId)}
-              disabled={busy !== null}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[#16233B] hover:bg-[#0F172A] text-white text-xs font-semibold disabled:opacity-50 transition-all cursor-pointer"
-            >
-              {busy === `activate:${draftId}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-              Activate draft
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

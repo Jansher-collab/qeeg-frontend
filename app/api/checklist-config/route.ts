@@ -12,11 +12,18 @@ export async function GET(req: NextRequest) {
   try {
     const backendRes = await fetch(`${BACKEND_URL}/api/checklist-config`, {
       headers: { Cookie: `qeeg_session_token=${sessionCookie}` },
+      cache: 'no-store',
     });
 
     if (backendRes.ok) {
       const data = await backendRes.json();
-      return NextResponse.json(data, { status: 200 });
+      // The active checklist schema can change on every admin activation, so
+      // the live form config must never be cached by the browser or any
+      // intermediary — new domains/fields must appear on the next page load.
+      return NextResponse.json(data, {
+        status: 200,
+        headers: { 'Cache-Control': 'no-store' },
+      });
     }
 
     return clearSessionCookiesOnResponse(
