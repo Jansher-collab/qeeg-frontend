@@ -204,12 +204,17 @@ function PortalShell({ children }: { children: React.ReactNode }) {
 
           {/* Practitioner User Profile Card at Bottom of Sidebar */}
           <div className="p-3 border-t border-slate-800/80 bg-[#131F33]">
-            <div className="p-3 rounded-2xl bg-[#1A2942] border border-slate-700/50 flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Log out"
+              className="w-full text-left p-3 rounded-2xl bg-[#1A2942] border border-slate-700/50 hover:border-rose-500/40 hover:bg-[#1F304D] transition-colors group cursor-pointer"
+            >
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="w-9 h-9 rounded-xl bg-slate-700/60 border border-slate-600 text-white font-semibold text-xs flex items-center justify-center shrink-0">
                   {initials}
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <span className="text-xs font-semibold text-white block truncate">
                     {profileFullName}
                   </span>
@@ -217,16 +222,12 @@ function PortalShell({ children }: { children: React.ReactNode }) {
                     {profileProfession}
                   </span>
                 </div>
+                <span className="inline-flex items-center gap-1 shrink-0 text-[10px] font-semibold text-slate-500 group-hover:text-rose-400 transition-colors">
+                  <LogOut className="w-4 h-4" />
+                  <span className="hidden sm:inline">Log out</span>
+                </span>
               </div>
-
-              <button
-                onClick={handleLogout}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors shrink-0 cursor-pointer"
-                title="Log out"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
+            </button>
           </div>
         </div>
       </aside>

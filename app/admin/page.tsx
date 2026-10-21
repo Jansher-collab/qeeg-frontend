@@ -29,6 +29,9 @@ import {
   Database,
   Clock,
   ClipboardList,
+  User,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 interface PractitionerProfile {
@@ -61,6 +64,9 @@ interface CurrentUser {
   id: string;
   email: string;
   role: string;
+  practitionerProfile?: {
+    fullName: string | null;
+  } | null;
 }
 
 interface LegalCurrentDoc {
@@ -124,7 +130,7 @@ function AdminDashboardContent() {
   const [historyError, setHistoryError] = useState<string | null>(null);
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<"pending" | "history" | "legal" | "settings" | "schema">("pending");
+  const [currentView, setCurrentView] = useState<"pending" | "history" | "legal" | "settings" | "schema" | "profile">("pending");
 
   // Legal Documents management (DPA / EULA). All interactive card state is
   // keyed by document type so the DPA and EULA cards are fully independent:
@@ -151,6 +157,22 @@ function AdminDashboardContent() {
   const [feeInput, setFeeInput] = useState<string>("65");
   const [retentionInput, setRetentionInput] = useState<string>("30");
 
+  // Admin Profile / Account Security
+  const [profileDisplayName, setProfileDisplayName] = useState<string>("");
+  const [profileEmail, setProfileEmail] = useState<string>("");
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileMessage, setProfileMessage] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [pwCurrent, setPwCurrent] = useState<string>("");
+  const [pwNew, setPwNew] = useState<string>("");
+  const [pwConfirm, setPwConfirm] = useState<string>("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMessage, setPwMessage] = useState<string | null>(null);
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [showPwCurrent, setShowPwCurrent] = useState(false);
+  const [showPwNew, setShowPwNew] = useState(false);
+  const [showPwConfirm, setShowPwConfirm] = useState(false);
+
 
   useEffect(() => {
     async function checkAuth() {
@@ -169,6 +191,10 @@ function AdminDashboardContent() {
           return;
         }
         setUser(data.user);
+        // Pre-fill the profile tab from the live account so the fields always
+        // reflect what is stored in the database.
+        setProfileDisplayName(data.user?.practitionerProfile?.fullName || "");
+        setProfileEmail(data.user?.email || "");
       } catch (err) {
         clearSessionStateClientSide();
         router.push("/login");
@@ -515,6 +541,98 @@ function AdminDashboardContent() {
     }
   };
 
+  const handleSaveProfile = async () => {
+    const displayName = profileDisplayName.trim();
+    const email = profileEmail.trim();
+    if (!displayName) {
+      setProfileError("Display name is required.");
+      setProfileMessage(null);
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setProfileError("Please enter a valid email address.");
+      setProfileMessage(null);
+      return;
+    }
+    try {
+      setProfileSaving(true);
+      setProfileError(null);
+      setProfileMessage(null);
+      const res = await fetch("/api/admin/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        cache: "no-store",
+        body: JSON.stringify({ displayName, email }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to update profile.");
+      }
+      // Reflect the saved values everywhere immediately — the sidebar reads
+      // from this same user object, so the new name/email show at once.
+      setUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              email: data.user?.email ?? prev.email,
+              practitionerProfile: {
+                fullName: data.user?.practitionerProfile?.fullName ?? displayName,
+              },
+            }
+          : prev
+      );
+      setProfileEmail(data.user?.email ?? email);
+      setProfileMessage(data?.message || "Profile updated.");
+    } catch (err) {
+      setProfileError(errorMessage(err, "Failed to update profile."));
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!pwCurrent) {
+      setPwError("Enter your current password.");
+      setPwMessage(null);
+      return;
+    }
+    if (pwNew.length < 8) {
+      setPwError("New password must be at least 8 characters.");
+      setPwMessage(null);
+      return;
+    }
+    if (pwNew !== pwConfirm) {
+      setPwError("New password and confirmation do not match.");
+      setPwMessage(null);
+      return;
+    }
+    try {
+      setPwSaving(true);
+      setPwError(null);
+      setPwMessage(null);
+      const res = await fetch("/api/admin/profile/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        cache: "no-store",
+        body: JSON.stringify({ currentPassword: pwCurrent, newPassword: pwNew }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to update password.");
+      }
+      setPwMessage(data?.message || "Password updated.");
+      setPwCurrent("");
+      setPwNew("");
+      setPwConfirm("");
+    } catch (err) {
+      setPwError(errorMessage(err, "Failed to update password."));
+    } finally {
+      setPwSaving(false);
+    }
+  };
+
   const handleDecline = async (reportId: string) => {
     if (!confirm("Are you sure you want to decline this case? The payment authorization will be voided.")) {
       return;
@@ -647,6 +765,16 @@ function AdminDashboardContent() {
 
   if (!user || user.role !== "ADMIN") return null;
 
+  const adminDisplayName =
+    user.practitionerProfile?.fullName?.trim() || user.email.split("@")[0] || "Admin";
+  const adminInitials =
+    adminDisplayName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join("") || "AD";
+
   return (
     <div className="min-h-screen bg-[#F3F6F8] flex flex-col lg:flex-row selection:bg-[#16233B] selection:text-white">
       {/* Mobile Top Header */}
@@ -738,6 +866,17 @@ function AdminDashboardContent() {
               </button>
 
               <button
+                onClick={() => { setCurrentView("profile"); setMobileSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${currentView === "profile"
+                    ? "bg-[#223554] text-white font-semibold shadow-xs"
+                    : "text-slate-300 hover:text-white hover:bg-[#1B2B46]"
+                  }`}
+              >
+                <User className={`w-4 h-4 ${currentView === "profile" ? "text-white" : "text-slate-400"}`} />
+                <span>My Profile</span>
+              </button>
+
+              <button
                 onClick={() => { setCurrentView("settings"); setMobileSidebarOpen(false); }}
                 className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${currentView === "settings"
                     ? "bg-[#223554] text-white font-semibold shadow-xs"
@@ -751,28 +890,30 @@ function AdminDashboardContent() {
           </div>
 
           <div className="p-3 border-t border-slate-800/80 bg-[#131F33]">
-            <div className="p-3 rounded-2xl bg-[#1A2942] border border-slate-700/50 flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Log out"
+              className="w-full text-left p-3 rounded-2xl bg-[#1A2942] border border-slate-700/50 hover:border-rose-500/40 hover:bg-[#1F304D] transition-colors group cursor-pointer"
+            >
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="w-9 h-9 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-400 font-semibold text-xs flex items-center justify-center shrink-0">
-                  AD
+                  {adminInitials}
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <span className="text-xs font-semibold text-white block truncate">
-                    System Admin
+                    {adminDisplayName}
                   </span>
                   <span className="text-[10px] text-slate-400 block truncate">
-                    {user.email}
+                    {user?.email}
                   </span>
                 </div>
+                <span className="inline-flex items-center gap-1 shrink-0 text-[10px] font-semibold text-slate-500 group-hover:text-rose-400 transition-colors">
+                  <LogOut className="w-4 h-4" />
+                  <span className="hidden sm:inline">Log out</span>
+                </span>
               </div>
-              <button
-                onClick={handleLogout}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors shrink-0 cursor-pointer"
-                title="Log out"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
+            </button>
           </div>
         </div>
       </aside>
@@ -807,6 +948,8 @@ function AdminDashboardContent() {
                     ? "Legal Documents"
                     : currentView === "schema"
                     ? "Dynamic Form Builder"
+                    : currentView === "profile"
+                    ? "My Profile"
                     : "Settings"}
                 </h1>
                 <p className="text-xs sm:text-sm text-slate-500 mt-1 font-normal">
@@ -818,6 +961,8 @@ function AdminDashboardContent() {
                     ? "Publish the DPA / EULA PDFs shown to new practitioners on the signup page. New documents go live immediately — no code change."
                     : currentView === "schema"
                     ? "Author the practitioner checklist schema directly in the database. Save a draft, publish it, then activate it to make it live across the portal, validator, and PDFs without a redeploy."
+                    : currentView === "profile"
+                    ? "Manage the display name, login email, and password for this administrator account. Changes take effect immediately across the platform."
                     : "Configure the default report fee charged to practitioners per completed report."}
                 </p>
               </div>
@@ -1304,6 +1449,202 @@ function AdminDashboardContent() {
               </div>
             ) : currentView === "schema" ? (
               <ChecklistFormBuilder />
+            ) : currentView === "profile" ? (
+              <div className="space-y-6">
+                {profileError && (
+                  <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+                    <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                    <span>{profileError}</span>
+                  </div>
+                )}
+                {profileMessage && (
+                  <div className="flex items-start gap-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl px-4 py-3 text-sm">
+                    <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+                    <span>{profileMessage}</span>
+                  </div>
+                )}
+
+                {/* Display Name & Email */}
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#16233B]/5 border border-[#16233B]/10 text-[#16233B] flex items-center justify-center">
+                      <User className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-serif text-[#16233B]">Profile Details</h3>
+                      <p className="text-[11px] text-slate-500">Display name &amp; login email</p>
+                    </div>
+                  </div>
+                  <div className="p-5 sm:p-6 space-y-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div>
+                        <label htmlFor="profile-display-name" className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Display name
+                        </label>
+                        <input
+                          id="profile-display-name"
+                          type="text"
+                          maxLength={120}
+                          value={profileDisplayName}
+                          onChange={(e) => { setProfileDisplayName(e.target.value); setProfileMessage(null); setProfileError(null); }}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-[#16233B] focus:ring-2 focus:ring-[#16233B]/10 outline-none text-sm text-[#16233B]"
+                        />
+                        <p className="text-[11px] text-slate-500 mt-1.5">
+                          Shown in the sidebar and on the admin account.
+                        </p>
+                      </div>
+                      <div>
+                        <label htmlFor="profile-email" className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Email address
+                        </label>
+                        <input
+                          id="profile-email"
+                          type="email"
+                          maxLength={254}
+                          value={profileEmail}
+                          onChange={(e) => { setProfileEmail(e.target.value); setProfileMessage(null); setProfileError(null); }}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-[#16233B] focus:ring-2 focus:ring-[#16233B]/10 outline-none text-sm text-[#16233B]"
+                        />
+                        <p className="text-[11px] text-slate-500 mt-1.5">
+                          Used to sign in. Must be unique across all accounts.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={handleSaveProfile}
+                        disabled={profileSaving}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#16233B] hover:bg-[#0F172A] disabled:opacity-50 text-white text-xs font-semibold shadow-xs transition-all"
+                      >
+                        {profileSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        Save Profile
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Account Security */}
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#16233B]/5 border border-[#16233B]/10 text-[#16233B] flex items-center justify-center">
+                      <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-serif text-[#16233B]">Account Security</h3>
+                      <p className="text-[11px] text-slate-500">Change password</p>
+                    </div>
+                  </div>
+                  <div className="p-5 sm:p-6 space-y-5">
+                    {pwError && (
+                      <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+                        <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                        <span>{pwError}</span>
+                      </div>
+                    )}
+                    {pwMessage && (
+                      <div className="flex items-start gap-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl px-4 py-3 text-sm">
+                        <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+                        <span>{pwMessage}</span>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                      <div>
+                        <label htmlFor="pw-current" className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Current password
+                        </label>
+                        <div className="relative">
+                          <input
+                            id="pw-current"
+                            type={showPwCurrent ? "text" : "password"}
+                            autoComplete="current-password"
+                            value={pwCurrent}
+                            onChange={(e) => { setPwCurrent(e.target.value); setPwMessage(null); setPwError(null); }}
+                            className="w-full pl-3.5 pr-11 py-2.5 rounded-xl border border-slate-300 focus:border-[#16233B] focus:ring-2 focus:ring-[#16233B]/10 outline-none text-sm text-[#16233B]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPwCurrent((v) => !v)}
+                            aria-label={showPwCurrent ? "Hide current password" : "Show current password"}
+                            aria-pressed={showPwCurrent}
+                            title={showPwCurrent ? "Hide password" : "Show password"}
+                            className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-[#16233B] transition-colors cursor-pointer"
+                          >
+                            {showPwCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <label htmlFor="pw-new" className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          New password
+                        </label>
+                        <div className="relative">
+                          <input
+                            id="pw-new"
+                            type={showPwNew ? "text" : "password"}
+                            autoComplete="new-password"
+                            value={pwNew}
+                            onChange={(e) => { setPwNew(e.target.value); setPwMessage(null); setPwError(null); }}
+                            className="w-full pl-3.5 pr-11 py-2.5 rounded-xl border border-slate-300 focus:border-[#16233B] focus:ring-2 focus:ring-[#16233B]/10 outline-none text-sm text-[#16233B]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPwNew((v) => !v)}
+                            aria-label={showPwNew ? "Hide new password" : "Show new password"}
+                            aria-pressed={showPwNew}
+                            title={showPwNew ? "Hide password" : "Show password"}
+                            className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-[#16233B] transition-colors cursor-pointer"
+                          >
+                            {showPwNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <label htmlFor="pw-confirm" className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Confirm new password
+                        </label>
+                        <div className="relative">
+                          <input
+                            id="pw-confirm"
+                            type={showPwConfirm ? "text" : "password"}
+                            autoComplete="new-password"
+                            value={pwConfirm}
+                            onChange={(e) => { setPwConfirm(e.target.value); setPwMessage(null); setPwError(null); }}
+                            className="w-full pl-3.5 pr-11 py-2.5 rounded-xl border border-slate-300 focus:border-[#16233B] focus:ring-2 focus:ring-[#16233B]/10 outline-none text-sm text-[#16233B]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPwConfirm((v) => !v)}
+                            aria-label={showPwConfirm ? "Hide confirmation password" : "Show confirmation password"}
+                            aria-pressed={showPwConfirm}
+                            title={showPwConfirm ? "Hide password" : "Show password"}
+                            className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-[#16233B] transition-colors cursor-pointer"
+                          >
+                            {showPwConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      Minimum 8 characters. Saving signs out every other active session and keeps
+                      this one signed in.
+                    </p>
+
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={handleChangePassword}
+                        disabled={pwSaving}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#16233B] hover:bg-[#0F172A] disabled:opacity-50 text-white text-xs font-semibold shadow-xs transition-all"
+                      >
+                        {pwSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                        Update Password
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             ) : (
               <div className="space-y-6">
                 {settingsError && (
