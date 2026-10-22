@@ -52,7 +52,13 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const sessionCookie = req.cookies.get('qeeg_session_token')?.value;
-  const body = await req.json();
+
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
+  }
 
   try {
     const backendRes = await fetch(`${BACKEND_URL}/api/admin/legal/documents`, {
@@ -64,12 +70,47 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify(body),
     });
 
+    const contentType = backendRes.headers.get('content-type') || '';
+    const text = await backendRes.text();
+
     if (backendRes.ok) {
-      const data = await backendRes.json();
-      return NextResponse.json(data);
+      if (contentType.includes('application/json')) {
+        try {
+          const data = text ? JSON.parse(text) : null;
+          if (data !== null) return NextResponse.json(data);
+        } catch {
+          // Fall through
+        }
+      }
+      return NextResponse.json(
+        { error: 'Legal document update returned an unexpected response.' },
+        { status: 502 }
+      );
     }
 
-    const errorData = await backendRes.json().catch(() => null);
+    let errorData: { error?: string } | null = null;
+    if (contentType.includes('application/json') && text) {
+      try {
+        errorData = JSON.parse(text);
+      } catch {
+        errorData = null;
+      }
+    } else if (text && text.trim().startsWith('<')) {
+      // Never propagate raw HTML to the client — return a safe message.
+      return NextResponse.json(
+        {
+          error:
+            'The server returned an unexpected HTML error while publishing the legal document. Check the PDF size/format and try again.',
+        },
+        { status: backendRes.status >= 500 ? 502 : backendRes.status }
+      );
+    } else if (text) {
+      try {
+        errorData = JSON.parse(text);
+      } catch {
+        errorData = null;
+      }
+    }
 
     if (backendRes.status === 401) {
       return clearSessionCookiesOnResponse(

@@ -143,6 +143,14 @@ function AdminLoginForm() {
               placeholder="••••••••"
               className="px-4 py-2.5"
             />
+            <div className="mt-2 text-right">
+              <Link
+                href="/admin/forgot-password"
+                className="text-xs font-medium text-slate-500 hover:text-[#16233B] transition-colors"
+              >
+                Forgot password?
+              </Link>
+            </div>
           </div>
 
           <div className="pt-2">
