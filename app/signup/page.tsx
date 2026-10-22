@@ -561,13 +561,14 @@ export default function SignupPage() {
                 />
                 <span className="text-xs text-slate-600 leading-relaxed font-normal">
                   I have read and agree to the{" "}
-                  <Link
-                    href="/legal/data-processing-agreement.html"
+                  <a
+                    href={`/api/legal/dpa/pdf?v=${encodeURIComponent(legalVersions.DPA || FALLBACK_LEGAL_VERSION)}&t=${Date.now()}`}
                     target="_blank"
+                    rel="noopener noreferrer"
                     className="font-semibold text-[#16233B] hover:underline"
                   >
                     Data Processing Agreement
-                  </Link>{" "}
+                  </a>{" "}
                   (Version {legalVersions.DPA || FALLBACK_LEGAL_VERSION}).
                   <FieldErrorText message={fieldErrors.dpa} />
                 </span>
@@ -586,13 +587,14 @@ export default function SignupPage() {
                 />
                 <span className="text-xs text-slate-600 leading-relaxed font-normal">
                   I have read and agree to the{" "}
-                  <Link
-                    href="/legal/eula.html"
+                  <a
+                    href={`/api/legal/eula/pdf?v=${encodeURIComponent(legalVersions.EULA || FALLBACK_LEGAL_VERSION)}&t=${Date.now()}`}
                     target="_blank"
+                    rel="noopener noreferrer"
                     className="font-semibold text-[#16233B] hover:underline"
                   >
                     End User Licence Agreement
-                  </Link>{" "}
+                  </a>{" "}
                   (Version {legalVersions.EULA || FALLBACK_LEGAL_VERSION}).
                   <FieldErrorText message={fieldErrors.eula} />
                 </span>

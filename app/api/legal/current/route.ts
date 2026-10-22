@@ -7,16 +7,35 @@ export const dynamic = 'force-dynamic';
 // Public (pre-authentication) endpoint used by the signup page and portal to
 // fetch the currently-published DPA/EULA versions, so the displayed version and
 // the version recorded on acceptance always match the admin panel's upload.
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const backendRes = await fetch(`${BACKEND_URL}/api/legal/current`, { cache: 'no-store' });
+    const backendRes = await fetch(`${BACKEND_URL}/api/legal/current`, {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-store',
+      },
+    });
     const data = await backendRes.json();
     if (backendRes.ok) {
-      return NextResponse.json(data, { status: 200 });
+      return NextResponse.json(data, {
+        status: 200,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      });
     }
     return NextResponse.json(
-      { error: data?.error || 'Failed to load current legal documents.' },
-      { status: backendRes.status }
+      { error: data?.error || 'Failed to load legal documents.' },
+      {
+        status: backendRes.status,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      }
     );
   } catch {
     return NextResponse.json(

@@ -41,7 +41,9 @@ export async function GET(
       headers: {
         'Content-Type': backendRes.headers.get('content-type') || 'application/pdf',
         'Content-Disposition': backendRes.headers.get('content-disposition') || 'inline',
-        'Cache-Control': 'public, max-age=300',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
       },
     });
   } catch {
