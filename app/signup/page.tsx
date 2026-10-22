@@ -568,8 +568,7 @@ export default function SignupPage() {
                     className="font-semibold text-[#16233B] hover:underline"
                   >
                     Data Processing Agreement
-                  </a>{" "}
-                  (Version {legalVersions.DPA || FALLBACK_LEGAL_VERSION}).
+                  </a>
                   <FieldErrorText message={fieldErrors.dpa} />
                 </span>
               </label>
@@ -594,8 +593,7 @@ export default function SignupPage() {
                     className="font-semibold text-[#16233B] hover:underline"
                   >
                     End User Licence Agreement
-                  </a>{" "}
-                  (Version {legalVersions.EULA || FALLBACK_LEGAL_VERSION}).
+                  </a>
                   <FieldErrorText message={fieldErrors.eula} />
                 </span>
               </label>
