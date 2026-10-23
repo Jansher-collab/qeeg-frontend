@@ -249,8 +249,6 @@ function PortalShell({ children }: { children: React.ReactNode }) {
         {/* Minimal Footer */}
         <footer className="bg-white border-t border-slate-200 py-4 text-xs text-slate-500">
           <div className="max-w-[1440px] mx-auto w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-16 flex flex-col sm:flex-row items-center justify-between gap-2">
-            <span>QEEG.com.au Referring Practitioner Portal · Sydney VPS Hosted</span>
-            <span>Australian Infrastructure · Purged Upon Download</span>
           </div>
         </footer>
       </div>
